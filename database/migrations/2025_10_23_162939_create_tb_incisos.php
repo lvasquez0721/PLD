@@ -55,7 +55,6 @@ return new class extends Migration
             $table->unsignedBigInteger('IDMoneda');
             $table->unsignedBigInteger('IDOficina');
             $table->unsignedBigInteger('IDAgente');
-            $table->string('MontoPagado');
 
 
             $table->timestamps();
