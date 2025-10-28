@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users, Shield, BarChart3, Settings, Bell } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Users, Shield, BarChart3, Settings, Bell, MailWarning, ListX, FileText, Gavel, SearchCheck } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { ref, onMounted, onUnmounted } from 'vue';
 
@@ -61,18 +61,60 @@ const mainNavItems: NavItem[] = [
         description: 'Gestión de usuarios'
     },
     {
-        title: 'Reportes',
-        href: '/reportes',
-        icon: BarChart3,
-        badge: 'Nuevo',
-        description: 'Análisis y estadísticas'
+        title: 'Perfil Transaccional',
+        href: '/perfil-transaccional',
+        icon: BookOpen,
+        badge: null,
+        description: 'Gestión de perfiles transaccionales'
     },
     {
-        title: 'Seguridad',
-        href: '/seguridad',
-        icon: Shield,
+        title: 'Módulo de Alertas',
+        href: '/alertas',
+        icon: Bell,
         badge: null,
-        description: 'Configuración de seguridad'
+        description: 'Gestión de alertas'
+    },
+    {
+        title: 'Buzón de Preocupantes',
+        href: '/buzon-preocupantes',
+        icon: MailWarning,
+        badge: null,
+        description: 'Buzón de personas preocupantes'
+    },
+    {
+        title: 'Lista Negra',
+        href: '/lista-negra',
+        icon: ListX,
+        badge: null,
+        description: 'Gestión de listas negras'
+    },
+    {
+        title: 'Reporte de Operaciones',
+        href: '/reporte-operaciones',
+        icon: FileText,
+        badge: null,
+        description: 'Reportes de operaciones'
+    },
+    {
+        title: 'Parametría PLD',
+        href: '/parametria-pld',
+        icon: Settings,
+        badge: null,
+        description: 'Configuración de parametría PLD'
+    },
+    {
+        title: 'Listas UIF',
+        href: '/listas-uif',
+        icon: Gavel,
+        badge: null,
+        description: 'Gestión de listas UIF'
+    },
+    {
+        title: 'Consulta Inusualidad',
+        href: '/consulta-inusualidad',
+        icon: SearchCheck,
+        badge: null,
+        description: 'Consulta de inusualidades'
     },
 ];
 

@@ -32,7 +32,38 @@ Route::delete('/usuarios/{id}', [UsuariosController::class, 'destroy'])
     ->middleware(['auth', 'verified'])
     ->name('usuarios.destroy');
 
+// nuevas rutas
+Route::get('/perfil-transaccional', [App\Http\Controllers\PerfilTransaccionalController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('perfil-transaccional.index');
 
+Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('alertas.index');
+
+Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('buzon-preocupantes.index');
+
+Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('lista-negra.index');
+
+Route::get('/reporte-operaciones', [App\Http\Controllers\ReporteOperacionesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('reporte-operaciones.index');
+
+Route::get('/parametria-pld', [App\Http\Controllers\ParametriaPLDController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('parametria-pld.index');
+
+Route::get('/listas-uif', [App\Http\Controllers\ListasUIFController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('listas-uif.index');
+
+Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('consulta-inusualidad.index');
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

@@ -3,10 +3,16 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PerfilTransaccionalController extends Controller
 {
     //
+    public function index()
+    {
+        return Inertia::render('PerfilTransaccional/Index');
+    }
+
     /**
      * Inserta de forma masiva uno o más Perfiles Transaccionales.
      * POST /api/perfiltransaccional/masivo

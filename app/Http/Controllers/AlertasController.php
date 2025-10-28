@@ -5,9 +5,15 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Alertas;
 use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
 
 class AlertasController extends Controller
 {
+    public function index()
+    {
+        return Inertia::render('Alertas/Index');
+    }
+
     /**
      * Inserta de forma masiva uno o más registros de Alertas.
      */
