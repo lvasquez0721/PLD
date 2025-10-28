@@ -119,19 +119,19 @@ const mainNavItems: NavItem[] = [
 ];
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Configuración',
-        href: '/configuracion',
-        icon: Settings,
-        description: 'Ajustes del sistema'
-    },
-    {
-        title: 'Notificaciones',
-        href: '/notificaciones',
-        icon: Bell,
-        badge: '3',
-        description: 'Centro de notificaciones'
-    },
+    // {
+    //     title: 'Configuración',
+    //     href: '/configuracion',
+    //     icon: Settings,
+    //     description: 'Ajustes del sistema'
+    // },
+    // {
+    //     title: 'Notificaciones',
+    //     href: '/notificaciones',
+    //     icon: Bell,
+    //     badge: '3',
+    //     description: 'Centro de notificaciones'
+    // },
 ];
 </script>
 
