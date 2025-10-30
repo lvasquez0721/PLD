@@ -69,7 +69,7 @@ onMounted(() => {
                     :class="{ 'opacity-100 translate-y-0': animateSections }">
                     <Label for="email" class="font-semibold text-black">Correo electrónico</Label>
                     <input id="email" type="email" name="email" autofocus tabindex="1" autocomplete="email"
-                        placeholder="ejemplo@correo.com" value="admin@admin.com"
+                        placeholder="ejemplo@correo.com"
                         class="border border-gray-300 rounded-md px-3 py-2 transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-black bg-white w-full"
                         inputmode="email" spellcheck="false" aria-label="Correo electrónico" />
                     <InputError :message="errors.email" />
@@ -86,7 +86,7 @@ onMounted(() => {
                     </div>
                     <div class="relative">
                         <input :id="'password'" :type="showPassword ? 'text' : 'password'" name="password" tabindex="2"
-                            autocomplete="current-password" placeholder="••••••••" value="contraseña123"
+                            autocomplete="current-password" placeholder="••••••••"
                             class="border border-gray-300 rounded-md px-3 py-2 pr-10 transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-black bg-white w-full"
                             aria-label="Contraseña" />
                         <button type="button" aria-label="Mostrar/Ocultar contraseña"
