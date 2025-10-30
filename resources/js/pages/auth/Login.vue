@@ -38,7 +38,6 @@ onMounted(() => {
     <AuthBase>
 
         <Head title="Login PLD - Tláloc Seguros" />
-
         <Form v-bind="store.form()" :reset-on-success="['password']" v-slot="{ errors, processing }" class="flex flex-col gap-6 bg-white/70 rounded-xl shadow-xl px-6 py-8 border border-gray-100 max-w-md md:max-w-2xl lg:max-w-3xl mx-auto w-full transition-all
                 opacity-0 translate-y-6
                 duration-700
@@ -58,7 +57,7 @@ onMounted(() => {
                     </span>
                 </div>
 
-                <div class="text-base text-center text-muted-foreground font-medium tracking-wide mb-2 relative">
+                <div class="text-gray-700 text-base text-center font-medium tracking-wide mb-2 relative">
                     Sistema de Prevención de Lavado de Dinero
                     <!-- <span
                         class="absolute right-2 bottom-0 text-[10px] text-gray-300 select-none pointer-events-none opacity-70 hidden md:inline-block"
@@ -80,29 +79,31 @@ onMounted(() => {
                 <!-- Email Field -->
                 <div class="flex flex-col gap-2 opacity-0 translate-y-3 transition-all duration-700 delay-400"
                     :class="{ 'opacity-100 translate-y-0': animateSections }">
-                    <Label for="email" class="font-semibold">Correo electrónico</Label>
-                    <Input id="email" type="email" name="email" required autofocus :tabindex="1" autocomplete="email"
-                        placeholder="ejemplo@correo.com"
-                        class="transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-slate-50"
+                    <Label for="email" class="font-semibold text-black">Correo electrónico</Label>
+                    <Input id="email" type="email" name="email" autofocus :tabindex="1" autocomplete="email"
+                        placeholder="ejemplo@correo.com" value="admin@admin.com"
+                        class="transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-black"
+                        style="background-color: white !important;"
                         inputmode="email" spellcheck="false" aria-label="Correo electrónico" />
                     <InputError :message="errors.email" />
                 </div>
                 <!-- Password Field -->
                 <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between">
-                        <Label for="password" class="font-semibold">Contraseña</Label>
+                        <Label for="password" class="font-semibold text-black">Contraseña</Label>
                         <TextLink v-if="canResetPassword" :href="request()"
                             class="text-xs underline decoration-blue-600" :tabindex="5">
                             ¿Olvidaste la contraseña?
                         </TextLink>
                     </div>
                     <div class="relative">
-                        <Input :id="'password'" :type="showPassword ? 'text' : 'password'" name="password" required
-                            :tabindex="2" autocomplete="current-password" placeholder="••••••••"
-                            class="transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-slate-50 pr-10"
+                        <Input :id="'password'" :type="showPassword ? 'text' : 'password'" name="password"
+                            :tabindex="2" autocomplete="current-password" placeholder="••••••••"  value="contraseña123"
+                            class="transition focus:ring-2 focus:ring-blue-600 focus:border-blue-600 pr-10 text-black"
+                            style="background-color: white !important;"
                             aria-label="Contraseña" />
                         <button type="button" aria-label="Mostrar/Ocultar contraseña"
-                            class="absolute right-2 top-2.5 text-gray-500 hover:text-blue-600 transition" tabindex="-1"
+                            class="absolute right-2 top-2.5 text-black hover:text-blue-600 transition" tabindex="-1"
                             @click="toggleShowPassword">
                             <component :is="showPassword ? EyeOff : Eye" class="w-5 h-5" />
                         </button>
@@ -113,7 +114,7 @@ onMounted(() => {
                 <div class="flex items-center gap-2 mt-2">
                     <Checkbox id="remember" name="remember" :tabindex="3"
                         class="border-blue-600 focus:ring-blue-600 accent-blue-600" />
-                    <Label for="remember" class="cursor-pointer font-normal">Recordarme</Label>
+                    <Label for="remember" class="cursor-pointer font-normal text-black">Recordarme</Label>
                 </div>
                 <!-- Submit Button -->
                 <Button type="submit"
@@ -135,7 +136,7 @@ onMounted(() => {
 
 
             <!-- Pie de página extra branding seguridad -->
-            <div class="mt-6 text-xs text-center text-gray-400">
+            <div class="mt-6 text-xs text-center text-gray-600">
                 © {{ (new Date()).getFullYear() }} Tláloc Seguros. PLD Agropecuario.<br>
                 <span class="inline-flex items-center gap-1">
                 </span>
