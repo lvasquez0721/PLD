@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
 import { Label } from '@/components/ui/label';
 import { Gavel } from 'lucide-vue-next';
+import axios from 'axios';
 import DatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 
@@ -15,16 +16,33 @@ const fechaFinal = ref<Date | null>(null);
 const formatFecha = (fecha: Date | null) => {
   if (!fecha) return '';
   const dia = String(fecha.getDate()).padStart(2, '0');
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0'); // Los meses van de 0 a 11
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
   const anio = fecha.getFullYear();
   return `${dia}-${mes}-${anio}`;
 };
 
+// const buscar = () => {
+//   console.log('Tipo de operación:', tipoOperacion.value);
+//   console.log('Estatus:', estatusOperacion.value);
+//   console.log('Fecha inicial:', formatFecha(fechaInicial.value));
+//   console.log('Fecha final:', formatFecha(fechaFinal.value));     
+// };
+
 const buscar = () => {
-  console.log('Tipo de operación:', tipoOperacion.value);
-  console.log('Estatus:', estatusOperacion.value);
-  console.log('Fecha inicial:', formatFecha(fechaInicial.value));
-  console.log('Fecha final:', formatFecha(fechaFinal.value));     
+  const params = {
+    tipo: tipoOperacion.value,
+    estatus: estatusOperacion.value,
+    fecha_ini: formatFecha(fechaInicial.value),
+    fecha_fin: formatFecha(fechaFinal.value)
+  };
+
+  axios.get('/reporte-operaciones/obtener', { params })
+    .then(res => {
+      console.log('Datos recibidos:', res.data);
+    })
+    .catch(err => {
+      console.error('Error al obtener el reporte:', err);
+    });
 };
 
 </script>
