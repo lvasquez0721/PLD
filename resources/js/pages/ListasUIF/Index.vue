@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import axios from 'axios';
 import Titulo from '@/components/ui/Titulo.vue';
 import { FileText } from 'lucide-vue-next';
 import { Label } from '@/components/ui/label';
@@ -30,15 +31,61 @@ const formatFecha = (fecha: Date | null) => {
 };
 
 // Función submit
+// const guardar = () => {
+//   console.log('Nombre:', nombre.value);
+//   console.log('RFC:', rfc.value);
+//   console.log('Acuerdo:', acuerdo.value);
+//   console.log('No. Oficio:', noOficio.value);
+//   console.log('Año Lista:', anioLista.value);
+//   console.log('Fecha nacimiento:', formatFecha(fechaNacimiento.value));
+//   console.log('Fecha publicación acuerdo:', formatFecha(fechaAcuerdo.value));
+// };
+
 const guardar = () => {
-  console.log('Nombre:', nombre.value);
-  console.log('RFC:', rfc.value);
-  console.log('Acuerdo:', acuerdo.value);
-  console.log('No. Oficio:', noOficio.value);
-  console.log('Año Lista:', anioLista.value);
-  console.log('Fecha nacimiento:', formatFecha(fechaNacimiento.value));
-  console.log('Fecha publicación acuerdo:', formatFecha(fechaAcuerdo.value));
+  const datos = {
+    nombre: nombre.value,
+    RFCCURP: rfc.value,
+    fechaNacimiento: formatFecha(fechaNacimiento.value),
+    fechaPublicacionAcuerdo: formatFecha(fechaAcuerdo.value),
+    acuerdo: acuerdo.value,
+    noOficioUIF: noOficio.value,
+  };
+
+  axios.post('/listas-uif/altaListas', datos)
+    .then(response => {
+      console.log('Datos guardados exitosamente:', response.data);
+    })
+    .catch(error => {
+      console.error('Error al guardar los datos:', error);
+    });
+    
+  axios.post('/listas-uif/bajaListas', datos)
+    .then(response => {
+      console.log('Datos guardados exitosamente:', response.data);
+    })
+    .catch(error => {
+      console.error('Error al guardar los datos:', error);
+    });
+    
+  axios.post('/listas-uif/actualizaListas', datos)
+    .then(response => {
+      console.log('Datos guardados exitosamente:', response.data);
+    })
+    .catch(error => {
+      console.error('Error al guardar los datos:', error);
+    });
+
+  axios.get('/listas-uif/consultaListas', {params: datos})
+    .then(response => {
+      console.log('Datos consultados exitosamente:', response.data);
+    })
+    .catch(error => {
+      console.error('Error al consultar los datos:', error);
+    });
+
+
 };
+
 </script>
 
 <template>
@@ -62,7 +109,7 @@ const guardar = () => {
           ? 'border-[#8de9fb] text-[#00000]'
           : 'border-transparent text-black hover:text-[#070d59]'
       ]">
-        Consulta
+        Consulta de listas
       </button> 
     </div>
 
