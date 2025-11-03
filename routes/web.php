@@ -4,6 +4,7 @@ use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+
 // Route::get('/', function () {
 //     return Inertia::render('Welcome');
 // })->name('home');
@@ -53,9 +54,14 @@ Route::get('/reporte-operaciones', [App\Http\Controllers\ReporteOperacionesContr
     ->middleware(['auth', 'verified'])
     ->name('reporte-operaciones.index');
 
+// Rutas para Parametria PLD
 Route::get('/parametria-pld', [App\Http\Controllers\ParametriaPLDController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('parametria-pld.index');
+
+Route::post('/parametria-pld/actualizar', [App\Http\Controllers\ParametriaPLDController::class, 'actualizar'])
+    ->middleware(['auth', 'verified'])
+    ->name('parametria-pld.actualizar');
 
 Route::get('/listas-uif', [App\Http\Controllers\ListasUIFController::class, 'index'])
     ->middleware(['auth', 'verified'])
