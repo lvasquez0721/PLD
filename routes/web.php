@@ -3,8 +3,6 @@
 use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
-
 // Route::get('/', function () {
 //     return Inertia::render('Welcome');
 // })->name('home');
@@ -53,6 +51,8 @@ Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'i
 Route::get('/reporte-operaciones', [App\Http\Controllers\ReporteOperacionesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('reporte-operaciones.index');
+
+Route::get('/reporte-operaciones/obtener', [App\Http\Controllers\ReporteOperacionesController::class, 'obtenerReporte']);
 
 // Rutas para Parametria PLD
 Route::get('/parametria-pld', [App\Http\Controllers\ParametriaPLDController::class, 'index'])
