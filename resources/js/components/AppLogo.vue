@@ -11,7 +11,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
                 style="font-variant-ligatures: discretionary-ligatures; letter-spacing: -0.01em;">
                 <span style="font-feature-settings: 'ss01', 'kern', 'liga', 'dlig'">Prevención</span>
                 <span aria-hidden="true" class="inline-block align-middle select-none"
-                    style="font-size: 0.6em; vertical-align: super; opacity: 0.75; margin-left: 0.18em;">•</span>
+                    style="font-size: 0.6em; vertical-align: super; opacity: 0.75; margin-left: 0.18em;"></span>
                 <span style="letter-spacing: 0.005em; font-feature-settings: 'cv01', 'onum';">de Lavado de Dinero</span>
                 <span aria-hidden="true" class="sr-only"> </span>
             </span>
