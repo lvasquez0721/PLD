@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CatParametriaPLD;
 use App\Models\ParametriaPLD;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +13,7 @@ class ParametriaPLDController extends Controller
     public function index()
     {
         // Carga todos los parámetros activos
-        $parametros = ParametriaPLD::where('Activo', 1)
+        $parametros = CatParametriaPLD::where('Activo', 1)
             ->pluck('Valor', 'Parametro')
             ->toArray();
 
@@ -57,12 +58,12 @@ class ParametriaPLDController extends Controller
             // Verifica si la clave existe en el mapeo
             if (isset($mapeoParametros[$clave])) {
                 $nombreParametro = $mapeoParametros[$clave];
-                
+
                 // Actualiza el parámetro específico
-                $updated = ParametriaPLD::where('Parametro', $nombreParametro)
+                $updated = CatParametriaPLD::where('Parametro', $nombreParametro)
                     ->where('Activo', 1)
                     ->update(['Valor' => $valor]);
-                
+
                 if ($updated) {
                     $actualizados++;
                     Log::info("Parámetro actualizado: {$nombreParametro} = {$valor}");

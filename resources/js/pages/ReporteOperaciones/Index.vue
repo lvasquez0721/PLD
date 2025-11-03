@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { Label } from '@/components/ui/label';
+import { FileText } from 'lucide-vue-next';
+import axios from 'axios';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
-import { Label } from '@/components/ui/label';
-import axios from 'axios';
 import DatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
-import { FileText } from 'lucide-vue-next';
 
 const tipoOperacion = ref('');
 const estatusOperacion = ref('');

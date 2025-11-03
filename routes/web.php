@@ -67,6 +67,22 @@ Route::get('/listas-uif', [App\Http\Controllers\ListasUIFController::class, 'ind
     ->middleware(['auth', 'verified'])
     ->name('listas-uif.index');
 
+Route::post('/listas-uif/altaListas', [App\Http\Controllers\ListasUIFController::class, 'altaListas'])
+    ->middleware(['auth', 'verified'])
+    ->name('listas-uif.altaListas');
+
+Route::post('/listas-uif/bajaListas', [App\Http\Controllers\ListasUIFController::class, 'bajaListas'])
+    ->middleware(['auth', 'verified'])
+    ->name('listas-uif.bajaListas');
+
+Route::post('/listas-uif/actualizaListas', [App\Http\Controllers\ListasUIFController::class, 'actualizaListas'])
+    ->middleware(['auth', 'verified'])
+    ->name('listas-uif.actualizaListas');
+
+Route::get('/listas-uif/consultaListas', [App\Http\Controllers\ListasUIFController::class, 'getConsultaListas'])
+    ->middleware(['auth', 'verified'])
+    ->name('listas-uif.consultaListas');
+
 Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
