@@ -3,10 +3,10 @@ import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
 import { Label } from '@/components/ui/label';
-import { Gavel } from 'lucide-vue-next';
 import axios from 'axios';
 import DatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
+import { FileText } from 'lucide-vue-next';
 
 const tipoOperacion = ref('');
 const estatusOperacion = ref('');
@@ -20,13 +20,6 @@ const formatFecha = (fecha: Date | null) => {
   const anio = fecha.getFullYear();
   return `${dia}-${mes}-${anio}`;
 };
-
-// const buscar = () => {
-//   console.log('Tipo de operación:', tipoOperacion.value);
-//   console.log('Estatus:', estatusOperacion.value);
-//   console.log('Fecha inicial:', formatFecha(fechaInicial.value));
-//   console.log('Fecha final:', formatFecha(fechaFinal.value));     
-// };
 
 const buscar = () => {
   const params = {
@@ -48,9 +41,9 @@ const buscar = () => {
 </script>
 
 <template>
-  <AppLayout title="Listas UIF">
+  <AppLayout title="Reporte de operaciones">
     <div class="flex items-center justify-between">
-      <Titulo :icon="Gavel" title="Listas UIF" size="md" weight="bold" class="mb-2" />
+      <Titulo :icon="FileText" title="Reporte de operaciones" size="md" weight="bold" class="mb-2" />
     </div>
 
     <h1 class="mb-4 text-lg font-semibold">Reporte de Operación Relevante, Inusual y Preocupante</h1>
