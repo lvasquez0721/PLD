@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatParametriaPLD;
-use App\Models\ParametriaPLD;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
