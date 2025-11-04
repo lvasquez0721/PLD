@@ -87,5 +87,15 @@ Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadCon
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
 
+
+//Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
+use App\Http\Controllers\ListaNegraController;
+Route::get('/lista-negra', action: [ListaNegraController::class, 'index']);
+Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])
+     ->name('lista-negra.insert');
+
+
+
+
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

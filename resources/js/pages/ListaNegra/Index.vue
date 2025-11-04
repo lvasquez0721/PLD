@@ -1,21 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'; 
+import { ref, computed, watch, onMounted } from 'vue'; 
 import AppLayout from '@/layouts/AppLayout.vue'; // Importa la estructura general de la página
-import Datatable from '@/components/ui/tables/Datatable.vue'; // Importa el componente de tabla de datos
-import FadeIn from '@/components/ui/animation/fadeIn.vue'; // Importa el componente de animación FadeIn
-import Toast from '@/components/ui/alert/Toast.vue'; // Importa el componente de notificaciones Toast
+//import Datatable from '@/components/ui/tables/Datatable.vue'; // Importa el componente de tabla de datos
+//import FadeIn from '@/components/ui/animation/fadeIn.vue'; // Importa el componente de animación FadeIn
+//import Toast from '@/components/ui/alert/Toast.vue'; // Importa el componente de notificaciones Toast
 import { Head, usePage, router } from '@inertiajs/vue3'; // manejar la navegación y acceder a los datos enviados desde el backend de forma reactiva.
 import Titulo from '@/components/ui/Titulo.vue'; // Importa el componente de título
 import { ListX } from 'lucide-vue-next'; 
 
 // Define la ruta de navegación que aparece en la parte superior de la página.
 const breadcrumbs = [
-  {
-    title: 'Lista Negra',
-    href: '',
-  },
+  { title: 'Lista Negra', href: '' },
 ];
 
+//! Inicio Modal Configuración
 // Mostrar modal
 const showModal = ref(false);
 
@@ -69,12 +67,63 @@ function closeModal() {
     archivoListaNegra: null,
   };
 }
+// Fin Modal Configuración
 
-// Enviar formulario
+
+//Enviar formulario
 function submitForm() {
-  console.log('Formulario enviado:', form.value);
-  closeModal();
+  // Creamos FormData
+  const formData = new FormData();
+
+  // Campos del formulario
+  formData.append('nombre', form.value.nombreListaNegra);
+  formData.append('rfc', form.value.RFCListaNegra);
+  formData.append('curp', form.value.CURPListaNegra);
+  formData.append('fecha_nacimiento', form.value.Fecha_NacimientoListaNegra);
+
+  // Manejo del país (si es 'Otro' usamos el input de texto)
+  const pais = form.value.paisOtro === 'Otro' ? form.value.paisListaNegra : form.value.paisOtro;
+  formData.append('pais', pais);
+
+  // Archivo (solo si hay)
+  if (form.value.archivoListaNegra) {
+    formData.append('archivo', form.value.archivoListaNegra);
+  }
+
+  // Enviar a Laravel usando Inertia
+  router.post('/lista-negra/insert', formData, {
+    onStart: () => console.log('Enviando datos...'),
+    onSuccess: () => {
+      console.log('Registro guardado correctamente');
+      closeModal(); // Cerramos modal
+      router.reload(); // Recargamos la página para actualizar la lista
+    },
+    onError: (errors) => {
+      console.error('Errores de validación:', errors);
+    }
+  });
 }
+
+
+// Definimos el tipo de datos que viene desde Laravel
+interface ListaNegra {
+  IDRegistroListaCNSF: number
+  Nombre: string
+  RFC: string
+  CURP: string
+  Fecha_Nacimiento: string
+  Pais: string
+  Oficio: string
+}
+
+// Acceso a los datos enviados desde Laravel
+const page = usePage()
+const listas = computed(() => (page.props.listas as ListaNegra[]) ?? [])
+
+// Ver los datos en consola al montar el componente
+onMounted(() => {
+  console.log('Datos recibidos desde Laravel:', listas.value)
+})
 
 
 </script>
@@ -109,9 +158,7 @@ function submitForm() {
         <!-- Select cantidad de elementos -->
         <div class="flex flex-col w-64">
           <label for="select-page-size" class="text-gray-700 dark:text-gray-300 font-medium mb-1"> Número de elementos </label>
-          <select id="select-page-size"
-            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-blue-400 dark:focus:border-blue-500 transition-all"
-          >
+          <select  id="select-page-size" class="w-full border rounded-lg px-3 py-2">
             <option value="10" selected>10</option>
             <option value="25">25</option>
             <option value="50">50</option>
@@ -123,9 +170,7 @@ function submitForm() {
         <!-- Buscar persona -->
         <div class="flex flex-col w-64">
           <label for="buscar-nombres" class="text-gray-700 dark:text-gray-300 font-medium mb-1"> Buscar una persona </label>
-          <input id="buscar-nombres" type="text" placeholder="Nombre o RFC"
-            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-blue-400 dark:focus:border-blue-500 transition-all"
-          />
+          <input id="buscar-nombres" type="text" placeholder="Nombre o RFC" class="w-full border rounded-lg px-4 py-2" />
         </div>
       </div>
 
@@ -154,9 +199,24 @@ function submitForm() {
                   <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left" style="display: flex; justify-content: center; align-items: center;">.:.</th>
                 </tr>
               </thead>
-              <tbody class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-
+             
+              <tbody v-if="listas && listas.length" class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <tr v-for="item in listas" :key="item.IDRegistroListaCNSF">
+                  <td>{{ item.IDRegistroListaCNSF }}</td>
+                  <td>{{ item.Nombre }}</td>
+                  <td>{{ item.RFC }}</td>
+                  <td></td>
+                </tr>
               </tbody>
+
+              <tbody v-else class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <tr>
+                  <td colspan="3" class="text-center py-4 text-gray-500">
+                    No hay datos disponibles
+                  </td>
+                </tr>
+              </tbody>
+
             </table>
           </div>
         </div>
@@ -212,14 +272,14 @@ function submitForm() {
               <div class="form-group">
                 <label class="form-label">Pais</label>
                 <select  v-model="form.paisOtro" id="paisOtro" class="form-input">
-                  <option value="" disabled selected>Seleccione una opci&oacute;n</option>
+                  <option value="" disabled selected>Seleccione una opción</option>
                   <option value="MEXICO">MEXICO</option>
                   <option value="Otro">Otro</option>
                 </select>
 
                 <!-- Campo de texto que permite escribir si se selecciona "Otro" -->
-                <input v-model="form.paisListaNegra" type="text" id="paisListaNegra" placeholder="Especifique el pa&iacute;s" style="display: none;" class="form-input">
-                <!-- <input v-if="form.value.paisOtro === 'Otro'" v-model="form.value.paisListaNegra" type="text" placeholder="Especifique el país" class="form-input mt-2"> -->
+                <!-- <input v-model="form.paisListaNegra" type="text" id="paisListaNegra" placeholder="Especifique el pa&iacute;s" style="display: none;" class="form-input"> -->
+                <input v-if="form.paisOtro === 'Otro'" v-model="form.paisListaNegra" type="text" id="paisListaNegra" placeholder="Especifique el país" class="form-input mt-2">
 
               </div>
             </div>
