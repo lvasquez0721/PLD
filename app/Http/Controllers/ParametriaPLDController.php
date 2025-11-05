@@ -3,16 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatParametriaPLD;
-use App\Models\ParametriaPLD;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
 
-class ParametriaPLDController extends Controller
-{
-    public function index()
-    {
-        // Carga todos los parámetros activos
+class ParametriaPLDController extends Controller {
+
+    public function index() {
         $parametros = CatParametriaPLD::where('Activo', 1)
             ->pluck('Valor', 'Parametro')
             ->toArray();
@@ -34,9 +30,7 @@ class ParametriaPLDController extends Controller
         ]);
     }
 
-    public function actualizar(Request $request)
-    {
-        // Mapeo de claves del formulario a nombres exactos en BD
+    public function actualizar(Request $request) {
         $mapeoParametros = [
             'operacionesRelevantes' => 'Operaciones relevantes',
             'desviacionEstandarInusualidad' => 'Desviacion Estandar Inusualidad',
@@ -55,23 +49,19 @@ class ParametriaPLDController extends Controller
         $actualizados = 0;
 
         foreach ($data as $clave => $valor) {
-            // Verifica si la clave existe en el mapeo
             if (isset($mapeoParametros[$clave])) {
                 $nombreParametro = $mapeoParametros[$clave];
 
-                // Actualiza el parámetro específico
                 $updated = CatParametriaPLD::where('Parametro', $nombreParametro)
                     ->where('Activo', 1)
                     ->update(['Valor' => $valor]);
 
                 if ($updated) {
                     $actualizados++;
-                    Log::info("Parámetro actualizado: {$nombreParametro} = {$valor}");
                 }
             }
         }
 
-        Log::info("Total de parámetros actualizados: {$actualizados}");
 
         return redirect()->route('parametria-pld.index')
             ->with('toast', [

@@ -82,7 +82,8 @@ Route::post('/listanegracnsf/masivo', [ListaNegraCNSFController::class, 'bulkIns
 Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bulkInsert'])->middleware('auth:sanctum');
 
 
-
+//Ruta para guardar clientes generados desde el SIT
+Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
 
 
 

@@ -11,7 +11,7 @@ class TbClientes extends Model
 
     protected $table = 'tbClientes';
     protected $primaryKey = 'IDCliente';
-    public $incrementing = false;
+    public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = true;
 
@@ -33,5 +33,13 @@ class TbClientes extends Model
         'IDNacionalidad',
         'IDEstadoNacimiento',
         'Activo',
+    ];
+
+    protected $casts = [
+        'CoincideEnListasNegras' => 'boolean',
+        'EsPPEActivo' => 'boolean',
+        'Activo' => 'boolean',
+        'FechaNacimiento' => 'date',
+        'FechaConstitucion' => 'date',
     ];
 }

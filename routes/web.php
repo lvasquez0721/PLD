@@ -96,7 +96,10 @@ Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->nam
 Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
 Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
 
-
+//Rutas para Clientes
+Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.index');
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
