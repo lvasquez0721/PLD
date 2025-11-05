@@ -87,5 +87,10 @@ Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadCon
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
 
+//Rutas para Clientes
+Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.index');
+
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
