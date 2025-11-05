@@ -90,10 +90,11 @@ Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadCon
 
 //Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\ListaNegraController;
-Route::get('/lista-negra', action: [ListaNegraController::class, 'index']);
-Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])
-     ->name('lista-negra.insert');
 
+Route::get('/lista-negra', [ListaNegraController::class, 'index'])->name('lista-negra.index');
+Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->name('lista-negra.insert');
+Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
+Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
 
 
 

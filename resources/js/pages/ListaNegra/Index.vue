@@ -1,63 +1,29 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'; 
-import AppLayout from '@/layouts/AppLayout.vue'; // Importa la estructura general de la página
-//import Datatable from '@/components/ui/tables/Datatable.vue'; // Importa el componente de tabla de datos
-//import FadeIn from '@/components/ui/animation/fadeIn.vue'; // Importa el componente de animación FadeIn
-//import Toast from '@/components/ui/alert/Toast.vue'; // Importa el componente de notificaciones Toast
-import { Head, usePage, router } from '@inertiajs/vue3'; // manejar la navegación y acceder a los datos enviados desde el backend de forma reactiva.
-import Titulo from '@/components/ui/Titulo.vue'; // Importa el componente de título
-import { ListX } from 'lucide-vue-next'; 
+  import { ref, computed, onMounted } from 'vue';
+  import { Head, usePage, router } from '@inertiajs/vue3';
+  import AppLayout from '@/layouts/AppLayout.vue';
+  import Titulo from '@/components/ui/Titulo.vue';
+  import { ListX } from 'lucide-vue-next';
 
-// Define la ruta de navegación que aparece en la parte superior de la página.
-const breadcrumbs = [
-  { title: 'Lista Negra', href: '' },
-];
+  const breadcrumbs = [{ title: 'Lista Negra', href: '' }];
 
-//! Inicio Modal Configuración
-// Mostrar modal
-const showModal = ref(false);
+  const showModal = ref(false);
+  const selectedId = ref<number | null>(null);
 
-// Definimos la interfaz del formulario
-interface FormData {
-  nombreListaNegra: string;
-  RFCListaNegra: string;
-  CURPListaNegra: string;
-  Fecha_NacimientoListaNegra: string;
-  paisOtro: string;
-  paisListaNegra: string;
-  archivoListaNegra: File | null;
-}
-
-// Inicializamos el formulario con ref y tipado
-const form = ref<FormData>({
-  nombreListaNegra: '',
-  RFCListaNegra: '',
-  CURPListaNegra: '',
-  Fecha_NacimientoListaNegra: '',
-  paisOtro: '',
-  paisListaNegra: '',
-  archivoListaNegra: null,
-});
-
-// Manejo del archivo
-function handleFileChange(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    form.value.archivoListaNegra = target.files[0];
-  } else {
-    form.value.archivoListaNegra = null;
+  // Estructura del formulario
+  interface FormData {
+    accion: number; // 1 = editar, 2 = eliminar, 3 = insertar
+    nombreListaNegra: string;
+    RFCListaNegra: string;
+    CURPListaNegra: string;
+    Fecha_NacimientoListaNegra: string;
+    paisOtro: string;
+    paisListaNegra: string;
+    archivoListaNegra: File | null;
   }
-}
 
-// Abrir modal
-function openModal() {
-  showModal.value = true;
-}
-
-// Cerrar modal y resetear formulario
-function closeModal() {
-  showModal.value = false;
-  form.value = {
+  const form = ref<FormData>({
+    accion: 3,
     nombreListaNegra: '',
     RFCListaNegra: '',
     CURPListaNegra: '',
@@ -65,68 +31,151 @@ function closeModal() {
     paisOtro: '',
     paisListaNegra: '',
     archivoListaNegra: null,
-  };
-}
-// Fin Modal Configuración
+  });
 
-
-//Enviar formulario
-function submitForm() {
-  // Creamos FormData
-  const formData = new FormData();
-
-  // Campos del formulario
-  formData.append('nombre', form.value.nombreListaNegra);
-  formData.append('rfc', form.value.RFCListaNegra);
-  formData.append('curp', form.value.CURPListaNegra);
-  formData.append('fecha_nacimiento', form.value.Fecha_NacimientoListaNegra);
-
-  // Manejo del país (si es 'Otro' usamos el input de texto)
-  const pais = form.value.paisOtro === 'Otro' ? form.value.paisListaNegra : form.value.paisOtro;
-  formData.append('pais', pais);
-
-  // Archivo (solo si hay)
-  if (form.value.archivoListaNegra) {
-    formData.append('archivo', form.value.archivoListaNegra);
+  // Manejadores de archivo y modal
+  function handleFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      form.value.archivoListaNegra = target.files[0];
+    } else {
+      form.value.archivoListaNegra = null;
+    }
   }
 
-  // Enviar a Laravel usando Inertia
-  router.post('/lista-negra/insert', formData, {
-    onStart: () => console.log('Enviando datos...'),
-    onSuccess: () => {
-      console.log('Registro guardado correctamente');
-      closeModal(); // Cerramos modal
-      router.reload(); // Recargamos la página para actualizar la lista
-    },
-    onError: (errors) => {
-      console.error('Errores de validación:', errors);
+  function resetForm() {
+    form.value = {
+      accion: 3,
+      nombreListaNegra: '',
+      RFCListaNegra: '',
+      CURPListaNegra: '',
+      Fecha_NacimientoListaNegra: '',
+      paisOtro: '',
+      paisListaNegra: '',
+      archivoListaNegra: null,
+    };
+    selectedId.value = null;
+  }
+
+  function closeModal() {
+    showModal.value = false;
+    resetForm();
+  }
+
+  // Modal Agregar
+  function openAddModal() {
+    resetForm();
+    form.value.accion = 3;
+    showModal.value = true;
+  }
+
+  // Modal Editar
+  function openEditModal(item: any) {
+    form.value.accion = 1;
+    selectedId.value = item.IDRegistroListaCNSF;
+    form.value.nombreListaNegra = item.Nombre;
+    form.value.RFCListaNegra = item.RFC;
+    form.value.CURPListaNegra = item.CURP;
+    form.value.Fecha_NacimientoListaNegra = item.FechaNacimiento;
+    form.value.paisOtro = item.Pais === 'MEXICO' ? 'MEXICO' : 'Otro';
+    form.value.paisListaNegra = item.Pais !== 'MEXICO' ? item.Pais : '';
+    showModal.value = true;
+  }
+
+  // Modal Eliminar
+  function openDeleteModal(item: any) {
+    form.value.accion = 2;
+    selectedId.value = item.IDRegistroListaCNSF;
+    showModal.value = true;
+    form.value.nombreListaNegra = item.Nombre;
+    form.value.RFCListaNegra = item.RFC;
+    form.value.CURPListaNegra = item.CURP;
+  }
+
+  // Texto dinámico del modal y botón
+  const modalTitle = computed(() => {
+    switch (form.value.accion) {
+      case 1:
+        return 'Actualizar Registro';
+      case 2:
+        return 'Eliminar Registro';
+      case 3:
+        return 'Agregar Registro';
+      default:
+        return 'Registro';
     }
   });
-}
 
+  const actionButtonText = computed(() => {
+    switch (form.value.accion) {
+      case 1:
+        return 'Actualizar';
+      case 2:
+        return 'Eliminar';
+      case 3:
+        return 'Guardar';
+      default:
+        return 'Aceptar';
+    }
+  });
 
-// Definimos el tipo de datos que viene desde Laravel
-interface ListaNegra {
-  IDRegistroListaCNSF: number
-  Nombre: string
-  RFC: string
-  CURP: string
-  Fecha_Nacimiento: string
-  Pais: string
-  Oficio: string
-}
+  // Envío del formulario
+  function submitForm() {
+    const formData = new FormData();
+    formData.append('nombre', form.value.nombreListaNegra);
+    formData.append('rfc', form.value.RFCListaNegra);
+    formData.append('curp', form.value.CURPListaNegra);
+    formData.append('fecha_nacimiento', form.value.Fecha_NacimientoListaNegra);
+    const pais = form.value.paisOtro === 'Otro' ? form.value.paisListaNegra : form.value.paisOtro;
+    formData.append('pais', pais);
+    if (form.value.archivoListaNegra) {
+      formData.append('archivo', form.value.archivoListaNegra);
+    }
 
-// Acceso a los datos enviados desde Laravel
-const page = usePage()
-const listas = computed(() => (page.props.listas as ListaNegra[]) ?? [])
+    // Determinar URL según acción
+    let url = '';
+    if (form.value.accion === 1) {
+      url = `/lista-negra/update/${selectedId.value}`;
+    } else if (form.value.accion === 2) {
+      url = `/lista-negra/delete/${selectedId.value}`;
+    } else {
+      url = `/lista-negra/insert`;
+    }
 
-// Ver los datos en consola al montar el componente
-onMounted(() => {
-  console.log('Datos recibidos desde Laravel:', listas.value)
-})
+    // Enviar datos
+    router.post(url, formData, {
+      onStart: () => console.log(`Ejecutando acción ${form.value.accion}...`),
+      onSuccess: () => {
+        console.log('Operación exitosa');
+        closeModal();
+        router.reload();
+      },
+      onError: (errors) => {
+        console.error('Errores de validación:', errors);
+      },
+    });
+  }
 
+  // Datos del backend
+  interface ListaNegra {
+    IDRegistroListaCNSF: number;
+    Nombre: string;
+    RFC: string;
+    CURP: string;
+    FechaNacimiento: string;
+    Pais: string;
+    Oficio: string;
+  }
 
+  const page = usePage();
+  const listas = computed(() => (page.props.listas as ListaNegra[]) ?? []);
+
+  // M
+  onMounted(() => {
+    console.log('Datos recibidos:', listas.value);
+  });
 </script>
+
 
 <template>
   <AppLayout title="Lista Negra">
@@ -134,26 +183,7 @@ onMounted(() => {
       <Titulo :icon="ListX" title="Lista Negra" size="md" weight="bold" class="mb-2" />
     </div>
 
-    <!-- Contenido de la vista Lista Negra -->
-    <br />
-
-    <section class="content "> <!-- vista  -->
-
-      <div class="row"> <!-- alertas -->
-        <div class="alert alert-success" id="compSuccessGlobal" style="display: none;">
-          <button type="button" class="close" data-dismiss="alert">&times;</button>
-          <span></span>
-        </div>
-        <div class="alert alert-danger" id="compErrorGlobal" style="display: none;">
-          <button type="button" class="close" data-dismiss="alert">&times;</button>
-          <span></span>
-        </div>
-        <div class="alert alert-warning" id="compWarningGlobal" style="display: none;">
-          <button type="button" class="close" data-dismiss="alert">&times;</button>
-          <span></span>
-        </div>
-      </div>
-      
+    <section class="content">  <!-- vista  -->
       <div class="flex flex-col gap-4 mb-4">  <!-- filtrar y buscar -->
         <!-- Select cantidad de elementos -->
         <div class="flex flex-col w-64">
@@ -177,15 +207,12 @@ onMounted(() => {
       <div class="row" >
         <div class="col-md-12">
           <div class="table-responsive">
-            <!-- Pagination -->
-            <!-- <div class="pagination-container">
-              <ul class="pagination"></ul>
-            </div> -->
 
             <p id="query-results"></p>
             <div style="text-align: right;">
-              <!-- <button type="button" id="btn_MoadalAgregar" class="btn btn-primary ml-4" data-bs-toggle="modal" data-bs-target="#generalModal">+</button> -->
-               <button @click="openModal" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 transition-all" > + </button>
+              <div class="flex justify-end mb-4">
+                <button @click="openAddModal" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 transition-all"> + </button>
+              </div>
             </div>
 
             <br>
@@ -194,108 +221,83 @@ onMounted(() => {
               <thead>
                 <tr class="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                   <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">#</th>
-                  <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Nombres</th>
+                  <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Nombre</th>
                   <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">RFC</th>
-                  <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left" style="display: flex; justify-content: center; align-items: center;">.:.</th>
+                  <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left" style="display: flex; justify-content: center; align-items: center;">Acciones</th>
                 </tr>
               </thead>
-             
-              <tbody v-if="listas && listas.length" class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+              <tbody v-if="listas.length" class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                 <tr v-for="item in listas" :key="item.IDRegistroListaCNSF">
                   <td>{{ item.IDRegistroListaCNSF }}</td>
                   <td>{{ item.Nombre }}</td>
                   <td>{{ item.RFC }}</td>
-                  <td></td>
-                </tr>
-              </tbody>
-
-              <tbody v-else class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                <tr>
-                  <td colspan="3" class="text-center py-4 text-gray-500">
-                    No hay datos disponibles
+                  <td class="text-center">
+                    <button @click="openEditModal(item)" class="px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 transition">✏️</button>
+                    <button @click="openDeleteModal(item)" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition ml-2">🗑️</button>
                   </td>
                 </tr>
               </tbody>
-
+              <tbody v-else>
+                <tr><td colspan="4" class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">No hay datos disponibles</td></tr>
+              </tbody>
             </table>
+
           </div>
         </div>
       </div>
 
     </section>
-    
-    <!-- Modal AGREGAR/EDITAR -->
+
+    <!-- Modal -->
     <transition name="fade-in">
       <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-96 max-w-full p-6 relative">
-      
-          <!-- Título del modal -->
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4"  id="generalModalLabel">AGREGAR/EDITAR</h2>
+          <h2 class="text-xl font-semibold mb-4">{{ modalTitle }}</h2>
 
-          <div class="form-group">
-            <!-- seccion de alertas modal -->
+          <!-- Si es eliminar -->
+          <div v-if="form.accion === 2">
+            <p>¿Estás segura de eliminar al usuario <strong>{{ form.nombreListaNegra }}</strong> con RFC <strong>{{ form.RFCListaNegra }}</strong> de la lista negra?</p>
           </div>
-                          
-          <!-- Formulario simple -->
-          <form @submit.prevent="submitForm" class="flex flex-col gap-3">
 
-            <input type="hidden" id="accion" name="accion" value="listar"> <!--eliminar/agregar/editar -->
-
-            <div class="form-group" id="CamposEliminar">
-              <p id="modalContentEliminacion">_</p>
+          <!-- Si es agregar o editar -->
+          <form v-else @submit.prevent="submitForm" class="flex flex-col gap-3">
+            <input type="hidden" v-model="form.accion" /> <!--eliminar/agregar/editar -->
+            <!-- <input type="hidden" v-model="form.IDRegistroListaCNSF" >  -->
+            <div>
+              <label>Nombre</label>
+              <input v-model="form.nombreListaNegra" placeholder="Ingresa el Nombre Completo" type="text" class="form-input" />
             </div>
-                   
-            <input type="hidden" id="IDRegistro"> <!--identificar la fila selecionda  -->
-
-            <div id="CamposAgregar_Editar">
-           
-              <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input v-model="form.nombreListaNegra" type="text" id="nombreListaNegra" placeholder="Ingresa el Nombre Completo" class="form-input">
-              </div>
-              
-              <div class="form-group">
-                <label for="RFC">RFC</label>
-                <input v-model="form.RFCListaNegra" type="text" id="RFCListaNegra" placeholder="Ingresa el RFC" class="form-input">
-              </div>
-
-              <div class="form-group">
-                <label for="CURP">CURP</label>
-                <input v-model="form.CURPListaNegra" type="text" id="CURPListaNegra" placeholder="Ingresa el CURP" class="form-input">
-              </div>
-
-              <div class="form-group">
-                <label for="fecha"> Fecha de Nacimiento</label>
-                <input v-model="form.Fecha_NacimientoListaNegra" type="date" id="Fecha_NacimientoListaNegra" placeholder="Ingresa la fecha de Naciemiento"
-                  class="form-input">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Pais</label>
-                <select  v-model="form.paisOtro" id="paisOtro" class="form-input">
-                  <option value="" disabled selected>Seleccione una opción</option>
-                  <option value="MEXICO">MEXICO</option>
-                  <option value="Otro">Otro</option>
-                </select>
-
-                <!-- Campo de texto que permite escribir si se selecciona "Otro" -->
-                <!-- <input v-model="form.paisListaNegra" type="text" id="paisListaNegra" placeholder="Especifique el pa&iacute;s" style="display: none;" class="form-input"> -->
-                <input v-if="form.paisOtro === 'Otro'" v-model="form.paisListaNegra" type="text" id="paisListaNegra" placeholder="Especifique el país" class="form-input mt-2">
-
-              </div>
+            <div>
+              <label>RFC</label>
+              <input v-model="form.RFCListaNegra" placeholder="Ingresa el RFC" type="text" class="form-input" />
             </div>
-
-            <div class="form-group">
-              <label for="archivo">Subir Oficio</label>
-              <input @change="handleFileChange" type="file" id="archivoListaNegra" name="archivoListaNegra" accept="application/pdf, application/x-pdf, application/acrobat, applications/pdf, text/pdf, application/vnd.pdf" class="form-file">
+            <div>
+              <label>CURP</label>
+              <input v-model="form.CURPListaNegra" placeholder="Ingresa el CURP" type="text" class="form-input" />
             </div>
-            <br>
-
-            <div class="flex justify-end gap-2 mt-4">
-              <button type="button" @click="closeModal" class="px-4 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-gray-500 transition"> Cancelar </button>
-              <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all"> Guardar </button>
+            <div>
+              <label>Fecha de Nacimiento</label>
+              <input v-model="form.Fecha_NacimientoListaNegra" id="Fecha_NacimientoListaNegra" type="date" class="form-input" />
             </div>
-
+            <div>
+              <label>País</label>
+              <select v-model="form.paisOtro" class="form-input">
+                <option value="">Seleccione una opción</option>
+                <option value="MEXICO">MEXICO</option>
+                <option value="Otro">Otro</option>
+              </select>
+              <input v-if="form.paisOtro === 'Otro'" v-model="form.paisListaNegra" placeholder="Especifique el país" class="form-input mt-2" />
+            </div>
+            <div>
+              <label>Subir Oficio</label>
+              <input @change="handleFileChange" type="file" accept="application/pdf, application/x-pdf, application/acrobat, applications/pdf, text/pdf, application/vnd.pdf" class="form-file" />
+            </div>
           </form>
+
+          <div class="flex justify-end gap-2 mt-4">
+            <button @click="closeModal"  class="px-4 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-gray-500 transition">Cancelar</button>
+            <button @click="submitForm" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all">{{ actionButtonText }}</button>
+          </div>
         </div>
       </div>
     </transition>

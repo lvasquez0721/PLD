@@ -47,25 +47,57 @@ class ListaNegraController extends Controller
         $lista->FechaNacimiento = $request->fecha_nacimiento;
         $lista->Pais = $request->pais;
 
-    // Guardar archivo si existe
-    if ($request->hasFile('archivo')) {
-        $file = $request->file('archivo');
-        $filename = time().'_'.$file->getClientOriginalName();
-        $file->storeAs('public/listas', $filename);
-        $lista->OficiosRelacionados = $filename;
-    }
+        // Guardar archivo si existe
+        if ($request->hasFile('archivo')) {
+            $file = $request->file('archivo');
+            $filename = time().'_'.$file->getClientOriginalName();
+            $file->storeAs('public/listas', $filename);
+            $lista->OficiosRelacionados = $filename;
+        }
 
-    // Guardar timestamps automáticos
-    $lista->UsuarioAlta = 'Sistema';
-    $lista->TimeStampAlta = now();
-    $lista->UsuarioModif = null;
-    $lista->TimeStampModif = now();
+        // Guardar timestamps automáticos
+        $lista->UsuarioAlta = 'Sistema';
+        $lista->TimeStampAlta = now();
+        $lista->UsuarioModif = null;
+        $lista->TimeStampModif = now();
 
-    $lista->save(); // Eloquent maneja automáticamente las comillas y tipos
+        $lista->save(); // Eloquent maneja automáticamente las comillas y tipos
 
 
         return redirect()->back()->with('success', 'Registro agregado correctamente');
     }
+
+    public function update(Request $request, $id)
+    {
+        $lista = TbListasNegraCNSF::findOrFail($id);
+        $lista->Nombre = $request->nombre;
+        $lista->RFC = $request->rfc;
+        $lista->CURP = $request->curp;
+        $lista->FechaNacimiento = $request->fecha_nacimiento;
+        $lista->Pais = $request->pais;
+
+        if ($request->hasFile('archivo')) {
+            $file = $request->file('archivo');
+            $filename = time().'_'.$file->getClientOriginalName();
+            $file->storeAs('public/listas', $filename);
+            $lista->OficiosRelacionados = $filename;
+        }
+
+        $lista->UsuarioModif = 'Sistema';
+        $lista->TimeStampModif = now();
+        $lista->save();
+
+        return redirect()->back()->with('success', 'Registro actualizado correctamente');
+    }
+
+    public function delete($id)
+    {
+        $lista = TbListasNegraCNSF::findOrFail($id);
+        $lista->delete();
+
+        return redirect()->back()->with('success', 'Registro eliminado correctamente');
+    }
+
 
 
 }
