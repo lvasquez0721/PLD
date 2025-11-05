@@ -1,14 +1,187 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
-import { MailWarning } from 'lucide-vue-next';
+import { FileText } from 'lucide-vue-next';
+import { Label } from '@/components/ui/label';
+import { activeTab, setTab } from "../../../scripts/setTab.js";
+import axios from 'axios'; // Para enviar al backend
+import '@vuepic/vue-datepicker/dist/main.css';
+
+// Inputs reactivos
+const nombre = ref('');
+const rfc = ref('');
+const acuerdo = ref('');
+const noOficio = ref('');
+const anioLista = ref('');
+const buscar = ref('');
+
+// Fechas reactivas
+const fechaNacimiento = ref<Date | null>(null);
+const fechaAcuerdo = ref<Date | null>(null);
+
+// Formateo dd-MM-yyyy
+const formatFecha = (fecha: Date | null) => {
+  if (!fecha) return '';
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const anio = fecha.getFullYear();
+  return `${dia}-${mes}-${anio}`;
+};
+
+// Función submit
+const guardar = () => {
+  console.log('Nombre:', nombre.value);
+  console.log('RFC:', rfc.value);
+  console.log('Acuerdo:', acuerdo.value);
+  console.log('No. Oficio:', noOficio.value);
+  console.log('Año Lista:', anioLista.value);
+  console.log('Fecha nacimiento:', formatFecha(fechaNacimiento.value));
+  console.log('Fecha publicación acuerdo:', formatFecha(fechaAcuerdo.value));
+};
+import { PropType } from 'vue'
+
+// Tipado del buzon
+interface BuzonItem {
+  idBuzonPreocupantes: number
+  IDReporteOP: string
+  Fecha: string
+  Descripcion: string
+  Usuario: string
+  Estatus: string
+}
+
+defineProps<{
+  buzon: BuzonItem[]
+  toast?: string
+}>()
+
+// IDs seleccionados
+//const seleccionados = ref<number[]>([]);
+const seleccionados = ref<string[]>([]);
+// Función para marcar/desmarcar
+const toggleSeleccion = (id: string) => {
+  if (seleccionados.value.includes(id)) {
+    seleccionados.value = seleccionados.value.filter(item => item !== id);
+  } else {
+    seleccionados.value.push(id);
+  }
+};
+
+// Función para enviar al backend
+const pasarAlertas = async () => {
+  if (seleccionados.value.length === 0) {
+    alert('Selecciona al menos un reporte.');
+    return;
+  }
+
+  try {
+    const response = await axios.post('/buzon-preocupantes/pasar-alertas', {
+      ids: seleccionados.value
+    });
+
+    alert(response.data.message || 'Alertas generadas correctamente.');
+    seleccionados.value = []; // limpiar selección
+  } catch (error: any) {
+    console.error(error);
+    alert(error.response?.data?.error || 'Ocurrió un error al generar las alertas.');
+  }
+};
+
+
+
+
 </script>
 
 <template>
-  <AppLayout title="Buzón de Preocupantes">
+  <AppLayout title="Buzón de Operaciones Preocupantes">
     <div class="flex items-center justify-between">
-      <Titulo :icon="MailWarning" title="Buzón de Preocupantes" size="md" weight="bold" class="mb-2" />
+      <Titulo :icon="FileText" title="Buzón de Operaciones Preocupantes" size="md" weight="bold" class="mb-4" />
     </div>
-    <!-- Contenido de la vista Buzón de Preocupantes -->
+
+    <div class="border-b border-gray-300 mb-6 flex space-x-4">
+      <button @click="setTab('altaListas')" :class="[
+        'py-2 px-4 font-semibold border-b-4 transition cursor-pointer',
+        activeTab === 'altaListas'
+          ? 'border-[#8de9fb] text-[#8de9fb]'
+          : 'border-transparent text-white hover:text-[#8de9fb]'
+      ]">
+        Buzón
+      </button>
+      <button @click="setTab('consulta')" :class="[
+        'py-2 px-4 font-semibold border-b-4 transition cursor-pointer',
+        activeTab === 'consulta'
+          ? 'border-[#8de9fb] text-[#8de9fb]'
+          : 'border-transparent text-white hover:text-[#8de9fb]'
+      ]">
+        Registrar Reporte
+      </button> 
+    </div>
+
+     <!-- Tabla -->
+    <form v-if="activeTab === 'altaListas'" @submit.prevent="pasarAlertas" class="space-y-4">
+      <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <table class="min-w-full border border-gray-300 dark:border-gray-700">
+          <thead class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <tr>
+              <th class="p-2 border dark:border-gray-600">Seleccionar</th>
+              <th class="p-2 border dark:border-gray-600">ID</th>
+              <th class="p-2 border dark:border-gray-600">Reporte OP</th>
+              <th class="p-2 border dark:border-gray-600">Fecha</th>
+              <th class="p-2 border dark:border-gray-600">Descripción</th>
+              <th class="p-2 border dark:border-gray-600">Usuario</th>
+              <th class="p-2 border dark:border-gray-600">Estatus</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="item in buzon"
+              :key="item.idBuzonPreocupantes"
+              class="hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <td class="border p-2 text-center dark:border-gray-600">
+                <input
+                  type="checkbox"
+                  :value="item.IDReporteOP"
+                  @change="toggleSeleccion(item.IDReporteOP)"
+                  :checked="seleccionados.includes(item.IDReporteOP)"
+                  class="w-4 h-4 accent-blue-600 cursor-pointer"
+                />
+              </td>
+              <td class="border p-2 dark:border-gray-600">{{ item.idBuzonPreocupantes }}</td>
+              <td class="border p-2 dark:border-gray-600">{{ item.IDReporteOP }}</td>
+              <td class="border p-2 dark:border-gray-600">
+                {{ new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(item.Fecha)) }}
+              </td>
+              <td class="border p-2 dark:border-gray-600">{{ item.Descripcion }}</td>
+              <td class="border p-2 dark:border-gray-600">{{ item.Usuario }}</td>
+              <td class="border p-2 dark:border-gray-600">{{ item.Estatus }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button
+          type="submit"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition"
+        >
+          Pasar alerta
+        </button>
+      </div>
+    </form>
+
+    <!-- Consulta -->
+    <form v-if="activeTab === 'consulta'" class="space-y-4">
+      <div>
+        <Label for="buscar">Reportes:</Label>
+        <input v-model="buscar" id="buscar" type="text" placeholder="Ingrese su reporte" class="w-full border border-gray-300 rounded px-3 py-8" />
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Guardar
+        </button>
+      </div>
+    </form>
   </AppLayout>
 </template>
