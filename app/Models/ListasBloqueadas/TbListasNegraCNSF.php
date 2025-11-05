@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ListasBloqueadas;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -8,7 +8,7 @@ class TbListasNegraCNSF extends Model
 {
     protected $table = 'tbListasNegraCNSF';
     protected $primaryKey = 'IDRegistroListaCNSF';
-    public $incrementing = false;
+    public $incrementing = false; // true si quieres autoincrement
     protected $keyType = 'unsignedBigInteger';
 
     protected $fillable = [
