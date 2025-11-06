@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Alertas;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
@@ -19,85 +20,62 @@ class AlertasController extends Controller
      */
     public function bulkInsert(Request $request)
     {
-        $data = $request->input('registros');
+        $validatedData = $request->validate([
+            '*.IDAlertas' => 'required|integer',
+            '*.Folio' => 'required|string|max:255',
+            '*.Patron' => 'required|string|max:255',
+            '*.NCliente' => 'required|string|max:255',
+            '*.Nombre' => 'required|string|max:255',
+            '*.NoOperacion' => 'required|string|max:255',
+            '*.NoPoliza' => 'required|string|max:255',
+            '*.FechaDeteccion' => 'required|date',
+            '*.Hora' => 'required|string|max:255',
+            '*.FechaOperacion' => 'required|date',
+            '*.HoraOperacion' => 'required|string|max:255',
+            '*.NoMovimiento' => 'required|string|max:255',
+            '*.Monto' => 'required|numeric',
+            '*.InstrumentoMonetario' => 'required|string|max:255',
+            '*.Agente' => 'required|string|max:255',
+            '*.Estatus' => 'required|string|max:255',
+            '*.Descripcion' => 'required|string',
+            '*.Razones' => 'required|string',
+            '*.Evidencias' => 'required|string',
+            '*.IDReporteOP' => 'required|integer',
+            '*.IDPago' => 'required|integer',
+        ]);
 
-        if (!is_array($data)) {
-            return response()->json([
-                'error' => 'El formato de entrada es incorrecto. Se esperaba un arreglo de registros bajo la clave "registros".'
-            ], 400);
+        foreach ($validatedData as &$alert) {
+            $alert['FechaDeteccion'] = \Carbon\Carbon::parse($alert['FechaDeteccion'])->format('Y-m-d H:i:s');
+            $alert['FechaOperacion'] = \Carbon\Carbon::parse($alert['FechaOperacion'])->format('Y-m-d H:i:s');
+            $alert['created_at'] = now();
+            $alert['updated_at'] = now();
         }
 
-        // Define las reglas de validación para cada registro (IDAlertas es requerido e integer)
-        $rules = [
-            '*.IDAlertas' => 'required|integer',
-            '*.Folio' => 'nullable|string',
-            '*.Patron' => 'nullable|string',
-            '*.NCliente' => 'nullable|string',
-            '*.Nombre' => 'nullable|string',
-            '*.NoOperacion' => 'nullable|string',
-            '*.NoPoliza' => 'nullable|string',
-            '*.FechaDeteccion' => 'nullable|date',
-            '*.Hora' => 'nullable|string',
-            '*.FechaOperacion' => 'nullable|date',
-            '*.HoraOperacion' => 'nullable|string',
-            '*.NoMovimiento' => 'nullable|string',
-            '*.Monto' => 'nullable|numeric',
-            '*.InstrumentoMonetario' => 'nullable|string',
-            '*.Agente' => 'nullable|string',
-            '*.Estatus' => 'nullable|string',
-            '*.Descripcion' => 'nullable|string',
-            '*.Razones' => 'nullable|string',
-            '*.Evidencias' => 'nullable|string',
-            '*.IDReporteOP' => 'nullable|integer',
-            '*.IDPago' => 'nullable|integer',
-        ];
+        DB::table('tbAlertas')->insert($validatedData);
 
-        $validator = Validator::make($data, $rules);
+        return response()->json(['message' => 'Alertas insertadas masivamente con éxito'], 201);
+    }
+
+    /**
+     * Obtiene alertas por rango de fechas.
+     */
+    public function getAlertasByDateRange(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'fechaInicio' => 'required|date',
+            'fechaFin' => 'required|date|after_or_equal:fechaInicio',
+        ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json($validator->errors(), 400);
         }
 
-        try {
-            // Limpiar y convertir valores nulos tipo string vacía a null para los campos nullable
-            $cleanData = [];
-            foreach ($data as $registro) {
-                $row = [];
-                $row['IDAlertas'] = isset($registro['IDAlertas']) ? $registro['IDAlertas'] : null;
-                $row['Folio'] = empty($registro['Folio']) ? null : $registro['Folio'];
-                $row['Patron'] = empty($registro['Patron']) ? null : $registro['Patron'];
-                $row['NCliente'] = empty($registro['NCliente']) ? null : $registro['NCliente'];
-                $row['Nombre'] = empty($registro['Nombre']) ? null : $registro['Nombre'];
-                $row['NoOperacion'] = empty($registro['NoOperacion']) ? null : $registro['NoOperacion'];
-                $row['NoPoliza'] = empty($registro['NoPoliza']) ? null : $registro['NoPoliza'];
-                $row['FechaDeteccion'] = empty($registro['FechaDeteccion']) ? null : $registro['FechaDeteccion'];
-                $row['Hora'] = empty($registro['Hora']) ? null : $registro['Hora'];
-                $row['FechaOperacion'] = empty($registro['FechaOperacion']) ? null : $registro['FechaOperacion'];
-                $row['HoraOperacion'] = empty($registro['HoraOperacion']) ? null : $registro['HoraOperacion'];
-                $row['NoMovimiento'] = empty($registro['NoMovimiento']) ? null : $registro['NoMovimiento'];
-                $row['Monto'] = isset($registro['Monto']) && $registro['Monto'] !== '' ? $registro['Monto'] : null;
-                $row['InstrumentoMonetario'] = empty($registro['InstrumentoMonetario']) ? null : $registro['InstrumentoMonetario'];
-                $row['Agente'] = empty($registro['Agente']) ? null : $registro['Agente'];
-                $row['Estatus'] = empty($registro['Estatus']) ? null : $registro['Estatus'];
-                $row['Descripcion'] = empty($registro['Descripcion']) ? null : $registro['Descripcion'];
-                $row['Razones'] = empty($registro['Razones']) ? null : $registro['Razones'];
-                $row['Evidencias'] = empty($registro['Evidencias']) ? null : $registro['Evidencias'];
-                $row['IDReporteOP'] = isset($registro['IDReporteOP']) && $registro['IDReporteOP'] !== '' ? $registro['IDReporteOP'] : null;
-                $row['IDPago'] = isset($registro['IDPago']) && $registro['IDPago'] !== '' ? $registro['IDPago'] : null;
-                // created_at y updated_at se setean automáticamente por Eloquent si se usan $timestamps
-                $cleanData[] = $row;
-            }
+        $fechaInicio = $request->input('fechaInicio');
+        $fechaFin = $request->input('fechaFin');
 
-            Alertas::insert($cleanData);
-            return response()->json([
-                'message' => 'Registros de alertas insertados correctamente',
-                'success' => true
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Ocurrió un error al insertar los registros de alertas.',
-                'details' => $e->getMessage()
-            ], 500);
-        }
+        $alertas = Alertas::whereBetween('FechaDeteccion', [$fechaInicio, $fechaFin])
+            ->get();
+
+        return response()->json($alertas);
     }
 }
