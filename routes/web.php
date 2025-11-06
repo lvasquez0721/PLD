@@ -36,9 +36,15 @@ Route::get('/perfil-transaccional', [App\Http\Controllers\PerfilTransaccionalCon
     ->middleware(['auth', 'verified'])
     ->name('perfil-transaccional.index');
 
+
+// ALERTAS
 Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('alertas.index');
+
+// Ruta para obtener alertas por rango de fechas
+Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
+    ->name('alertas.date-range');
 
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
     ->middleware(['auth', 'verified'])
