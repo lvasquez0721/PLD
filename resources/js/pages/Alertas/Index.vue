@@ -50,63 +50,44 @@ const buscarAlertas = async () => {
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID
-              Alerta</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folio
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Patrón</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nombre Cliente</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.
-              Operación</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.
-              Póliza</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha
-              Detección</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha
-              Operación</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora
-              Operación</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.
-              Movimiento</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Instrumento Monetario</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Agente</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Estatus</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Descripción</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Razones</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Evidencias</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID
-              Reporte OP</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID
-              Pago</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Registro Alerta</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folio</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patrón</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Cliente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Póliza</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Detección</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora Detección</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Operación</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora Operación</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Operación</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Instrumento Monetario</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RFC Agente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estatus</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Razones</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evidencias</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Reporte OP</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pago</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Operación Pago</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="alerta in alertas" :key="alerta.IDAlertas">
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDAlertas }}</td>
+          <tr v-for="alerta in alertas" :key="alerta.IDRegistroAlerta">
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDRegistroAlerta }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Folio }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Patron }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Nombre }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.NoOperacion }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.NoPoliza }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDCliente }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Cliente }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Poliza }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.FechaDeteccion }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Hora }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.HoraDeteccion }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.FechaOperacion }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.HoraOperacion }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.NoMovimiento }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Monto }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.MontoOperacion }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.InstrumentoMonetario }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.RFCAgente }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Agente }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Estatus }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Descripcion }}</td>
@@ -114,6 +95,7 @@ const buscarAlertas = async () => {
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.Evidencias }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDReporteOP }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDPago }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ alerta.IDOperacionPago }}</td>
           </tr>
         </tbody>
       </table>
