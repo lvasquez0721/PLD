@@ -50,6 +50,10 @@ Route::post('/buzon-preocupantes/pasar-alertas', [BuzonPreocupantesController::c
     ->middleware(['auth', 'verified'])
     ->name('buzon.pasarAlertas');
 
+Route::post('/buzon-preocupantes/guardar', [BuzonPreocupantesController::class, 'store'])
+    ->middleware(['auth', 'verified'])
+    ->name('buzon.store');
+
 
 Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'index'])
     ->middleware(['auth', 'verified'])

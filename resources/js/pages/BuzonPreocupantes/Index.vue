@@ -3,43 +3,12 @@ import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
 import { FileText } from 'lucide-vue-next';
-import { Label } from '@/components/ui/label';
-import { activeTab, setTab } from "../../../scripts/setTab.js";
+// import { Label } from '@/components/ui/label';
+import {activeTab, setTab } from "../../../scripts/setTab.js";
 import axios from 'axios'; // Para enviar al backend
 import '@vuepic/vue-datepicker/dist/main.css';
-
-// Inputs reactivos
-const nombre = ref('');
-const rfc = ref('');
-const acuerdo = ref('');
-const noOficio = ref('');
-const anioLista = ref('');
-const buscar = ref('');
-
-// Fechas reactivas
-const fechaNacimiento = ref<Date | null>(null);
-const fechaAcuerdo = ref<Date | null>(null);
-
-// Formateo dd-MM-yyyy
-const formatFecha = (fecha: Date | null) => {
-  if (!fecha) return '';
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const anio = fecha.getFullYear();
-  return `${dia}-${mes}-${anio}`;
-};
-
-// Función submit
-const guardar = () => {
-  console.log('Nombre:', nombre.value);
-  console.log('RFC:', rfc.value);
-  console.log('Acuerdo:', acuerdo.value);
-  console.log('No. Oficio:', noOficio.value);
-  console.log('Año Lista:', anioLista.value);
-  console.log('Fecha nacimiento:', formatFecha(fechaNacimiento.value));
-  console.log('Fecha publicación acuerdo:', formatFecha(fechaAcuerdo.value));
-};
-import { PropType } from 'vue'
+import { router } from '@inertiajs/vue3'
+import Toast from '@/components/ui/alert/Toast.vue'
 
 // Tipado del buzon
 interface BuzonItem {
@@ -57,7 +26,6 @@ defineProps<{
 }>()
 
 // IDs seleccionados
-//const seleccionados = ref<number[]>([]);
 const seleccionados = ref<string[]>([]);
 // Función para marcar/desmarcar
 const toggleSeleccion = (id: string) => {
@@ -80,18 +48,61 @@ const pasarAlertas = async () => {
       ids: seleccionados.value
     });
 
-    alert(response.data.message || 'Alertas generadas correctamente.');
+    // alert(response.data.message || 'Alertas generadas correctamente.');
+    toastMessage.value = 'Alertas generadas correctamente.'
+    toastType.value = 'success'
+    showToast.value = true
     seleccionados.value = []; // limpiar selección
+    // Refresca la página actual (vuelve a ejecutar el controlador index)
+    router.reload()
+    
   } catch (error: any) {
     console.error(error);
-    alert(error.response?.data?.error || 'Ocurrió un error al generar las alertas.');
+    // alert(error.response?.data?.error || 'Ocurrió un error al generar las alertas.');
+    toastMessage.value = 'Ocurrió un error al generar las alertas. Verifica los datos ingresados.'
+    toastType.value = 'error'
+    showToast.value = true
   }
 };
 
+// Variable reactiva
+const buscar = ref('')
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref<'success' | 'warning' | 'error'>('success')
 
+const guardar = async () => {
+  try {
+    await axios.post('/buzon-preocupantes/guardar', {
+      Descripcion: buscar.value,
+    });
 
+    // Mostrar mensaje de éxito
+    toastMessage.value = 'Reporte registrado correctamente.'
+    toastType.value = 'success'
+    showToast.value = true
+
+    // Limpiar input
+    buscar.value = ''
+
+    // Cambiar a la pestaña "Buzón"
+    setTab('altaListas')
+
+    // Recargar solo los datos del buzón después de un breve delay
+    setTimeout(() => {
+      router.reload({ only: ['buzon'] })
+    }, 1000)
+  } catch (error) {
+    // Mostrar error
+    toastMessage.value = 'Error al registrar reporte. Verifica los datos ingresados.'
+    toastType.value = 'error'
+    showToast.value = true
+    console.error(error)
+  }
+}
 
 </script>
+
 
 <template>
   <AppLayout title="Buzón de Operaciones Preocupantes">
@@ -126,11 +137,11 @@ const pasarAlertas = async () => {
             <tr>
               <th class="p-2 border dark:border-gray-600">Seleccionar</th>
               <th class="p-2 border dark:border-gray-600">ID</th>
-              <th class="p-2 border dark:border-gray-600">Reporte OP</th>
+              <!-- <th class="p-2 border dark:border-gray-600">Reporte OP</th> -->
               <th class="p-2 border dark:border-gray-600">Fecha</th>
               <th class="p-2 border dark:border-gray-600">Descripción</th>
-              <th class="p-2 border dark:border-gray-600">Usuario</th>
-              <th class="p-2 border dark:border-gray-600">Estatus</th>
+              <!-- <th class="p-2 border dark:border-gray-600">Usuario</th> -->
+              <!-- <th class="p-2 border dark:border-gray-600">Estatus</th> -->
             </tr>
           </thead>
           <tbody>
@@ -149,13 +160,13 @@ const pasarAlertas = async () => {
                 />
               </td>
               <td class="border p-2 dark:border-gray-600">{{ item.idBuzonPreocupantes }}</td>
-              <td class="border p-2 dark:border-gray-600">{{ item.IDReporteOP }}</td>
+              <!-- <td class="border p-2 dark:border-gray-600">{{ item.IDReporteOP }}</td> -->
               <td class="border p-2 dark:border-gray-600">
                 {{ new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(item.Fecha)) }}
               </td>
               <td class="border p-2 dark:border-gray-600">{{ item.Descripcion }}</td>
-              <td class="border p-2 dark:border-gray-600">{{ item.Usuario }}</td>
-              <td class="border p-2 dark:border-gray-600">{{ item.Estatus }}</td>
+              <!-- <td class="border p-2 dark:border-gray-600">{{ item.Usuario }}</td> -->
+              <!-- <td class="border p-2 dark:border-gray-600">{{ item.Estatus }}</td> -->
             </tr>
           </tbody>
         </table>
@@ -172,16 +183,26 @@ const pasarAlertas = async () => {
     </form>
 
     <!-- Consulta -->
-    <form v-if="activeTab === 'consulta'" class="space-y-4">
-      <div>
-        <Label for="buscar">Reportes:</Label>
-        <input v-model="buscar" id="buscar" type="text" placeholder="Ingrese su reporte" class="w-full border border-gray-300 rounded px-3 py-8" />
-      </div>
-      <div class="mt-4 flex justify-end">
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-          Guardar
-        </button>
-      </div>
-    </form>
+   <form v-if="activeTab === 'consulta'" class="space-y-4" @submit.prevent="guardar">
+    <div>
+      <Label for="buscar">Reportes:</Label>
+      <input
+        v-model="buscar"
+        id="buscar"
+        type="text"
+        placeholder="Ingrese su reporte"
+        class="w-full border border-gray-300 rounded px-3 py-2"
+      />
+    </div>
+    <div class="mt-4 flex justify-end">
+      <button
+        type="submit"
+        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Guardar
+      </button>
+    </div>
+  </form>
+  <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="5000" />
   </AppLayout>
 </template>
