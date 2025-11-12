@@ -11,21 +11,54 @@ class ListaNegraController extends Controller
     // public function index()
     // {
     //     return Inertia::render('ListaNegra/Index');
-
     // }
     
-    public function index()
-    {
-        // Obtener todos los registros
+    // public function index() 
+    // {
+    //     // Obtener todos los registros solo es para mostrar
+    
+    //     $listas = TbListasNegraCNSF::select('IDRegistroListaCNSF', 'Nombre', 'RFC')->get();
         
-        $listas = TbListasNegraCNSF::select('IDRegistroListaCNSF', 'Nombre', 'RFC')->get();
-        
-        // dd($listas->toArray()); //IMPRIMIR ANTES DE ENVIAR
-        return Inertia::render('ListaNegra/Index', [
-            'listas' => $listas
-        ]);
+    //     // dd($listas->toArray()); //IMPRIMIR ANTES DE ENVIAR
+    //     return Inertia::render('ListaNegra/Index', [
+    //         'listas' => $listas
+    //     ]);
 
+    // }
+
+
+    public function index(Request $request)
+    {
+        // Puedes agregar filtros opcionales si los envías desde el frontend
+        $buscar = $request->input('buscar');
+        $perPage = $request->input('perPage', 10);
+
+        // Obtener los registros
+        $listas = TbListasNegraCNSF::select(
+            'IDRegistroListaCNSF',
+            'Nombre',
+            'RFC',
+            'CURP',
+            'FechaNacimiento',
+            'Pais'
+        )
+        ->when($buscar, function ($query, $buscar) {
+            $query->where('Nombre', 'LIKE', "%{$buscar}%")
+                  ->orWhere('RFC', 'LIKE', "%{$buscar}%");
+        })
+        ->orderBy('IDRegistroListaCNSF', 'ASC')
+        ->get();
+
+        // Enviar datos a Vue
+        return Inertia::render('ListaNegra/Index', [
+            'listas' => $listas,
+            'filters' => [
+                'buscar' => $buscar,
+                'perPage' => $perPage,
+            ],
+        ]);
     }
+
 
     public function insert(Request $request)
     {

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CatParametrosPerfilTrans extends Model
 {
-    protected $table = 'catParametrosPerfilTrans';
+    protected $table = 'catparametrosperfiltrans';
     protected $primaryKey = 'IDRegistroParametro';
     public $incrementing = false; // El PK NO es autoincrementable según la migración
     protected $keyType = 'int';
@@ -25,6 +25,7 @@ class CatParametrosPerfilTrans extends Model
         'PorcentajePromedioUR',
         'PorcentajeDatosEconomicos',
         'PorcentajeDatosLaborales',
+        'FechaActualizacion',
         'TimeStampAlta',
         'Activo',
     ];
