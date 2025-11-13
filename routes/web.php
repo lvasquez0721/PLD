@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\UsuariosController;
+use App\Http\Controllers\BuzonPreocupantesController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 // Route::get('/', function () {
@@ -46,9 +47,19 @@ Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
 Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
     ->name('alertas.date-range');
 
+    //JFG ruta buzón preocupantes
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('buzon-preocupantes.index');
+
+Route::post('/buzon-preocupantes/pasar-alertas', [BuzonPreocupantesController::class, 'pasarAlertas'])
+    ->middleware(['auth', 'verified'])
+    ->name('buzon.pasarAlertas');
+
+Route::post('/buzon-preocupantes/guardar', [BuzonPreocupantesController::class, 'store'])
+    ->middleware(['auth', 'verified'])
+    ->name('buzon.store');
+
 
 Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'index'])
     ->middleware(['auth', 'verified'])
