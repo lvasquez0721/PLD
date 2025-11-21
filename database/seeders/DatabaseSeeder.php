@@ -21,5 +21,11 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call(ParametrosPLDSeeder::class);
+        $this->call(TipoPersonaSeeder::class);
+        $this->call(OcupacionGiroSeeder::class);
+        $this->call(EstadoSeeder::class);
+        $this->call(SistemaOrigenSeeder::class);
+        $this->call(TipoMonedaSeeder::class);
+        $this->call(FormaPagoSeeder::class);
     }
 }
