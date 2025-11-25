@@ -25,7 +25,7 @@ class CatParametrosPerfilTrans extends Model
         'PorcentajePromedioUR',
         'PorcentajeDatosEconomicos',
         'PorcentajeDatosLaborales',
-        'FechaActualizacion',
+        'FechaActualizacion', // Campo añadido por la migración 2025_11_25_200304_add_columns_to_catparametrosperfiltrans.php
         'TimeStampAlta',
         'Activo',
     ];
