@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\CatCampos;
 use App\Models\TbPerfilTransaccional;
 use App\Models\CatParametrosPerfilTrans;
+use Illuminate\Support\Facades\DB;
 
 class PerfilTransaccionalController extends Controller
 {
@@ -66,22 +67,63 @@ class PerfilTransaccionalController extends Controller
 
     public function buscar(Request $request)
     {
-        // dd($request->all()); // Ver los datos que llegan (opcional para depuración)
-
         try {
             $periodo = $request->input('Periodo');
+            $idCliente = $request->input('IDCliente');
 
-            if (empty($periodo)) {
-                return response()->json(['error' => 'Debe seleccionar un periodo'], 400);
+            // Caso 1: Buscar por IDCliente (para API / Postman)
+            if (!empty($idCliente) && empty($periodo)) {
+                // $registro = TbPerfilTransaccional::where('IDCliente', $idCliente)->first();
+                $registro = TbPerfilTransaccional::select(
+                    'tbperfiltransaccional.*',
+                    'tbclientes.Nombre',
+                    'tbclientes.ApellidoPaterno',
+                    'tbclientes.ApellidoMaterno'
+                )
+                ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
+                ->where('tbperfiltransaccional.IDCliente', $idCliente)
+                ->first();
+
+                if (!$registro) {
+                    return response()->json([
+                        'success' => false,
+                        'mensaje' => 'No se encontró información para el cliente especificado.'
+                    ], 404);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'mensaje' => 'Datos del cliente obtenidos correctamente.',
+                    'perfilTransaccional' => (float) $registro->Perfil,
+                    'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0)
+                ]);
             }
 
-            // Buscar datos de la tabla de perfiles transaccionales
-            $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)
-                // ->select('IDRegistroPerfil', 'IDCliente', 'Perfil', 'FechaEjecucción')
-                ->get();
+            // 🔹 Caso 2: Buscar por periodo (para generar CSV)
+            if (empty($periodo)) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Debe enviar al menos el campo Periodo o IDCliente.'
+                ], 400);
+            }
+
+            // $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)->get();
+            $datos = TbPerfilTransaccional::select(
+                'tbperfiltransaccional.*',
+                'tbclientes.Nombre',
+                'tbclientes.ApellidoPaterno',
+                'tbclientes.ApellidoMaterno'
+            )
+            ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
+            ->whereDate('FechaEjecucción', $periodo)
+            ->get();
 
             if ($datos->isEmpty()) {
-                return response()->json(['mensaje' => 'No se encontraron registros para ese periodo']);
+                return response()->json([
+                    'success' => true,
+                    'mensaje' => 'No se encontraron registros para ese periodo.',
+                    'datos' => []
+                ]);
             }
 
             // Generar CSV temporal
@@ -89,7 +131,7 @@ class PerfilTransaccionalController extends Controller
             $ruta = storage_path("app/public/{$nombreArchivo}");
             $archivo = fopen($ruta, 'w');
 
-            // Encabezado completo sin cliente
+            // Encabezado CSV
             fputcsv($archivo, [
                 'IDCliente','Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
                 'EdoDomicilio', 'NivelRiesgoDoc', 'CalculoResidencia',
@@ -98,11 +140,11 @@ class PerfilTransaccionalController extends Controller
                 'OcupGiro', 'NivelRiesgo', 'CalculoOcupacion', 'Perfil', 'Periodo'
             ]);
 
-            // Escribir los datos
             foreach ($datos as $fila) {
                 fputcsv($archivo, [
                     $fila->IDCliente,
-                    '', // Nombre temporalmente vacío
+                    $fila->Nombre,
+                    // '', // Nombre vacío
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
                     $fila->CalculoNacimiento,
@@ -127,20 +169,15 @@ class PerfilTransaccionalController extends Controller
             }
 
             fclose($archivo);
-            
-            if (!file_exists($ruta)) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'No se pudo generar el CSV en la ruta: ' . $ruta
-                ]);
-            }
 
             return response()->json([
                 'success' => true,
-                'mensaje' => 'Datos encontrados correctamente',
+                'mensaje' => 'Datos encontrados correctamente.',
                 'csvUrl' => asset("storage/{$nombreArchivo}"),
+                'total_registros' => $datos->count(),
                 'datos' => $datos
             ]);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -149,74 +186,25 @@ class PerfilTransaccionalController extends Controller
         }
     }
 
+    /* Ejecutar perfil transaccional (si se necesita lanzar SP u otro proceso)*/
+    public function ejecutar(Request $request)
+    {
+        try {
+            // Ejecuta SP sin parámetros (como tu ejemplo)
+            DB::statement("CALL SP_PerfilTransIndividual()");
 
-    // public function buscar(Request $request)
-    // {
-    //     try {
-    //         $periodo = $request->input('Periodo');
+            return response()->json([
+                'success' => true,
+                'mensaje' => 'Ejecución completada correctamente'
+            ]);
 
-    //         if (empty($periodo)) {
-    //             return response()->json(['error' => 'Debe seleccionar un periodo'], 400);
-    //         }
+        } catch (\Exception $e) {
 
-    //         // Buscar datos de la tabla de perfiles transaccionales
-    //         $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)
-    //             ->select('IDRegistroPerfil', 'IDCliente', 'Perfil', 'FechaEjecucción')
-    //             ->get();
-
-    //         if ($datos->isEmpty()) {
-    //             return response()->json(['mensaje' => 'No se encontraron registros para ese periodo']);
-    //         }
-
-    //         // Generar CSV temporal
-    //         $nombreArchivo = "perfil_transaccional_{$periodo}.csv";
-    //         $ruta = storage_path("app/public/{$nombreArchivo}");
-    //         $archivo = fopen($ruta, 'w');
-
-    //         // Encabezado
-    //         fputcsv($archivo, ['IDRegistroPerfil', 'IDCliente', 'NivelRiesgo', 'AVGPrimaTotal', 'AVGHaTotal', 'FechaEjecucción']);
-
-    //         foreach ($datos as $fila) {
-    //             fputcsv($archivo, [
-    //                 $fila->IDRegistroPerfil,
-    //                 $fila->IDCliente,
-    //                 $fila->NivelRiesgo,
-    //                 $fila->AVGPrimaTotal,
-    //                 $fila->AVGHaTotal,
-    //                 $fila->FechaEjecucción,
-    //             ]);
-    //         }
-
-    //         fclose($archivo);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'mensaje' => 'Datos encontrados correctamente',
-    //             'csvUrl' => asset("storage/{$nombreArchivo}"),
-    //             'datos' => $datos
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'mensaje' => 'Error al buscar información: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-    // ---------------------------------------------------------------------
-    // Ejecutar perfil transaccional (si se necesita lanzar SP u otro proceso)
-    // ---------------------------------------------------------------------
-    // public function ejecutar(Request $request)
-    // {
-    //     try {
-    //         // Ejemplo de ejecución de SP o cálculo
-    //         $resultado = DB::statement("EXEC pld.SP_PerfilTransIndividual_BICV");
-
-    //         return redirect()->back()->with('success', 'Ejecución completada correctamente');
-    //     } catch (\Exception $e) {
-    //         return redirect()->back()->with('error', 'Error al ejecutar perfil: ' . $e->getMessage());
-    //     }
-    // }
-
-
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al ejecutar el perfil: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 }

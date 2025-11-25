@@ -87,11 +87,11 @@ Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarC
 
 
 
-
-
-
-
-
-
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
+
+
+//Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
+//use App\Http\Controllers\PerfilTransaccionalController;
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
+

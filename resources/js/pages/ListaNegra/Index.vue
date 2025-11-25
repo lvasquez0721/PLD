@@ -148,10 +148,20 @@
     const pais = form.value.paisOtro === 'Otro' ? form.value.paisListaNegra : form.value.paisOtro;
     formData.append('pais', pais);
     if (form.value.archivoListaNegra) formData.append('archivo', form.value.archivoListaNegra);
+    formData.append('accion', String(form.value.accion));
+
     let url = '';
-    if (form.value.accion === 1) url = `/lista-negra/update/${selectedId.value}`;
-    else if (form.value.accion === 2) url = `/lista-negra/delete/${selectedId.value}`;
-    else url = `/lista-negra/insert`;
+    if (form.value.accion === 1) 
+      url = `/lista-negra/update/${selectedId.value}`;
+    else if (form.value.accion === 2) 
+      url = `/lista-negra/delete/${selectedId.value}`;
+    else 
+      url = `/lista-negra/insert`;
+
+    // for (const [key, value] of formData.entries()) {
+    //   console.log(`${key}:`, value);
+    // }
+    
     router.post(url, formData, {
       onSuccess: () => { closeModal(); router.reload(); },
       onError: (errors) => { console.error('Errores de validación:', errors); },

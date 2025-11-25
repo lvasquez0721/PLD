@@ -104,6 +104,10 @@ Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadCon
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
 
+//Rutas para Clientes
+Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.index');
 
 //Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\ListaNegraController;
@@ -118,18 +122,11 @@ use App\Http\Controllers\PerfilTransaccionalController;
 
 Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
 Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
-Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
+// Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']);
 Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
 
 
-
-
-//Rutas para Clientes---------------------------------------------------------------------------------------------------------------
-Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('clientes.index');
-
-//----------------------------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------------------
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

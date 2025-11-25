@@ -8,8 +8,8 @@ class TbListasNegraCNSF extends Model
 {
     protected $table = 'tbListasNegraCNSF';
     protected $primaryKey = 'IDRegistroListaCNSF';
-    public $incrementing = false; // true si quieres autoincrement
-    protected $keyType = 'unsignedBigInteger';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'IDRegistroListaCNSF',
@@ -33,4 +33,11 @@ class TbListasNegraCNSF extends Model
         'TimeStampAlta' => 'datetime',
         'TimeStampModif' => 'datetime',
     ];
+
+      // RELACIÓN (opcional, útil si luego quieres obtener oficios)
+    public function oficios()
+    {
+        return $this->hasMany(TbControlOficios::class, 'IDListaN', 'IDRegistroListaCNSF');
+    }
+    
 }

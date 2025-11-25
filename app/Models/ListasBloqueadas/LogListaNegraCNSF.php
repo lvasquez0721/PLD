@@ -4,13 +4,12 @@ namespace App\Models\ListasBloqueadas;
 
 use Illuminate\Database\Eloquent\Model;
 
-class LogBitEspListaNegraCNSF extends Model
+class LogListaNegraCNSF extends Model
 {
-       
-    protected $table = 'tbloglistasnegracnsf';
+    protected $table = 'loglistanegracnsf';
     protected $primaryKey = 'IDLogRegistroListaCNSF';
-    public $incrementing = false;
-    protected $keyType = 'unsignedBigInteger';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     // Campos que se pueden llenar en masa
     protected $fillable = [

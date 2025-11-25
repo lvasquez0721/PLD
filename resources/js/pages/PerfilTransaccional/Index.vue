@@ -26,6 +26,7 @@ const props = defineProps<{
   campos: Campo[]
   periodos: { FechaEjecucción: string; PeriodoFormateado: string }[]
 }>()
+const loading = ref(false)
 
 // -----------------------------------------
 // Estados
@@ -64,6 +65,9 @@ const closeModalEjecutar = () => (showModalEjecutar.value = false)
 // Guardar perfil
 // -----------------------------------------
 const submitRegistrar = () => {
+  if (loading.value) return
+  loading.value = true
+
   router.post('/perfil-transaccional/insert', formRegistrar.value, {
     preserveScroll: true,
     onSuccess: () => {
@@ -74,6 +78,9 @@ const submitRegistrar = () => {
       console.error(errors)
       mostrarModal('Error', 'No se pudo guardar el perfil.')
     },
+    onFinish: () => {
+      loading.value = false
+    },
   })
 }
 
@@ -81,8 +88,12 @@ const submitRegistrar = () => {
 // Buscar información
 // -----------------------------------------
 const buscarInformacion = async () => {
+  if (loading.value) return
+  loading.value = true
+
   if (!formRegistrar.value['Periodo']) {
     mostrarModal('Error', 'Seleccione un periodo antes de continuar.')
+    loading.value = false
     return
   }
 
@@ -102,6 +113,7 @@ const buscarInformacion = async () => {
     console.error(error)
     mostrarModal('Error', 'Ocurrió un problema al consultar la información.')
   }
+  loading.value = false
 }
 
 const resultadosFiltrados = computed(() => {
@@ -115,13 +127,22 @@ const resultadosFiltrados = computed(() => {
 // Ejecutar perfil
 // -----------------------------------------
 const ejecutarPerfil = async () => {
-  console.log('Ejecutando perfil transaccional...')
-  // try {
-  //   await axios.post('/perfil-transaccional/ejecutar')
-  //   mostrarModal('Ejecución completada', 'El perfil transaccional fue ejecutado correctamente.')
-  // } catch (error) {
-  //   mostrarModal('Error', 'No se pudo ejecutar el perfil.')
-  // }
+  //console.log('Ejecutando perfil transaccional...')
+  if (loading.value) return
+  loading.value = true
+
+  try {
+    await axios.post('/perfil-transaccional/ejecutar')
+    mostrarModal('Ejecución completada', 'El perfil transaccional fue ejecutado correctamente.')
+
+    setTimeout(() => {
+      window.location.reload()   // Recarga completa para poder actualizar datos
+    }, 800)
+
+  } catch (error) {
+    mostrarModal('Error', 'No se pudo ejecutar el perfil.')
+    loading.value = false
+  }
 }
 
 const confirmarEjecutar = async () => {
@@ -180,7 +201,7 @@ const getTituloSeccion = (index: number) => {
             </select>
           </div>
 
-          <button @click="buscarInformacion" class="flex items-center gap-2 px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition">
+          <button @click="buscarInformacion" :disabled="loading" class="flex items-center gap-2 px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition">
             <Search class="w-4 h-4" /> Buscar Información
           </button>
         </div>
@@ -220,7 +241,8 @@ const getTituloSeccion = (index: number) => {
               <tr v-for="(fila, index) in resultadosFiltrados" :key="index" class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition" >
                 <!-- ID Cliente -->
                 <td class="p-2 text-gray-900 dark:text-gray-100">
-                  {{ fila.IDCliente }}
+                  <!-- {{ fila.IDCliente }}  -->
+                    {{ fila.Nombre}}&nbsp;{{ fila.ApellidoPaterno}}&nbsp;{{ fila.ApellidoMaterno}}
                 </td>
 
                 <!-- Evaluación Perfil con color dinámico -->
@@ -269,7 +291,7 @@ const getTituloSeccion = (index: number) => {
           </div>
 
           <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-            <form @submit.prevent="submitRegistrar" class="space-y-4">
+            <form @submit.prevent="submitRegistrar" :disabled="loading" class="space-y-4">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <template v-for="(campo, index) in props.campos" :key="campo.IDCampo">
                   <div v-if="getTituloSeccion(index)" class="col-span-2">
@@ -336,10 +358,7 @@ const getTituloSeccion = (index: number) => {
     </transition>
 
     <transition name="modal-fade">
-      <div
-        v-if="showModalEjecutar"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      >
+      <div v-if="showModalEjecutar" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" >
         <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md border border-gray-200 dark:border-gray-700">
           <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h5 class="text-lg font-bold text-gray-900 dark:text-gray-100">Perfil transaccional</h5>
@@ -352,14 +371,13 @@ const getTituloSeccion = (index: number) => {
             <button @click="closeModalEjecutar" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
               Cancelar
             </button>
-            <button @click="confirmarEjecutar" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+            <button @click="confirmarEjecutar" :disabled="loading" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
               Aceptar
             </button>
           </div>
         </div>
       </div>
     </transition>
-
 
     <!-- Modal informativo
     <traon>nsition name="modal-fade">
@@ -387,12 +405,12 @@ const getTituloSeccion = (index: number) => {
 </template>
 
 <style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
+  .modal-fade-enter-active,
+  .modal-fade-leave-active {
+    transition: opacity 0.3s ease;
+  }
+  .modal-fade-enter-from,
+  .modal-fade-leave-to {
+    opacity: 0;
+  }
 </style>
