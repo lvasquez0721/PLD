@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // tbListasNegraCNSF
         Schema::create('tbListasNegraCNSF', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroListaCNSF')->primary();
+            $table->bigIncrements('IDRegistroListaCNSF'); // PK autoincremental
             $table->string('Nombre');
             $table->string('Direccion');
             $table->string('RFC', 13)->nullable()->comment('Registro Federal de Contribuyentes');
@@ -30,7 +30,7 @@ return new class extends Migration
 
 
         Schema::create('tbListasNegrasUIF', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroListaUIF')->primary();
+            $table->bigIncrements('IDRegistroListaUIF'); // PK, autoincremental
             $table->string('Nombre');
             $table->string('RFC', 13)->nullable()->comment('Registro Federal de Contribuyentes');
             $table->string('CURP', 18)->nullable()->comment('Clave Única de Registro de Población');
@@ -43,7 +43,6 @@ return new class extends Migration
             $table->timestamp('TimeStampAlta')->nullable()->comment('Fecha y hora de alta del registro');
             $table->string('UsuarioModif')->nullable()->comment('Usuario que modificó el registro');
             $table->timestamp('TimeStampModif')->nullable()->comment('Fecha y hora de modificación del registro');
-
 
             $table->timestamps();
         });

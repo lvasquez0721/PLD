@@ -13,7 +13,7 @@ return new class extends Migration
     {
         //
         Schema::create('tbReporteRegulatorioPLD', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDReporte')->primary(); // PK, no autoincrement
+            $table->bigIncrements('IDReporte'); // PK, autoincremental
             $table->unsignedBigInteger('IDRegistroAlerta')->nullable();
             $table->string('TipoReporte')->nullable();
             $table->string('PeriodoReporte')->nullable();

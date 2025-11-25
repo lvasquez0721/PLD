@@ -8,11 +8,12 @@ class TbListasNegraCNSF extends Model
 {
     protected $table = 'tbListasNegraCNSF';
     protected $primaryKey = 'IDRegistroListaCNSF';
-    public $incrementing = false;
-    protected $keyType = 'unsignedBigInteger';
+    public $incrementing = true; // El PK es autoincremental según la migración
+    protected $keyType = 'int';
+    public $timestamps = true;
 
     protected $fillable = [
-        'IDRegistroListaCNSF',
+        // 'IDRegistroListaCNSF', // No incluir campo autoincremental en $fillable
         'Nombre',
         'Direccion',
         'RFC',
@@ -25,8 +26,6 @@ class TbListasNegraCNSF extends Model
         'UsuarioModif',
         'TimeStampModif',
     ];
-
-    public $timestamps = true;
 
     protected $casts = [
         'FechaNacimiento' => 'date',

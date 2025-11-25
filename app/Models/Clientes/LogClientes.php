@@ -16,11 +16,12 @@ class LogClientes extends Model
 
     protected $table = 'logClientes';
     protected $primaryKey = 'IDLogCliente';
-    public $incrementing = false;
+    public $incrementing = true; // Debe ser autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
+        // 'IDLogCliente', // No incluir campo autoincrementable en $fillable
         'IDCliente',
         'RfcAnterior',
         'Nombre',

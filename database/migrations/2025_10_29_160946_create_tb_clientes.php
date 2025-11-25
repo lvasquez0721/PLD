@@ -48,7 +48,7 @@ return new class extends Migration
 
         // tbClientes
         Schema::create('tbClientes', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDCliente')->primary();
+            $table->bigIncrements('IDCliente');
             $table->string('RFC', 13);
             $table->string('Nombre');
             $table->string('ApellidoPaterno');
@@ -71,7 +71,7 @@ return new class extends Migration
 
         // tbClientesDomicilio
         Schema::create('tbClientesDomicilio', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDomicilio')->primary();
+            $table->bigIncrements('IDDomicilio'); // IDDomicilio es autoincremental
             $table->unsignedBigInteger('IDCliente');
             $table->string('Calle')->nullable();
             $table->string('NoExterior')->nullable();
@@ -129,7 +129,8 @@ return new class extends Migration
 
         // catOcupacionesGiros
         Schema::create('catOcupacionesGiros', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDOcupacionGiro')->primary();
+            $table->bigIncrements('IDOcupacionGiro');
+            $table->string('CVE_GIRO')->nullable();
             $table->string('OcupacionGiro');
         });
 
@@ -154,7 +155,7 @@ return new class extends Migration
 
         // tbClientesPPE
         Schema::create('tbClientesPPE', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDeteccionPPE')->primary();
+            $table->bigIncrements('IDDeteccionPPE');
             $table->unsignedBigInteger('IDCliente');
             $table->string('Lista')->nullable();
             $table->string('Cargo')->nullable();
@@ -170,7 +171,7 @@ return new class extends Migration
 
         // logDetectClientesListas
         Schema::create('logDetectClientesListas', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDeteccion')->primary();
+            $table->bigIncrements('IDDeteccion');
             $table->unsignedBigInteger('IDCliente');
             $table->string('Lista')->nullable();
             $table->string('NombreDetectado')->nullable();
@@ -186,7 +187,7 @@ return new class extends Migration
 
         // logClientes
         Schema::create('logClientes', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDLogCliente')->primary();
+            $table->bigIncrements('IDLogCliente');
             $table->unsignedBigInteger('IDCliente')->nullable();
             $table->string('RfcAnterior')->nullable();
             $table->string('Nombre')->nullable();

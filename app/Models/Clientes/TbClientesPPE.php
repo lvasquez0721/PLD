@@ -11,12 +11,12 @@ class TbClientesPPE extends Model
 
     protected $table = 'tbClientesPPE';
     protected $primaryKey = 'IDDeteccionPPE';
-    public $incrementing = false;
+    public $incrementing = true; // Debe ser autoincrementable según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDDeteccionPPE',
+        // 'IDDeteccionPPE', // No incluir clave autoincrementable en $fillable
         'IDCliente',
         'Lista',
         'Cargo',
