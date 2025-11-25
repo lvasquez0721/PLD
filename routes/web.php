@@ -47,7 +47,11 @@ Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
 Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
     ->name('alertas.date-range');
 
-    //JFG ruta buzón preocupantes
+// Ruta para descargar alertas por rango de fechas en CSV
+Route::get('/alertas/download-csv', [App\Http\Controllers\AlertasController::class, 'downloadAlertasCsvByDateRange'])
+    ->name('alertas.download-csv');
+
+//JFG ruta buzón preocupantes
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('buzon-preocupantes.index');

@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div ref="gradientRef"
-        class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 overflow-hidden subpixel-antialiased selection:bg-blue-200 dark:selection:bg-blue-800 selection:text-blue-900/90 transition-all duration-700"
+        class="relative flex min-h-svh flex-col items-center gap-6 p-6 pt-10 md:p-10 overflow-hidden subpixel-antialiased selection:bg-blue-200 dark:selection:bg-blue-800 selection:text-blue-900/90 transition-all duration-700"
         style="background: linear-gradient(135deg, #1e40af 0%, #fff 100%);">
         <!-- Overlay de contraste/control luminancia. Experto: activable con clase. -->
         <div class="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-transparent pointer-events-none z-0 transition-all duration-700 will-change-[background]"

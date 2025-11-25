@@ -14,7 +14,7 @@ return new class extends Migration
         //
         // tbAlertas
         Schema::create('tbAlertas', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroAlerta')->primary(); // No autoincrement, PK se define manualmente
+            $table->bigIncrements('IDRegistroAlerta'); // Ahora es autoincremental
             $table->string('Folio')->nullable();
             $table->string('Patron')->nullable();
             $table->unsignedBigInteger('IDCliente')->nullable();
@@ -35,7 +35,6 @@ return new class extends Migration
             $table->text('Evidencias')->nullable();
             $table->unsignedBigInteger('IDReporteOP')->nullable();
             $table->unsignedBigInteger('IDPago')->nullable();
-
 
             $table->timestamps();
         });

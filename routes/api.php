@@ -10,6 +10,7 @@ use App\Http\Controllers\IDRRPLDController;
 use App\Http\Controllers\IncisosController;
 use App\Http\Controllers\ListaNegraCNSFController;
 use App\Http\Controllers\ListasNegrasUIFController;
+use App\Http\Controllers\OperacionesController;
 use App\Http\Controllers\PagosPorCompensacionController;
 use App\Http\Controllers\ParametriaController;
 use App\Http\Controllers\ParametrosController;
@@ -26,7 +27,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/login', function (Request $request) {
-    $credentials = $request->only('email', 'password');
+    $credentials = $request->only('usuario', 'password');
 
     if (!Auth::attempt($credentials)) {
         return response()->json([
@@ -39,10 +40,11 @@ Route::post('/login', function (Request $request) {
     $token = $user->createToken('api_token')->plainTextToken;
 
     return response()->json([
-        'user' => $user,
         'token' => $token,
     ]);
 });
+
+Route::post('/insertar/opereacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
 
 
 // Ruta para inserción masiva de clientes

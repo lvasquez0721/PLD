@@ -14,7 +14,7 @@ return new class extends Migration
         //
         // tbOperaciones
         Schema::create('tbOperaciones', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDOperacion')->primary();
+            $table->id('IDOperacion');
             $table->unsignedBigInteger('IDCliente')->nullable();
             $table->string('FolioPoliza')->nullable();
             $table->string('FolioEndoso')->nullable();
@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('NombreAgente')->nullable();
             $table->string('APaternoAgente')->nullable();
             $table->string('AMaternoAgente')->nullable();
+            $table->string('tipoDocumento')->nullable();
 
             // Nota: NO USAR $table->id() NI $table->bigIncrements()
             // para que el IDOperacion NO sea autoincrement.
@@ -36,7 +37,7 @@ return new class extends Migration
 
         // tbOperacionesBeneficiarios
         Schema::create('tbOperacionesBeneficiarios', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDOperacionBeneficiario')->primary();
+            $table->id('IDOperacionBeneficiario');
             $table->unsignedBigInteger('IDOperacion')->nullable();
             $table->string('RFCBeneficiario')->nullable();
             $table->string('CURPBeneficiario')->nullable();
@@ -54,23 +55,23 @@ return new class extends Migration
             $table->foreign('IDOperacion')->references('IDOperacion')->on('tbOperaciones')->onDelete('set null');
         });
 
-        // tbOperacionesAsegurado
-        Schema::create('tbOperacionesAsegurado', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDAsegurado')->primary();
-            $table->unsignedBigInteger('IDOperacion')->nullable();
-            $table->string('RFCAsegurado')->nullable();
-            $table->string('CURPAsegurado')->nullable();
-            $table->string('NombreAsegurado')->nullable();
-            $table->string('APaternoAsegurado')->nullable();
-            $table->string('AMaternoAsegurado')->nullable();
-            $table->string('RazonSocialAsegurado')->nullable();
+        // tbOperacionesAsegurado (se elimina)
+        // Schema::create('tbOperacionesAsegurado', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('IDAsegurado')->primary();
+        //     $table->unsignedBigInteger('IDOperacion')->nullable();
+        //     $table->string('RFCAsegurado')->nullable();
+        //     $table->string('CURPAsegurado')->nullable();
+        //     $table->string('NombreAsegurado')->nullable();
+        //     $table->string('APaternoAsegurado')->nullable();
+        //     $table->string('AMaternoAsegurado')->nullable();
+        //     $table->string('RazonSocialAsegurado')->nullable();
 
-            $table->timestamps();
+        //     $table->timestamps();
 
-            // IDAsegurado NO es autoincrementable
+        //     // IDAsegurado NO es autoincrementable
 
-            $table->foreign('IDOperacion')->references('IDOperacion')->on('tbOperaciones')->onDelete('set null');
-        });
+        //     $table->foreign('IDOperacion')->references('IDOperacion')->on('tbOperaciones')->onDelete('set null');
+        // });
 
         // catMonedas
         Schema::create('catMonedas', function (Blueprint $table) {
@@ -90,7 +91,7 @@ return new class extends Migration
 
         // tbOperacionesPagos
         Schema::create('tbOperacionesPagos', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDOperacionPago')->primary();
+            $table->bigIncrements('IDOperacionPago');
             $table->unsignedBigInteger('IDOperacion')->nullable();
             $table->decimal('Monto', 18, 2)->nullable();
             $table->unsignedBigInteger('IDMoneda')->nullable();
@@ -101,7 +102,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // IDOperacionPago no es autoincrement, definido manualmente
+            // IDOperacionPago ahora es autoincremental
 
             $table->foreign('IDOperacion')->references('IDOperacion')->on('tbOperaciones')->onDelete('set null');
             $table->foreign('IDMoneda')->references('IDMoneda')->on('catMonedas')->onDelete('set null');
