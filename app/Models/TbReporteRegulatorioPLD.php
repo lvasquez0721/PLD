@@ -8,12 +8,12 @@ class TbReporteRegulatorioPLD extends Model
 {
     protected $table = 'tbReporteRegulatorioPLD';
     protected $primaryKey = 'IDReporte';
-    public $incrementing = false; // El PK NO es autoincrementable según la migración
+    public $incrementing = true; // El PK ES autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDReporte',
+        // 'IDReporte', // No incluir campo autoincremental en $fillable
         'IDRegistroAlerta',
         'TipoReporte',
         'PeriodoReporte',

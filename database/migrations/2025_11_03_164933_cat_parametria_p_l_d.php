@@ -13,7 +13,7 @@ return new class extends Migration
     {
         //
         Schema::create('catParametriaPLD', function (Blueprint $table) {
-            $table->bigIncrements('IDParametro');
+            $table->unsignedBigInteger('IDParametro')->primary()->comment('Clave primaria NO autoincremental del parámetro');
             $table->string('Parametro')->comment('Nombre o descripción del parámetro');
             $table->string('Valor')->nullable()->comment('Valor asignado al parámetro');
             $table->string('TipoDato')->nullable()->comment('Tipo de dato del parámetro');

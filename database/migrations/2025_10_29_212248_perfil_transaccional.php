@@ -14,7 +14,7 @@ return new class extends Migration
         //
         // tbPerfilTransaccional
         Schema::create('tbPerfilTransaccional', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroPerfil')->primary(); // PK, no autoincrement
+            $table->bigIncrements('IDRegistroPerfil'); // PK, autoincremental
             $table->unsignedBigInteger('IDCliente')->nullable();
             $table->unsignedBigInteger('IDEstadoNacimiento')->nullable();
             $table->unsignedTinyInteger('NivelRiesgoNac')->nullable();
@@ -51,7 +51,7 @@ return new class extends Migration
 
         // catParametrosPerfilTrans
         Schema::create('catParametrosPerfilTrans', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroParametro')->primary(); // PK, no autoincrement
+            $table->bigIncrements('IDRegistroParametro'); // PK, autoincremental
             $table->decimal('PorcentajeNacimiento', 5, 2)->nullable();
             $table->decimal('PorcentajeResidencia', 5, 2)->nullable();
             $table->decimal('PorcentajePredio', 5, 2)->nullable();

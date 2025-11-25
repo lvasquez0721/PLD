@@ -8,10 +8,11 @@ class CatParametriaPLD extends Model
 {
     protected $table = 'catParametriaPLD';
     protected $primaryKey = 'IDParametro';
-    public $incrementing = true;
+    public $incrementing = false; // El campo IDParametro NO es autoincremental según la migración
     protected $keyType = 'int';
 
     protected $fillable = [
+        'IDParametro', // SÍ debe incluirse ya que no es autoincremental
         'Parametro',
         'Valor',
         'TipoDato',

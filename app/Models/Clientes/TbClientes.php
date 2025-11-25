@@ -11,12 +11,12 @@ class TbClientes extends Model
 
     protected $table = 'tbClientes';
     protected $primaryKey = 'IDCliente';
-    public $incrementing = true;
+    public $incrementing = true; // IDCliente es autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDCliente',
+        // 'IDCliente', // NO incluimos campos autoincrementales en $fillable
         'RFC',
         'Nombre',
         'ApellidoPaterno',
