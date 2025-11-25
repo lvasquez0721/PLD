@@ -25,7 +25,7 @@ class AlertasController extends Controller
                 '*.IDRegistroAlerta' => 'required|integer',
                 '*.Folio' => 'required|string|max:255',
                 '*.Patron' => 'required|string|max:255',
-                '*.IDCliente' => 'required|string|max:255',
+                '*.IDCliente' => 'required|integer|max:255',
                 '*.Cliente' => 'required|string|max:255',
                 '*.Poliza' => 'required|string|max:255',
                 '*.FechaDeteccion' => 'required|date',
@@ -109,5 +109,45 @@ class AlertasController extends Controller
             ->get();
 
         return response()->json($alertas);
+    }
+
+    /**
+     * Obtiene alertas por rango de fechas y las descarga en formato CSV.
+     */
+    public function downloadAlertasCsvByDateRange(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'fechaInicio' => 'required|date',
+            'fechaFin' => 'required|date|after_or_equal:fechaInicio',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $fechaInicio = $request->input('fechaInicio');
+        $fechaFin = $request->input('fechaFin');
+
+        $alertas = TbAlertas::whereBetween('FechaDeteccion', [$fechaInicio, $fechaFin])
+            ->get();
+
+        $fileName = 'alertas_' . $fechaInicio . '_a_' . $fechaFin . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ];
+
+        $callback = function () use ($alertas) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, array_keys($alertas->first()->toArray())); // Add CSV headers
+
+            foreach ($alertas as $alerta) {
+                fputcsv($file, $alerta->toArray());
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

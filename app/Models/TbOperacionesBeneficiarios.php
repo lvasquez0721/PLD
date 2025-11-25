@@ -8,7 +8,7 @@ class TbOperacionesBeneficiarios extends Model
 {
     protected $table = 'tbOperacionesBeneficiarios';
     protected $primaryKey = 'IDOperacionBeneficiario';
-    public $incrementing = false; // El PK no es autoincrement según la migración
+    public $incrementing = true; // El PK no es autoincrement según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
