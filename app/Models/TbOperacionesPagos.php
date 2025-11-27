@@ -14,6 +14,7 @@ class TbOperacionesPagos extends Model
 
     protected $fillable = [
         'IDOperacion',
+        'IDCliente',
         'Monto',
         'IDMoneda',
         'IDFormaPago',

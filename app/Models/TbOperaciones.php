@@ -16,6 +16,10 @@ class TbOperaciones extends Model
 
     protected $fillable = [
         'IDCliente',
+        'IDMoneda',
+        'FechaInicioVigencia',
+        'FechaFinVigencia',
+        'RazonSocialAgente',
         'FolioPoliza',
         'FolioEndoso',
         'FechaEmision',
