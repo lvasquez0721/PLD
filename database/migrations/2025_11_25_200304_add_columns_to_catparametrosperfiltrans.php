@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('catparametrosperfiltrans', function (Blueprint $table) {
+        Schema::table('catParametrosPerfilTrans', function (Blueprint $table) {
             $table->dropColumn('FechaActualizacion');
         });
     }
