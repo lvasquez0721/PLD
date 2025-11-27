@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('tbListasNegraCNSF', function (Blueprint $table) {
             $table->bigIncrements('IDRegistroListaCNSF'); // PK autoincremental
             $table->string('Nombre');
-            $table->string('Direccion');
+            $table->string('Direccion')->nullable();
             $table->string('RFC', 13)->nullable()->comment('Registro Federal de Contribuyentes');
             $table->string('CURP', 18)->nullable()->comment('Clave Única de Registro de Población');
             $table->string('Pais')->nullable()->comment('País');
