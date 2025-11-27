@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('catparametrosperfiltrans', function (Blueprint $table) {
+        // Corrige el nombre de la tabla: debe ser 'catParametrosPerfilTrans' (respeta mayúsculas y minúsculas)
+        Schema::table('catParametrosPerfilTrans', function (Blueprint $table) {
             // Agrega la columna FechaActualizacion después de PorcentajeDatosLaborales
             $table->date('FechaActualizacion')->nullable()->after('PorcentajeDatosLaborales');
         });
