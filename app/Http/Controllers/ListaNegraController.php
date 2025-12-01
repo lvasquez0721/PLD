@@ -9,7 +9,8 @@ use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Log; //error log
-use Symfony\Component\Mime\Encoder\Rfc2231Encoder;
+use Illuminate\Support\Facades\Storage;
+
 
 class ListaNegraController extends Controller
 {
@@ -48,19 +49,21 @@ class ListaNegraController extends Controller
 
     public function insert(Request $request)
     {
+       // dd($request->all()); // Muestra todos los datos del request
+
         $request->validate([
             'nombre' => 'required|string|max:255',
             'rfc' => 'required|string|max:13',
             'curp' => 'required|string|max:18',
             'fecha_nacimiento' => 'required|date',
             'pais' => 'required|string|max:255',
-            'archivo' => 'nullable|file|mimes:pdf|max:4096',
+            'archivo' => 'required|file|mimes:pdf|max:4096',
         ]);
 
         DB::beginTransaction();
 
         try {
-
+            $rutaArchivo = null;
             // Si viene archivo, obtenemos su nombre SIN guardarlo aún
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
@@ -70,6 +73,7 @@ class ListaNegraController extends Controller
             // 1. Insertar registro principal
             $lista = TbListasNegraCNSF::create([
                 'Nombre' => $request->nombre,
+                'Direccion' => '',
                 'RFC' => $request->rfc,
                 'CURP' => $request->curp,
                 'FechaNacimiento' => $request->fecha_nacimiento,
@@ -163,7 +167,6 @@ class ListaNegraController extends Controller
                     return redirect()->back()->with('error', 'No se pudo guardar el oficio.');
                 }
             }
-
         
             $okBitacora = $this->guardarBitacora($id, 2);
 

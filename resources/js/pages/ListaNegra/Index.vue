@@ -195,11 +195,11 @@
     if (!search.value) return listas.value;
     const term = normalize(search.value);
     return listas.value.filter(item => {
-      const nombre = normalize(item.Nombre);
-      const rfc = normalize(item.RFC);
-      const curp = normalize(item.CURP ?? '');
-      const pais = normalize(item.Pais ?? '');
-      return (nombre.includes(term) || rfc.includes(term) || curp.includes(term) || pais.includes(term));
+      const nombre = normalize(item?.Nombre || '');
+      const rfc = normalize(item?.RFC || '');
+      const curp = normalize(item?.CURP || '');
+      const pais = normalize(item?.Pais || '');
+      return ( nombre.includes(term) || rfc.includes(term) || curp.includes(term) || pais.includes(term) );
     });
   });
 
@@ -281,7 +281,7 @@
                   <td>{{ item.IDRegistroListaCNSF }}</td>
                   <td>{{ item.Nombre }}</td>
                   <td>{{ item.RFC }}</td>
-                  <td class="text-center actions-cell">
+                  <td class="text-center actions-cell w-30">
                     <button @click="openEditModal(item)" class="edit-btn">✏️</button>
                     <button @click="openDeleteModal(item)" class="delete-btn">🗑️</button>
                   </td>
