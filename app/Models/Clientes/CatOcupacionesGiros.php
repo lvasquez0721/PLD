@@ -19,5 +19,6 @@ class CatOcupacionesGiros extends Model
         // 'IDOcupacionGiro', // NO incluimos campos autoincrementales en $fillable
         'CVE_GIRO',
         'OcupacionGiro',
+		'NivelRiesgo'
     ];
 }
