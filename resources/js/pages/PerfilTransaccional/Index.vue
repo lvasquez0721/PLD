@@ -68,6 +68,8 @@ const submitRegistrar = () => {
   if (loading.value) return
   loading.value = true
 
+  //console.log("Datos enviados al Registrar Perfil:", JSON.parse(JSON.stringify(formRegistrar.value)))
+
   router.post('/perfil-transaccional/insert', formRegistrar.value, {
     preserveScroll: true,
     onSuccess: () => {
@@ -118,10 +120,20 @@ const buscarInformacion = async () => {
 
 const resultadosFiltrados = computed(() => {
   if (!filtroNombre.value) return resultados.value
-  return resultados.value.filter((fila: any) =>
-    fila.IDCliente.toString().toLowerCase().includes(filtroNombre.value.toLowerCase())
-  )
-});
+
+  const texto = filtroNombre.value.toLowerCase()
+
+  return resultados.value.filter((fila: any) => {
+    const nombreCompleto = `
+      ${fila.Nombre ?? ''} 
+      ${fila.ApellidoPaterno ?? ''} 
+      ${fila.ApellidoMaterno ?? ''}
+    `.toLowerCase()
+
+    return nombreCompleto.includes(texto)
+  })
+})
+
 
 // -----------------------------------------
 // Ejecutar perfil

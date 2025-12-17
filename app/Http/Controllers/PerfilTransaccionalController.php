@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\CatCampos;
@@ -95,7 +94,8 @@ class PerfilTransaccionalController extends Controller
                     'success' => true,
                     'mensaje' => 'Datos del cliente obtenidos correctamente.',
                     'perfilTransaccional' => (float) $registro->Perfil,
-                    'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0)
+                    'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0),
+                    //'NombreCompleto' => trim("{$registro->Nombre} {$registro->ApellidoPaterno} {$registro->ApellidoMaterno}"),
                 ]);
             }
 
@@ -131,6 +131,8 @@ class PerfilTransaccionalController extends Controller
             $ruta = storage_path("app/public/{$nombreArchivo}");
             $archivo = fopen($ruta, 'w');
 
+            fwrite($archivo, "\xEF\xBB\xBF");
+
             // Encabezado CSV
             fputcsv($archivo, [
                 'IDCliente','Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
@@ -143,8 +145,7 @@ class PerfilTransaccionalController extends Controller
             foreach ($datos as $fila) {
                 fputcsv($archivo, [
                     $fila->IDCliente,
-                    $fila->Nombre,
-                    // '', // Nombre vacío
+                    $fila->Nombre . ' ' . $fila->ApellidoPaterno . ' ' . $fila->ApellidoMaterno,
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
                     $fila->CalculoNacimiento,

@@ -10,6 +10,7 @@ use App\Models\ListasBloqueadas\TbControlOficios;
 use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Log; //error log
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth; // <-- Agregar esto
 
 
 class ListaNegraController extends Controller
@@ -49,7 +50,12 @@ class ListaNegraController extends Controller
 
     public function insert(Request $request)
     {
-       // dd($request->all()); // Muestra todos los datos del request
+        //dd($request->all()); // Muestra todos los datos del request
+        $user = Auth::user();// Obtener el usuario autenticado
+    
+        // // Acceder directamente a las propiedades
+        // dd(['id' => $user->id, 'nombre' => $user->nombre, 'apellido_p' => $user->apellido_p,'apellido_m' => $user->apellido_m, 'primer_login' => $user->primer_login, 'usuario' => $user->usuario, 'email' => $user->email, 'password' => $user->password ]);
+        // die();
 
         $request->validate([
             'nombre' => 'required|string|max:255',
@@ -79,7 +85,7 @@ class ListaNegraController extends Controller
                 'FechaNacimiento' => $request->fecha_nacimiento,
                 'Pais' => $request->pais,
                 'OficiosRelacionados' => $rutaArchivo,
-                'UsuarioAlta' => 'Sistema',
+                'UsuarioAlta' => $user->usuario ? $user->usuario : 'Sistema',
                 'TimeStampAlta' => now(),
                 'UsuarioModif' => null,
                 'TimeStampModif' => now(),
@@ -109,6 +115,7 @@ class ListaNegraController extends Controller
     public function update(Request $request, $id)
     {
         DB::beginTransaction();
+        $user = Auth::user();// Obtener el usuario autenticado
 
         try {
             $lista = TbListasNegraCNSF::findOrFail($id);
@@ -135,7 +142,7 @@ class ListaNegraController extends Controller
                 'CURP' => $request->curp,
                 'FechaNacimiento' => $request->fecha_nacimiento,
                 'Pais' => $request->pais,
-                'UsuarioModif' => 'Sistema',
+                'UsuarioModif' => $user->usuario ? $user->usuario : 'Sistema',
                 'TimeStampModif' => now()
             ]);
 
@@ -191,8 +198,9 @@ class ListaNegraController extends Controller
     /* Guarda bitácora del registro */
     public function guardarBitacora($id, $accion)
     {
+        $user = Auth::user();// Obtener el usuario autenticado
         $LN = TbListasNegraCNSF::where('IDRegistroListaCNSF', $id)->first();
-
+        
         if (!$LN) return false;
 
         $insert = LogListaNegraCNSF::create([
@@ -207,7 +215,7 @@ class ListaNegraController extends Controller
             'OficiosRelacionados' => $LN->OficiosRelacionados,
             'UsuarioAlta' => $LN->UsuarioAlta,
             'TimeStampAlta' => $LN->TimeStampAlta,
-            'UsuarioModif' => $LN->UsuarioModif,
+            'UsuarioModif' =>  $user->usuario ? $user->usuario : 'Sistema',
             'TimeStampModif' => $LN->TimeStampModif,
         ]);
 
@@ -232,6 +240,52 @@ class ListaNegraController extends Controller
         ]);
 
         return $registro ? true : false;
+    }
+
+    public function buscar(Request $request)
+    {
+        try {
+            $id = $request->input('IDRegistroListaCNSF');
+
+            if (empty($id)) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Debe enviar el campo IDRegistroListaCNSF.'
+                ], 400);
+            }
+
+            // Buscar por la llave primaria correcta
+            //$registro = TbListasNegraCNSF::find($id);
+            $registro=TbListasNegraCNSF::select('nombre')
+            ->where('tbListasNegraCNSF.IDRegistroListaCNSF', $id)
+            ->first();
+
+            if (!$registro) {
+               return response()->json([ 'registrosEncontrados' => 0, 'detalleListaBloqueadas' => [] ], 200);
+            }
+
+            // Armado de estructura EXACTA
+            $detalle = [
+                [
+                    "lista" => "Listas Negra CNSF",
+                    "nombreDetectado" => $registro->nombre ?? "",
+                    "IDListaOrigen" => 1,
+                    "cargo" => "",
+                    "PPEActivo" => true
+                ]
+            ];
+
+            return response()->json([
+                "registrosEncontrados" => count($detalle),
+                "detalleListaBloqueadas" => $detalle 
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al buscar información: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 }

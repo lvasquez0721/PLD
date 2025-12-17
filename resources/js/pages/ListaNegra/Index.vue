@@ -5,6 +5,7 @@
   import Titulo from '@/components/ui/Titulo.vue';
   import { ListX } from 'lucide-vue-next';
 
+  
   const breadcrumbs = [{ title: 'Lista Negra', href: '' }];
 
   const showModal = ref(false);
@@ -158,9 +159,9 @@
     else 
       url = `/lista-negra/insert`;
 
-    // for (const [key, value] of formData.entries()) {
-    //   console.log(`${key}:`, value);
-    // }
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
     
     router.post(url, formData, {
       onSuccess: () => { closeModal(); router.reload(); },
@@ -234,6 +235,13 @@
     <div class="flex items-center justify-between">
       <Titulo :icon="ListX" title="Lista Negra" size="md" weight="bold" class="mb-2" />
     </div>
+
+
+      <!-- ALERTA SIMPLE DEL SERVIDOR -->
+    <!-- <div v-if="showAlert" :class="['alert-message', alertType === 'success' ? 'alert-success' : 'alert-error']">
+      {{ alertMessage }}
+      <button @click="showAlert = false" class="alert-close">✕</button>
+    </div> -->
 
     <section class="content">
       <!-- FILTROS -->
