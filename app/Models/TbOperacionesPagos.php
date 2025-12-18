@@ -8,13 +8,13 @@ class TbOperacionesPagos extends Model
 {
     protected $table = 'tbOperacionesPagos';
     protected $primaryKey = 'IDOperacionPago';
-    public $incrementing = false; // El PK NO es autoincrementable según la migración
+    public $incrementing = true; // El PK ES autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDOperacionPago',
         'IDOperacion',
+        'IDCliente',
         'Monto',
         'IDMoneda',
         'IDFormaPago',

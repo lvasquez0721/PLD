@@ -21,6 +21,7 @@ return new class extends Migration
         $admin = $userClass::firstOrCreate(
             ['email' => 'admin@admin.com'],
             [
+                'usuario' => 'aPrincipal',
                 'nombre' => 'Admin',
                 'apellido_p' => 'Principal',
                 'apellido_m' => '.',

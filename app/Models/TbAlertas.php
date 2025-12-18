@@ -8,12 +8,11 @@ class TbAlertas extends Model
 {
     protected $table = 'tbAlertas';
     protected $primaryKey = 'IDRegistroAlerta';
-    public $incrementing = false; // El PK NO es autoincrementable según la migración
+    public $incrementing = true; // Ahora el PK es autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDRegistroAlerta',
         'Folio',
         'Patron',
         'IDCliente',

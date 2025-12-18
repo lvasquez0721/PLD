@@ -20,24 +20,24 @@ return new class extends Migration
         });
 
         // catMunicipio
-        Schema::create('catMunicipio', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDMunicipio')->primary();
-            $table->string('Municipio');
-            $table->unsignedBigInteger('IDEstado');
-            $table->timestamps();
+        // Schema::create('catMunicipio', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('IDMunicipio')->primary();
+        //     $table->string('Municipio');
+        //     $table->unsignedBigInteger('IDEstado');
+        //     $table->timestamps();
 
-            $table->foreign('IDEstado')->references('IDEstado')->on('catEstados')->onDelete('cascade');
-        });
+        //     $table->foreign('IDEstado')->references('IDEstado')->on('catEstados')->onDelete('cascade');
+        // });
 
         // catLocalidad
-        Schema::create('catLocalidad', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDLocalidad')->primary();
-            $table->string('Localidad');
-            $table->unsignedBigInteger('IDMunicipio');
-            $table->timestamps();
+        // Schema::create('catLocalidad', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('IDLocalidad')->primary();
+        //     $table->string('Localidad');
+        //     $table->unsignedBigInteger('IDMunicipio');
+        //     $table->timestamps();
 
-            $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('cascade');
-        });
+        //     $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('cascade');
+        // });
 
         // catTipoPersona
         Schema::create('catTipoPersona', function (Blueprint $table) {
@@ -48,7 +48,7 @@ return new class extends Migration
 
         // tbClientes
         Schema::create('tbClientes', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDCliente')->primary();
+            $table->bigIncrements('IDCliente');
             $table->string('RFC', 13);
             $table->string('Nombre');
             $table->string('ApellidoPaterno');
@@ -71,7 +71,7 @@ return new class extends Migration
 
         // tbClientesDomicilio
         Schema::create('tbClientesDomicilio', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDomicilio')->primary();
+            $table->bigIncrements('IDDomicilio'); // IDDomicilio es autoincremental
             $table->unsignedBigInteger('IDCliente');
             $table->string('Calle')->nullable();
             $table->string('NoExterior')->nullable();
@@ -79,15 +79,17 @@ return new class extends Migration
             $table->string('Colonia')->nullable();
             $table->string('CP')->nullable();
             $table->unsignedBigInteger('IDEstado');
-            $table->unsignedBigInteger('IDMunicipio');
-            $table->unsignedBigInteger('IDLocalidad');
+            // $table->unsignedBigInteger('IDMunicipio');
+            // $table->unsignedBigInteger('IDLocalidad');
+            $table->string('Municipio')->nullable();
+            $table->string('Localidad')->nullable();
             $table->string('Telefono')->nullable();
             $table->timestamps();
 
             $table->foreign('IDCliente')->references('IDCliente')->on('tbClientes')->onDelete('cascade');
             $table->foreign('IDEstado')->references('IDEstado')->on('catEstados')->onDelete('cascade');
-            $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('cascade');
-            $table->foreign('IDLocalidad')->references('IDLocalidad')->on('catLocalidad')->onDelete('cascade');
+            // $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('cascade');
+            // $table->foreign('IDLocalidad')->references('IDLocalidad')->on('catLocalidad')->onDelete('cascade');
         });
 
         // logClientesDomicilio
@@ -102,8 +104,10 @@ return new class extends Migration
             $table->string('CP')->nullable();
 
             $table->unsignedBigInteger('IDEstado')->nullable();
-            $table->unsignedBigInteger('IDMunicipio')->nullable();
-            $table->unsignedBigInteger('IDLocalidad')->nullable();
+            // $table->unsignedBigInteger('IDMunicipio')->nullable();
+            // $table->unsignedBigInteger('IDLocalidad')->nullable();
+            $table->string('Municipio')->nullable();
+            $table->string('Localidad')->nullable();
             $table->string('Telefono')->nullable();
 
             $table->timestamps();
@@ -111,8 +115,8 @@ return new class extends Migration
             $table->foreign('IDDomicilio')->references('IDDomicilio')->on('tbClientesDomicilio')->onDelete('set null');
             $table->foreign('IDCliente')->references('IDCliente')->on('tbClientes')->onDelete('set null');
             $table->foreign('IDEstado')->references('IDEstado')->on('catEstados')->onDelete('set null');
-            $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('set null');
-            $table->foreign('IDLocalidad')->references('IDLocalidad')->on('catLocalidad')->onDelete('set null');
+            // $table->foreign('IDMunicipio')->references('IDMunicipio')->on('catMunicipio')->onDelete('set null');
+            // $table->foreign('IDLocalidad')->references('IDLocalidad')->on('catLocalidad')->onDelete('set null');
         });
 
         // catSistemas
@@ -125,7 +129,8 @@ return new class extends Migration
 
         // catOcupacionesGiros
         Schema::create('catOcupacionesGiros', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDOcupacionGiro')->primary();
+            $table->bigIncrements('IDOcupacionGiro');
+            $table->string('CVE_GIRO')->nullable();
             $table->string('OcupacionGiro');
         });
 
@@ -150,7 +155,7 @@ return new class extends Migration
 
         // tbClientesPPE
         Schema::create('tbClientesPPE', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDeteccionPPE')->primary();
+            $table->bigIncrements('IDDeteccionPPE');
             $table->unsignedBigInteger('IDCliente');
             $table->string('Lista')->nullable();
             $table->string('Cargo')->nullable();
@@ -166,7 +171,7 @@ return new class extends Migration
 
         // logDetectClientesListas
         Schema::create('logDetectClientesListas', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDDeteccion')->primary();
+            $table->bigIncrements('IDDeteccion');
             $table->unsignedBigInteger('IDCliente');
             $table->string('Lista')->nullable();
             $table->string('NombreDetectado')->nullable();
@@ -182,7 +187,7 @@ return new class extends Migration
 
         // logClientes
         Schema::create('logClientes', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDLogCliente')->primary();
+            $table->bigIncrements('IDLogCliente');
             $table->unsignedBigInteger('IDCliente')->nullable();
             $table->string('RfcAnterior')->nullable();
             $table->string('Nombre')->nullable();

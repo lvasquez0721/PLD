@@ -11,12 +11,12 @@ class LogDetectClientesListas extends Model
 
     protected $table = 'logDetectClientesListas';
     protected $primaryKey = 'IDDeteccion';
-    public $incrementing = false;
+    public $incrementing = true; // Debe ser autoincrementable según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDDeteccion',
+        // 'IDDeteccion', // No incluir campo autoincrementable en $fillable
         'IDCliente',
         'Lista',
         'NombreDetectado',

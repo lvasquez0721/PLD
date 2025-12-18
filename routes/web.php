@@ -47,7 +47,11 @@ Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
 Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
     ->name('alertas.date-range');
 
-    //JFG ruta buzón preocupantes
+// Ruta para descargar alertas por rango de fechas en CSV
+Route::get('/alertas/download-csv', [App\Http\Controllers\AlertasController::class, 'downloadAlertasCsvByDateRange'])
+    ->name('alertas.download-csv');
+
+//JFG ruta buzón preocupantes
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('buzon-preocupantes.index');
@@ -109,5 +113,24 @@ Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'
     ->middleware(['auth', 'verified'])
     ->name('clientes.index');
 
+//Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
+use App\Http\Controllers\ListaNegraController;
+
+Route::get('/lista-negra', [ListaNegraController::class, 'index'])->name('lista-negra.index');
+Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->name('lista-negra.insert');
+Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
+Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
+
+//Rutas de Perfil Transaccional------------------------------------------------------------------------------------------------------
+use App\Http\Controllers\PerfilTransaccionalController;
+
+Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
+Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
+// Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']);
+Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
+
+
+//----------------------------------------------------------------------------------------------------------------------------------
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

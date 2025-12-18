@@ -8,11 +8,12 @@ class TbListasNegrasUIF extends Model
 {
     protected $table = 'tbListasNegrasUIF';
     protected $primaryKey = 'IDRegistroListaUIF';
-    public $incrementing = false;
-    protected $keyType = 'unsignedBigInteger';
+    public $incrementing = true; // El PK es autoincremental según la migración
+    protected $keyType = 'int';
+    public $timestamps = true;
 
     protected $fillable = [
-        'IDRegistroListaUIF',
+        // 'IDRegistroListaUIF', // No incluir campo autoincremental en $fillable
         'Nombre',
         'RFC',
         'CURP',
@@ -26,8 +27,6 @@ class TbListasNegrasUIF extends Model
         'UsuarioModif',
         'TimeStampModif',
     ];
-
-    public $timestamps = true;
 
     protected $casts = [
         'FechaNacimiento' => 'date',

@@ -76,3 +76,4 @@ class ListaNegraCNSFController extends Controller
         }
     }
 }
+

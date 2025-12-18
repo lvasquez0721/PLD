@@ -5,8 +5,6 @@ namespace App\Models\Clientes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Clientes\CatEstados;
-use App\Models\Clientes\CatMunicipio;
-use App\Models\Clientes\CatLocalidad;
 
 class TbClientesDomicilio extends Model
 {
@@ -14,7 +12,7 @@ class TbClientesDomicilio extends Model
 
     protected $table = 'tbClientesDomicilio';
     protected $primaryKey = 'IDDomicilio';
-    public $incrementing = false;
+    public $incrementing = true; // IDDomicilio es autoincrementable según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
@@ -26,24 +24,14 @@ class TbClientesDomicilio extends Model
         'Colonia',
         'CP',
         'IDEstado',
-        'IDMunicipio',
-        'IDLocalidad',
+        'Municipio',
+        'Localidad',
         'Telefono',
     ];
 
-    // Relaciones con catEstados, catMunicipio y catLocalidad
+    // Relación con catEstados
     public function estado()
     {
         return $this->belongsTo(CatEstados::class, 'IDEstado', 'IDEstado');
-    }
-
-    public function municipio()
-    {
-        return $this->belongsTo(CatMunicipio::class, 'IDMunicipio', 'IDMunicipio');
-    }
-
-    public function localidad()
-    {
-        return $this->belongsTo(CatLocalidad::class, 'IDLocalidad', 'IDLocalidad');
     }
 }

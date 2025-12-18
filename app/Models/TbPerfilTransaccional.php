@@ -8,12 +8,12 @@ class TbPerfilTransaccional extends Model
 {
     protected $table = 'tbPerfilTransaccional';
     protected $primaryKey = 'IDRegistroPerfil';
-    public $incrementing = false; // El PK NO es autoincrementable según la migración
+    public $incrementing = true; // El PK ES autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
-        'IDRegistroPerfil',
+        // 'IDRegistroPerfil', // No incluir campo autoincremental en $fillable
         'IDCliente',
         'IDEstadoNacimiento',
         'NivelRiesgoNac',

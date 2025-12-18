@@ -15,5 +15,10 @@ class CatMonedas extends Model
     protected $fillable = [
         'IDMoneda',
         'Moneda',
+        'Fecha',
+    ];
+
+    protected $casts = [
+        'Fecha' => 'date',
     ];
 }

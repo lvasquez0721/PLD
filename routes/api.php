@@ -10,6 +10,7 @@ use App\Http\Controllers\IDRRPLDController;
 use App\Http\Controllers\IncisosController;
 use App\Http\Controllers\ListaNegraCNSFController;
 use App\Http\Controllers\ListasNegrasUIFController;
+use App\Http\Controllers\OperacionesController;
 use App\Http\Controllers\PagosPorCompensacionController;
 use App\Http\Controllers\ParametriaController;
 use App\Http\Controllers\ParametrosController;
@@ -39,17 +40,18 @@ Route::post('/login', function (Request $request) {
     $token = $user->createToken('api_token')->plainTextToken;
 
     return response()->json([
-        'user' => $user,
         'token' => $token,
     ]);
 });
 
+// Rutas de OperacionesController
+Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
+Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
 
 // Ruta para inserción masiva de clientes
 Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
 
 Route::post('/solicitudes/masivo', [SolicitudesController::class, 'storeMassive'])->middleware('auth:sanctum');
-
 
 Route::post('/polizas/masivo', [PolizasController::class, 'storeMasivo'])->middleware('auth:sanctum');
 
@@ -81,17 +83,12 @@ Route::post('/listanegracnsf/masivo', [ListaNegraCNSFController::class, 'bulkIns
 
 Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bulkInsert'])->middleware('auth:sanctum');
 
-
 //Ruta para guardar clientes generados desde el SIT
 Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
 
-
-
-
-
-
-
-
-
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
+
+//Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
+//use App\Http\Controllers\PerfilTransaccionalController;
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)

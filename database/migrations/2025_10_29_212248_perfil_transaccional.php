@@ -14,9 +14,9 @@ return new class extends Migration
         //
         // tbPerfilTransaccional
         Schema::create('tbPerfilTransaccional', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroPerfil')->primary(); // PK, no autoincrement
+            $table->bigIncrements('IDRegistroPerfil'); // PK, autoincremental
             $table->unsignedBigInteger('IDCliente')->nullable();
-            $table->unsignedBigInteger('IDEstadoNacimiento')->nullable();
+            $table->string('IDEstadoNacimiento')->nullable();
             $table->unsignedTinyInteger('NivelRiesgoNac')->nullable();
             $table->string('CalculoNacimiento')->nullable();
             $table->unsignedBigInteger('IDEstadoDomicilio')->nullable();
@@ -25,12 +25,12 @@ return new class extends Migration
             $table->unsignedBigInteger('IDEstadoLabora')->nullable();
             $table->unsignedTinyInteger('NivelRiesgoResidencia')->nullable();
             $table->string('CalculoLaboral')->nullable();
-            $table->unsignedTinyInteger('TotalUbicacion')->nullable();
+            $table->string('TotalUbicacion')->nullable();
             $table->string('Origen')->nullable();
-            $table->unsignedBigInteger('ORecursos')->nullable();
-            $table->decimal('IngresosMensuales', 18, 2)->nullable();
-            $table->decimal('PromedioHA', 18, 2)->nullable();
-            $table->decimal('TotalEconomico', 18, 2)->nullable();
+            $table->string('ORecursos')->nullable();
+            $table->string('IngresosMensuales')->nullable();
+            $table->string('PromedioHA')->nullable();
+            $table->string('TotalEconomico')->nullable();
             $table->string('OcupGiro')->nullable();
             $table->unsignedTinyInteger('NivelRiesgo')->nullable();
             $table->string('CalculoOcupacion')->nullable();
@@ -51,7 +51,7 @@ return new class extends Migration
 
         // catParametrosPerfilTrans
         Schema::create('catParametrosPerfilTrans', function (Blueprint $table) {
-            $table->unsignedBigInteger('IDRegistroParametro')->primary(); // PK, no autoincrement
+            $table->bigIncrements('IDRegistroParametro'); // PK, autoincremental
             $table->decimal('PorcentajeNacimiento', 5, 2)->nullable();
             $table->decimal('PorcentajeResidencia', 5, 2)->nullable();
             $table->decimal('PorcentajePredio', 5, 2)->nullable();

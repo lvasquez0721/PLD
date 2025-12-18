@@ -11,12 +11,14 @@ class CatOcupacionesGiros extends Model
 
     protected $table = 'catOcupacionesGiros';
     protected $primaryKey = 'IDOcupacionGiro';
-    public $incrementing = false;
+    public $incrementing = true; // IDOcupacionGiro es autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [
-        'IDOcupacionGiro',
+        // 'IDOcupacionGiro', // NO incluimos campos autoincrementales en $fillable
+        'CVE_GIRO',
         'OcupacionGiro',
+		'NivelRiesgo'
     ];
 }
