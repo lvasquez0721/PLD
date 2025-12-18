@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('tbPerfilTransaccional', function (Blueprint $table) {
             $table->bigIncrements('IDRegistroPerfil'); // PK, autoincremental
             $table->unsignedBigInteger('IDCliente')->nullable();
-            $table->unsignedBigInteger('IDEstadoNacimiento')->nullable();
+            $table->string('IDEstadoNacimiento')->nullable();
             $table->unsignedTinyInteger('NivelRiesgoNac')->nullable();
             $table->string('CalculoNacimiento')->nullable();
             $table->unsignedBigInteger('IDEstadoDomicilio')->nullable();
@@ -25,12 +25,12 @@ return new class extends Migration
             $table->unsignedBigInteger('IDEstadoLabora')->nullable();
             $table->unsignedTinyInteger('NivelRiesgoResidencia')->nullable();
             $table->string('CalculoLaboral')->nullable();
-            $table->unsignedTinyInteger('TotalUbicacion')->nullable();
+            $table->string('TotalUbicacion')->nullable();
             $table->string('Origen')->nullable();
-            $table->unsignedBigInteger('ORecursos')->nullable();
-            $table->decimal('IngresosMensuales', 18, 2)->nullable();
-            $table->decimal('PromedioHA', 18, 2)->nullable();
-            $table->decimal('TotalEconomico', 18, 2)->nullable();
+            $table->string('ORecursos')->nullable();
+            $table->string('IngresosMensuales')->nullable();
+            $table->string('PromedioHA')->nullable();
+            $table->string('TotalEconomico')->nullable();
             $table->string('OcupGiro')->nullable();
             $table->unsignedTinyInteger('NivelRiesgo')->nullable();
             $table->string('CalculoOcupacion')->nullable();
