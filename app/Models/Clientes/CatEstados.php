@@ -19,5 +19,6 @@ class CatEstados extends Model
         'IDEstado',
         'Estado',
         'IndicePaz',
+		'CveEntidad'
     ];
 }
