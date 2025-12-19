@@ -9,6 +9,7 @@ use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Log; //error log
+use Symfony\Component\Mime\Encoder\Rfc2231Encoder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth; // <-- Agregar esto
 
