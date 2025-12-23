@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { ref, Transition } from 'vue';
+import { ref, Transition, onMounted } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Titulo from '@/components/ui/Titulo.vue';
 import { Bell, Search, Calendar, Download } from 'lucide-vue-next';
 import axios from 'axios';
 
+// Detect theme for custom date input styling
+const isDark = ref(false);
+onMounted(() => {
+  // Function to check and set theme
+  const checkTheme = () => {
+    isDark.value = document.documentElement.classList.contains('dark');
+  };
+  checkTheme();
+  // Listen to class mutation
+  const observer = new MutationObserver(checkTheme);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+});
 const fechaInicio = ref('');
 const fechaFin = ref('');
 const alertas = ref([]);
@@ -98,16 +110,23 @@ const downloadCsv = async () => {
                 <span class="leading-none">Fecha inicio</span>
               </label>
               <div class="relative">
-                <input type="date" id="fechaInicio" v-model="fechaInicio" @focus="focusedInput = 'inicio'"
-                  @blur="focusedInput = null" :class="[
-                    'w-full px-4 py-3.5 bg-[#f8fafc]/50 dark:bg-neutral-800/60 border rounded-[14px] text-slate-700/85 dark:text-neutral-100/85 text-[14px] font-light tracking-[0.003em]',
-                    'transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-400/10 dark:focus:ring-neutral-700/50 focus:ring-offset-2 focus:ring-offset-[#f8fafc]/50 dark:focus:ring-offset-black/30',
-                    'placeholder:text-slate-400/55 dark:placeholder:text-neutral-400/60',
-                    focusedInput === 'inicio'
-                      ? 'border-blue-300/50 shadow-[0_3px_12px_rgba(59,130,246,0.07)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.15)] bg-[#f8fafc]/90 dark:bg-neutral-900/95 scale-[1.005]'
-                      : 'border-slate-100/70 dark:border-neutral-700/60 hover:border-slate-200/60 dark:hover:border-neutral-500/40 hover:bg-[#f8fafc]/70 dark:hover:bg-neutral-800/80 hover:shadow-[0_2px_7px_rgba(15,23,42,0.025)]'
-                  ]" />
+                <input
+                  type="date"
+                  id="fechaInicio"
+                  v-model="fechaInicio"
+                  @focus="focusedInput = 'inicio'"
+                  @blur="focusedInput = null"
+                  :class="[
+                    'w-full px-4 py-3.5 border rounded-[14px] text-[14px] font-light tracking-[0.003em] transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
+                    isDark
+                      ? (focusedInput === 'inicio'
+                        ? 'custom-dark-date-focused'
+                        : 'custom-dark-date')
+                      : (focusedInput === 'inicio'
+                        ? 'custom-light-date-focused'
+                        : 'custom-light-date')
+                  ]"
+                />
               </div>
             </div>
 
@@ -119,16 +138,23 @@ const downloadCsv = async () => {
                 <span class="leading-none">Fecha fin</span>
               </label>
               <div class="relative">
-                <input type="date" id="fechaFin" v-model="fechaFin" @focus="focusedInput = 'fin'"
-                  @blur="focusedInput = null" :class="[
-                    'w-full px-4 py-3.5 bg-[#f8fafc]/50 dark:bg-neutral-800/60 border rounded-[14px] text-slate-700/85 dark:text-neutral-100/85 text-[14px] font-light tracking-[0.003em]',
-                    'transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-400/10 dark:focus:ring-neutral-700/50 focus:ring-offset-2 focus:ring-offset-[#f8fafc]/50 dark:focus:ring-offset-black/30',
-                    'placeholder:text-slate-400/55 dark:placeholder:text-neutral-400/60',
-                    focusedInput === 'fin'
-                      ? 'border-blue-300/50 shadow-[0_3px_12px_rgba(59,130,246,0.07)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.15)] bg-[#f8fafc]/90 dark:bg-neutral-900/95 scale-[1.005]'
-                      : 'border-slate-100/70 dark:border-neutral-700/60 hover:border-slate-200/60 dark:hover:border-neutral-500/40 hover:bg-[#f8fafc]/70 dark:hover:bg-neutral-800/80 hover:shadow-[0_2px_7px_rgba(15,23,42,0.025)]'
-                  ]" />
+                <input
+                  type="date"
+                  id="fechaFin"
+                  v-model="fechaFin"
+                  @focus="focusedInput = 'fin'"
+                  @blur="focusedInput = null"
+                  :class="[
+                    'w-full px-4 py-3.5 border rounded-[14px] text-[14px] font-light tracking-[0.003em] transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
+                    isDark
+                      ? (focusedInput === 'fin'
+                        ? 'custom-dark-date-focused'
+                        : 'custom-dark-date')
+                      : (focusedInput === 'fin'
+                        ? 'custom-light-date-focused'
+                        : 'custom-light-date')
+                  ]"
+                />
               </div>
             </div>
 
@@ -382,17 +408,54 @@ input[type="date"]:focus-visible {
   outline-offset: 2px;
 }
 
-/* Oscurecer el fondo de los inputs en modo oscuro */
-input[type="date"].dark\:bg-slate-800\/50,
-input[type="date"].dark\:bg-neutral-800\/60 {
-  background-color: rgb(31 31 31 / 0.60);
-  color: #fafbfc;
+/* Custom Date Styles for light and dark mode (ensures native pickers match theme) */
+.custom-light-date {
+  background-color: rgba(255,255,255,0.95) !important;
+  color: #1e293b !important;
+  border: 1px solid rgba(226,232,240,0.7); /* slate-100/70 */
+}
+.custom-light-date:hover {
+  border-color: rgba(226,232,240,0.85);
+  background-color: #fff;
+}
+.custom-light-date-focused {
+  background-color: #fff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(147,197,253,0.5); /* blue-300/50 */
+  box-shadow: 0 3px 12px rgba(59,130,246,0.07);
+  transform: scale(1.005);
 }
 
-input[type="date"].dark\:bg-slate-800\/80,
-input[type="date"].dark\:bg-neutral-900\/95 {
-  background-color: rgb(23 23 23 / 0.95);
-  color: #fafbfc;
+.custom-dark-date {
+  background-color: rgba(31,31,31,0.60) !important;
+  color: #fafbfc !important;
+  border: 1px solid rgba(38,38,38,0.65); /* neutral-700/60 approx */
+}
+.custom-dark-date:hover {
+  border-color: rgba(163,163,163,0.32); /* neutral-500/40 */
+  background-color: rgba(31,31,31,0.85);
+}
+.custom-dark-date-focused {
+  background-color: rgba(23,23,23,0.95) !important;
+  color: #fafbfc !important;
+  border: 1px solid rgba(147,197,253,0.5);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+  transform: scale(1.005);
+}
+
+/* Hide date spinner controls for more seamless look (optional) */
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
+.custom-dark-date::-webkit-calendar-picker-indicator,
+.custom-dark-date-focused::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+/* support firefox */
+.custom-dark-date::-moz-calendar-picker-indicator,
+.custom-dark-date-focused::-moz-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 /* Transición suave para hover en filas */
