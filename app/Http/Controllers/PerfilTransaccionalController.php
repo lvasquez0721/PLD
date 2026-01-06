@@ -74,13 +74,13 @@ class PerfilTransaccionalController extends Controller
             if (!empty($idCliente) && empty($periodo)) {
                 // $registro = TbPerfilTransaccional::where('IDCliente', $idCliente)->first();
                 $registro = TbPerfilTransaccional::select(
-                    'tbperfiltransaccional.*',
-                    'tbclientes.Nombre',
-                    'tbclientes.ApellidoPaterno',
-                    'tbclientes.ApellidoMaterno'
+                    'tbPerfilTransaccional.*',
+                    'tbClientes.Nombre',
+                    'tbClientes.ApellidoPaterno',
+                    'tbClientes.ApellidoMaterno'
                 )
-                ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
-                ->where('tbperfiltransaccional.IDCliente', $idCliente)
+                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                ->where('tbPerfilTransaccional.IDCliente', $idCliente)
                 ->first();
 
                 if (!$registro) {
@@ -109,12 +109,12 @@ class PerfilTransaccionalController extends Controller
 
             // $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)->get();
             $datos = TbPerfilTransaccional::select(
-                'tbperfiltransaccional.*',
-                'tbclientes.Nombre',
-                'tbclientes.ApellidoPaterno',
-                'tbclientes.ApellidoMaterno'
+                'tbPerfilTransaccional.*',
+                'tbClientes.Nombre',
+                'tbClientes.ApellidoPaterno',
+                'tbClientes.ApellidoMaterno'
             )
-            ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
+            ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
             ->whereDate('FechaEjecucción', $periodo)
             ->get();
 

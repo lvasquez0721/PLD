@@ -64,7 +64,8 @@ class ListaNegraController extends Controller
             'curp' => 'required|string|max:18',
             'fecha_nacimiento' => 'required|date',
             'pais' => 'required|string|max:255',
-            'archivo' => 'required|file|mimes:pdf|max:4096',
+            'archivo' => 'required|file|mimes:pdf',
+            // 'archivo' => 'required|file|mimes:pdf|max:10240', //10 MB
         ]);
 
         DB::beginTransaction();
