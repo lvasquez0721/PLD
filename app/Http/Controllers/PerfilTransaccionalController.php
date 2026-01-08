@@ -99,12 +99,9 @@ class PerfilTransaccionalController extends Controller
                 ]);
             }
 
-            // 🔹 Caso 2: Buscar por periodo (para generar CSV)
+            // Caso 2: Buscar por periodo (para generar CSV)
             if (empty($periodo)) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Debe enviar al menos el campo Periodo o IDCliente.'
-                ], 400);
+                return redirect()->back()->with('error', 'Debe enviar al menos el campo Periodo o IDCliente.');
             }
 
             // $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)->get();
@@ -192,19 +189,11 @@ class PerfilTransaccionalController extends Controller
     {
         try {
             // Ejecuta SP sin parámetros (como tu ejemplo)
-            DB::statement("CALL SP_PerfilTransIndividual()");
+            DB::statement("CALL SP_PerfilTransaccional()");
 
-            return response()->json([
-                'success' => true,
-                'mensaje' => 'Ejecución completada correctamente'
-            ]);
-
+            return redirect()->back()->with('success', 'Ejecución completada correctamente');
         } catch (\Exception $e) {
-
-            return response()->json([
-                'success' => false,
-                'mensaje' => 'Error al ejecutar el perfil: ' . $e->getMessage()
-            ], 500);
+            return redirect()->back()->with('error', 'Error al ejecutar el perfil: ' . $e->getMessage());
         }
     }
 

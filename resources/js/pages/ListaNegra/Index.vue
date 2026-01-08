@@ -4,8 +4,10 @@
   import AppLayout from '@/layouts/AppLayout.vue';
   import Titulo from '@/components/ui/Titulo.vue';
   import { ListX } from 'lucide-vue-next';
-
   
+  const page = usePage();
+  const isSubmitting = ref(false)
+
   const breadcrumbs = [{ title: 'Lista Negra', href: '' }];
 
   const showModal = ref(false);
@@ -15,6 +17,18 @@
   const listaErrores = ref('');
   const erroresValidacion = ref<Record<string, string>>({});
   const mostrarAlertaErrores = ref(false);
+
+  
+  /* ===== CONTROL DE FLASH DEL SERVIDOR ===== */
+  const flashSuccess = computed(() => (page.props as any).flash?.success || null);
+  const flashError = computed(() => (page.props as any).flash?.error || null);
+
+  /* ===== TÍTULO DE ALERTA ===== */
+  const modalFlashTitle = computed(() => {
+    if ((page.props as any).flash?.error) return "Error";
+    if ((page.props as any).flash?.success) return "Exito";
+    return null;
+  });
 
   interface FormData {
     accion: number;
@@ -141,6 +155,18 @@
 
   function submitForm() {
     if (!validarCampos()) return;
+    
+    // Validación simple del archivo - SOLO ESTAS 5 LÍNEAS
+    if (form.value.archivoListaNegra) {
+      const fileSizeMB = form.value.archivoListaNegra.size / (1024 * 1024);
+      if (fileSizeMB > 50) {
+        mostrarAlertaErrores.value = true;
+        erroresValidacion.value.archivoListaNegra = 
+          `El archivo es muy grande (${fileSizeMB.toFixed(2)} MB). Compresión recomendada.`;
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append('nombre', form.value.nombreListaNegra);
     formData.append('rfc', form.value.RFCListaNegra);
@@ -162,11 +188,17 @@
     // for (const [key, value] of formData.entries()) {
     //   console.log(`${key}:`, value);
     // }
-    
-    router.post(url, formData, {
-      onSuccess: () => { closeModal(); router.reload(); },
-      onError: (errors) => { console.error('Errores de validación:', errors); },
-    });
+
+      router.post(url, formData, {
+        onStart: () => { isSubmitting.value = true },
+        onFinish: () => { isSubmitting.value = false },
+        onSuccess: () => {
+          console.log("SERVIDOR DEVUELVE:", page.props.flash); //trae los mensajes del servidor 
+          closeModal();
+        },
+        onError: (errors) => { console.error('Errores de validación:', errors); },
+
+      });
   }
 
   interface ListaNegra {
@@ -179,7 +211,6 @@
     Oficio: string;
   }
 
-  const page = usePage();
   const listas = computed(() => (page.props.listas as ListaNegra[]) ?? []);
   const isLoading = ref(true)
   onMounted(() => { setTimeout(() => { isLoading.value = false }, 800) })
@@ -228,6 +259,22 @@
     const end = Math.min(start + perPage.value - 1, total)
     return `Mostrando ${start.toLocaleString()} a ${end.toLocaleString()} de un total de ${total.toLocaleString()} registros.`
   })
+
+  // Control de visibilidad del flash
+  const mostrarFlash = ref(false)
+  let flashTimeout: number | null = null
+
+  watch([flashSuccess, flashError], () => {
+    if (flashSuccess.value || flashError.value) {
+      mostrarFlash.value = true
+      if (flashTimeout) { clearTimeout(flashTimeout) }
+      flashTimeout = window.setTimeout(() => {mostrarFlash.value = false}, 5000)
+    }
+    if (flashError.value) {
+      mostrarFlash.value = true
+    }
+  })
+
 </script>
 
 <template>
@@ -237,10 +284,14 @@
     </div>
 
     <!-- ALERTA SIMPLE DEL SERVIDOR -->
-    <!-- <div v-if="showAlert" :class="['alert-message', alertType === 'success' ? 'alert-success' : 'alert-error']">
-      {{ alertMessage }}
-      <button @click="showAlert = false" class="alert-close">✕</button>
-    </div> -->
+    <transition name="fade-in">
+      <div v-if="mostrarFlash && modalFlashTitle" class="mb-4 p-4 rounded-md" :class="flashSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <strong class="font-semibold">{{ modalFlashTitle }}</strong>
+        <p class="mt-2" v-if="flashSuccess">{{ flashSuccess }}</p>
+        <p class="mt-2" v-if="flashError">{{ flashError }}</p>
+      </div>
+    </transition>
+
 
     <section class="content">
       <!-- FILTROS -->
@@ -370,6 +421,22 @@
               <button @click="submitForm" class="submit-btn">{{ actionButtonText }}</button>
             </div>
           </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- BLOQUEO GLOBAL MIENTRAS CARGA -->
+    <transition name="fade-in">
+      <div v-if="isSubmitting" class="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3">
+          <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"/>
+          </svg>
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Procesando información…
+          </p>
         </div>
       </div>
     </transition>

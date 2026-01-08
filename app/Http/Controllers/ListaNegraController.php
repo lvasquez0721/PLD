@@ -52,25 +52,20 @@ class ListaNegraController extends Controller
     public function insert(Request $request)
     {
         //dd($request->all()); // Muestra todos los datos del request
-        $user = Auth::user();// Obtener el usuario autenticado
-    
-        // // Acceder directamente a las propiedades
-        // dd(['id' => $user->id, 'nombre' => $user->nombre, 'apellido_p' => $user->apellido_p,'apellido_m' => $user->apellido_m, 'primer_login' => $user->primer_login, 'usuario' => $user->usuario, 'email' => $user->email, 'password' => $user->password ]);
-        // die();
-
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'rfc' => 'required|string|max:13',
-            'curp' => 'required|string|max:18',
-            'fecha_nacimiento' => 'required|date',
-            'pais' => 'required|string|max:255',
-            'archivo' => 'required|file|mimes:pdf',
-            // 'archivo' => 'required|file|mimes:pdf|max:10240', //10 MB
-        ]);
-
-        DB::beginTransaction();
-
         try {
+            $user = Auth::user();// Obtener el usuario autenticado
+
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+
+            DB::beginTransaction();
+            
             $rutaArchivo = null;
             // Si viene archivo, obtenemos su nombre SIN guardarlo aún
             if ($request->hasFile('archivo')) {
@@ -110,16 +105,27 @@ class ListaNegraController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error($e->getMessage());
-            return redirect()->back()->with('error', 'Ocurrió un error.');
+            return redirect()->back()->with('error', 'Ocurrió un error' . $e->getMessage());
+           
         }
     }
 
     public function update(Request $request, $id)
     {
-        DB::beginTransaction();
-        $user = Auth::user();// Obtener el usuario autenticado
-
         try {
+            $user = Auth::user();// Obtener el usuario autenticado
+
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+            
+            DB::beginTransaction();
+            
             $lista = TbListasNegraCNSF::findOrFail($id);
 
             if ($request->hasFile('archivo')) {
@@ -161,10 +167,18 @@ class ListaNegraController extends Controller
 
     public function delete(Request $request, $id)
     {
-     
-        DB::beginTransaction();
-
         try {
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+            
+            DB::beginTransaction();
+            
             $lista = TbListasNegraCNSF::findOrFail($id);
 
             // 1) Guardar oficio primero (si mandan archivo)
@@ -289,5 +303,32 @@ class ListaNegraController extends Controller
             ], 500);
         }
     }
+
+
+    private function responseError(Request $request, string $message, int $code = 500, array $errors = [])
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors'  => $errors
+            ], $code);
+        }
+
+        return redirect()->back()->with('error', $message);
+    }
+
+    private function responseSuccess(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ], 200);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
 
 }
