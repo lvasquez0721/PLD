@@ -78,7 +78,11 @@ Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarC
 
 //Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
 //use App\Http\Controllers\PerfilTransaccionalController;
+
 Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
+use App\Http\Controllers\ListaNegraController;
+Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra
+
 
 Route::post('/api-login', function(Request $request) {
     $request->validate([
@@ -115,3 +119,5 @@ use App\Http\Controllers\ListasNegrasControllerApi;
 // Ruta para consultar listas negras por IDCliente (Consulta cruzada UIF y CNSF)
 Route::post('/listas-negras/consultar-por-cliente', [ListasNegrasControllerApi::class, 'getConsultaListasByIDCliente'])->middleware(['auth:sanctum']);
 
+
+//------------------------------------------------------------------------------------------------------------------------------------------------

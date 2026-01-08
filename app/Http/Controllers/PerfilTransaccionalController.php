@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\CatCampos;
@@ -75,13 +74,13 @@ class PerfilTransaccionalController extends Controller
             if (!empty($idCliente) && empty($periodo)) {
                 // $registro = TbPerfilTransaccional::where('IDCliente', $idCliente)->first();
                 $registro = TbPerfilTransaccional::select(
-                    'tbperfiltransaccional.*',
-                    'tbclientes.Nombre',
-                    'tbclientes.ApellidoPaterno',
-                    'tbclientes.ApellidoMaterno'
+                    'tbPerfilTransaccional.*',
+                    'tbClientes.Nombre',
+                    'tbClientes.ApellidoPaterno',
+                    'tbClientes.ApellidoMaterno'
                 )
-                ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
-                ->where('tbperfiltransaccional.IDCliente', $idCliente)
+                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                ->where('tbPerfilTransaccional.IDCliente', $idCliente)
                 ->first();
 
                 if (!$registro) {
@@ -95,26 +94,24 @@ class PerfilTransaccionalController extends Controller
                     'success' => true,
                     'mensaje' => 'Datos del cliente obtenidos correctamente.',
                     'perfilTransaccional' => (float) $registro->Perfil,
-                    'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0)
+                    'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0),
+                    //'NombreCompleto' => trim("{$registro->Nombre} {$registro->ApellidoPaterno} {$registro->ApellidoMaterno}"),
                 ]);
             }
 
-            // 🔹 Caso 2: Buscar por periodo (para generar CSV)
+            // Caso 2: Buscar por periodo (para generar CSV)
             if (empty($periodo)) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Debe enviar al menos el campo Periodo o IDCliente.'
-                ], 400);
+                return redirect()->back()->with('error', 'Debe enviar al menos el campo Periodo o IDCliente.');
             }
 
             // $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)->get();
             $datos = TbPerfilTransaccional::select(
-                'tbperfiltransaccional.*',
-                'tbclientes.Nombre',
-                'tbclientes.ApellidoPaterno',
-                'tbclientes.ApellidoMaterno'
+                'tbPerfilTransaccional.*',
+                'tbClientes.Nombre',
+                'tbClientes.ApellidoPaterno',
+                'tbClientes.ApellidoMaterno'
             )
-            ->leftJoin('tbclientes', 'tbclientes.IDCliente', '=', 'tbperfiltransaccional.IDCliente')
+            ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
             ->whereDate('FechaEjecucción', $periodo)
             ->get();
 
@@ -131,6 +128,8 @@ class PerfilTransaccionalController extends Controller
             $ruta = storage_path("app/public/{$nombreArchivo}");
             $archivo = fopen($ruta, 'w');
 
+            fwrite($archivo, "\xEF\xBB\xBF");
+
             // Encabezado CSV
             fputcsv($archivo, [
                 'IDCliente','Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
@@ -143,8 +142,7 @@ class PerfilTransaccionalController extends Controller
             foreach ($datos as $fila) {
                 fputcsv($archivo, [
                     $fila->IDCliente,
-                    $fila->Nombre,
-                    // '', // Nombre vacío
+                    $fila->Nombre . ' ' . $fila->ApellidoPaterno . ' ' . $fila->ApellidoMaterno,
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
                     $fila->CalculoNacimiento,
@@ -191,19 +189,11 @@ class PerfilTransaccionalController extends Controller
     {
         try {
             // Ejecuta SP sin parámetros (como tu ejemplo)
-            DB::statement("CALL SP_PerfilTransIndividual()");
+            DB::statement("CALL SP_PerfilTransaccional()");
 
-            return response()->json([
-                'success' => true,
-                'mensaje' => 'Ejecución completada correctamente'
-            ]);
-
+            return redirect()->back()->with('success', 'Ejecución completada correctamente');
         } catch (\Exception $e) {
-
-            return response()->json([
-                'success' => false,
-                'mensaje' => 'Error al ejecutar el perfil: ' . $e->getMessage()
-            ], 500);
+            return redirect()->back()->with('error', 'Error al ejecutar el perfil: ' . $e->getMessage());
         }
     }
 

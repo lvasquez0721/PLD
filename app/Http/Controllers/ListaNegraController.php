@@ -10,6 +10,9 @@ use App\Models\ListasBloqueadas\TbControlOficios;
 use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Log; //error log
 use Symfony\Component\Mime\Encoder\Rfc2231Encoder;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth; // <-- Agregar esto
+
 
 class ListaNegraController extends Controller
 {
@@ -48,19 +51,22 @@ class ListaNegraController extends Controller
 
     public function insert(Request $request)
     {
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'rfc' => 'required|string|max:13',
-            'curp' => 'required|string|max:18',
-            'fecha_nacimiento' => 'required|date',
-            'pais' => 'required|string|max:255',
-            'archivo' => 'nullable|file|mimes:pdf|max:4096',
-        ]);
-
-        DB::beginTransaction();
-
+        //dd($request->all()); // Muestra todos los datos del request
         try {
+            $user = Auth::user();// Obtener el usuario autenticado
 
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+
+            DB::beginTransaction();
+            
+            $rutaArchivo = null;
             // Si viene archivo, obtenemos su nombre SIN guardarlo aún
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
@@ -70,12 +76,13 @@ class ListaNegraController extends Controller
             // 1. Insertar registro principal
             $lista = TbListasNegraCNSF::create([
                 'Nombre' => $request->nombre,
+                'Direccion' => '',
                 'RFC' => $request->rfc,
                 'CURP' => $request->curp,
                 'FechaNacimiento' => $request->fecha_nacimiento,
                 'Pais' => $request->pais,
                 'OficiosRelacionados' => $rutaArchivo,
-                'UsuarioAlta' => 'Sistema',
+                'UsuarioAlta' => $user->usuario ? $user->usuario : 'Sistema',
                 'TimeStampAlta' => now(),
                 'UsuarioModif' => null,
                 'TimeStampModif' => now(),
@@ -98,15 +105,27 @@ class ListaNegraController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error($e->getMessage());
-            return redirect()->back()->with('error', 'Ocurrió un error.');
+            return redirect()->back()->with('error', 'Ocurrió un error' . $e->getMessage());
+           
         }
     }
 
     public function update(Request $request, $id)
     {
-        DB::beginTransaction();
-
         try {
+            $user = Auth::user();// Obtener el usuario autenticado
+
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+            
+            DB::beginTransaction();
+            
             $lista = TbListasNegraCNSF::findOrFail($id);
 
             if ($request->hasFile('archivo')) {
@@ -131,7 +150,7 @@ class ListaNegraController extends Controller
                 'CURP' => $request->curp,
                 'FechaNacimiento' => $request->fecha_nacimiento,
                 'Pais' => $request->pais,
-                'UsuarioModif' => 'Sistema',
+                'UsuarioModif' => $user->usuario ? $user->usuario : 'Sistema',
                 'TimeStampModif' => now()
             ]);
 
@@ -148,10 +167,18 @@ class ListaNegraController extends Controller
 
     public function delete(Request $request, $id)
     {
-     
-        DB::beginTransaction();
-
         try {
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'rfc' => 'required|string|max:13',
+                'curp' => 'required|string|max:18',
+                'fecha_nacimiento' => 'required|date',
+                'pais' => 'required|string|max:255',
+                'archivo' => 'required|file|mimes:pdf',
+            ]);
+            
+            DB::beginTransaction();
+            
             $lista = TbListasNegraCNSF::findOrFail($id);
 
             // 1) Guardar oficio primero (si mandan archivo)
@@ -163,7 +190,6 @@ class ListaNegraController extends Controller
                     return redirect()->back()->with('error', 'No se pudo guardar el oficio.');
                 }
             }
-
         
             $okBitacora = $this->guardarBitacora($id, 2);
 
@@ -188,8 +214,9 @@ class ListaNegraController extends Controller
     /* Guarda bitácora del registro */
     public function guardarBitacora($id, $accion)
     {
+        $user = Auth::user();// Obtener el usuario autenticado
         $LN = TbListasNegraCNSF::where('IDRegistroListaCNSF', $id)->first();
-
+        
         if (!$LN) return false;
 
         $insert = LogListaNegraCNSF::create([
@@ -204,7 +231,7 @@ class ListaNegraController extends Controller
             'OficiosRelacionados' => $LN->OficiosRelacionados,
             'UsuarioAlta' => $LN->UsuarioAlta,
             'TimeStampAlta' => $LN->TimeStampAlta,
-            'UsuarioModif' => $LN->UsuarioModif,
+            'UsuarioModif' =>  $user->usuario ? $user->usuario : 'Sistema',
             'TimeStampModif' => $LN->TimeStampModif,
         ]);
 
@@ -230,5 +257,78 @@ class ListaNegraController extends Controller
 
         return $registro ? true : false;
     }
+
+    public function buscar(Request $request)
+    {
+        try {
+            $id = $request->input('IDRegistroListaCNSF');
+
+            if (empty($id)) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Debe enviar el campo IDRegistroListaCNSF.'
+                ], 400);
+            }
+
+            // Buscar por la llave primaria correcta
+            //$registro = TbListasNegraCNSF::find($id);
+            $registro=TbListasNegraCNSF::select('nombre')
+            ->where('tbListasNegraCNSF.IDRegistroListaCNSF', $id)
+            ->first();
+
+            if (!$registro) {
+               return response()->json([ 'registrosEncontrados' => 0, 'detalleListaBloqueadas' => [] ], 200);
+            }
+
+            // Armado de estructura EXACTA
+            $detalle = [
+                [
+                    "lista" => "Listas Negra CNSF",
+                    "nombreDetectado" => $registro->nombre ?? "",
+                    "IDListaOrigen" => 1,
+                    "cargo" => "",
+                    "PPEActivo" => true
+                ]
+            ];
+
+            return response()->json([
+                "registrosEncontrados" => count($detalle),
+                "detalleListaBloqueadas" => $detalle 
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al buscar información: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    private function responseError(Request $request, string $message, int $code = 500, array $errors = [])
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors'  => $errors
+            ], $code);
+        }
+
+        return redirect()->back()->with('error', $message);
+    }
+
+    private function responseSuccess(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ], 200);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
 
 }

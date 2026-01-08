@@ -27,3 +27,11 @@ yarn-error.log
 /.vscode
 /.zed
 PLD\database\database.sqlite
+
+
+# Ignorar archivos
+incluir.txt
+borrador.vue
+estructura_completa.txt
+/.gitignore
+
