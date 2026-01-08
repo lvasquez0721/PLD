@@ -37,8 +37,23 @@ class UsuariosController extends Controller
             'rol_id' => 'required|exists:roles,id',
         ]);
 
+        // Generar el campo "usuario" con una nomenclatura: primera letra nombre + apellido_p (sin espacios ni tildes) + año actual en dos dígitos
+        $nombre_letra = strtoupper(substr($validated['nombre'], 0, 1));
+        $apellido_p_saneado = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $validated['apellido_p'])));
+        $anio_dos_digitos = date('y');
+        $usuario_generado_base = $nombre_letra . $apellido_p_saneado . $anio_dos_digitos;
+
+        // Checar unicidad, si existe, agregar número incremental al final
+        $usuario_generado = $usuario_generado_base;
+        $count = 1;
+        while (User::where('usuario', $usuario_generado)->exists()) {
+            $usuario_generado = $usuario_generado_base . $count;
+            $count++;
+        }
+
         try {
             $user = User::create([
+                'usuario' => $usuario_generado,
                 'nombre' => $validated['nombre'],
                 'apellido_p' => $validated['apellido_p'],
                 'apellido_m' => $validated['apellido_m'] ?? null,
@@ -53,7 +68,7 @@ class UsuariosController extends Controller
             }
             return inertia()->location(
                 route('usuarios.index') .
-                    '?toast_message=' . urlencode("Usuario creado correctamente. Contraseña generada: {$password}") .
+                    '?toast_message=' . urlencode("Usuario creado correctamente. Usuario: {$usuario_generado} - Contraseña generada: {$password}") .
                     '&toast_type=success'
             );
         } catch (\Exception $e) {
