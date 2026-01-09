@@ -36,7 +36,7 @@ Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOpera
 Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
 
 // Ruta para inserción masiva de clientes
-Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
+// Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
 
 Route::post('/solicitudes/masivo', [SolicitudesController::class, 'storeMassive'])->middleware('auth:sanctum');
 
@@ -71,7 +71,7 @@ Route::post('/listanegracnsf/masivo', [ListaNegraCNSFController::class, 'bulkIns
 Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bulkInsert'])->middleware('auth:sanctum');
 
 //Ruta para guardar clientes generados desde el SIT
-Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
+Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'darAltaCliente'])->middleware(['auth:sanctum']);
 
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
