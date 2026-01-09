@@ -127,9 +127,9 @@ use App\Http\Controllers\PerfilTransaccionalController;
 
 Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
 Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
-// Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
-Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']);
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
 Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
+//----------------------------------------------------------------------------------------------------------------------------------------------
 
 Route::post('/migraciones/ejecutar', function () {
     // Solo permitir en entorno local o administrador
