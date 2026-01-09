@@ -78,11 +78,8 @@ Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarC
 
 //Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
 //use App\Http\Controllers\PerfilTransaccionalController;
-
-Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
-use App\Http\Controllers\ListaNegraController;
-Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra
-
+// Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']);
 
 Route::post('/api-login', function(Request $request) {
     $request->validate([
