@@ -258,10 +258,10 @@ class ListaNegraController extends Controller
         return $registro ? true : false;
     }
 
-    public function buscar(Request $request)
+   public function buscar(Request $request)
     {
         try {
-            $id = $request->input('IDRegistroListaCNSF');
+            $id = $request->input('IDCliente');
 
             if (empty($id)) {
                 return response()->json([
@@ -302,33 +302,7 @@ class ListaNegraController extends Controller
                 'mensaje' => 'Error al buscar información: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-
-    private function responseError(Request $request, string $message, int $code = 500, array $errors = [])
-    {
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => false,
-                'message' => $message,
-                'errors'  => $errors
-            ], $code);
-        }
-
-        return redirect()->back()->with('error', $message);
-    }
-
-    private function responseSuccess(Request $request, string $message)
-    {
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ], 200);
-        }
-
-        return redirect()->back()->with('success', $message);
-    }
+    } 
 
 
 }
