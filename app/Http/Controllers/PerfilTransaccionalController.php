@@ -70,7 +70,14 @@ class PerfilTransaccionalController extends Controller
             $periodo = $request->input('Periodo');
             $idCliente = $request->input('IDCliente');
 
-            // Caso 1: Buscar por IDCliente (para API / Postman)
+            if (empty($periodo) && empty($idCliente)) { // respuesta si no hay parámetros
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'No ha agregado ningún valor.'
+                ], 400);
+            }
+
+            // Caso 1: Buscar por IDCliente (para API / Postman) y 
             if (!empty($idCliente) && empty($periodo)) {
                 // $registro = TbPerfilTransaccional::where('IDCliente', $idCliente)->first();
                 $registro = TbPerfilTransaccional::select(
@@ -91,8 +98,8 @@ class PerfilTransaccionalController extends Controller
                 }
 
                 return response()->json([
-                    'success' => true,
-                    'mensaje' => 'Datos del cliente obtenidos correctamente.',
+                    // 'success' => true,
+                    // 'mensaje' => 'Datos del cliente obtenidos correctamente.',
                     'perfilTransaccional' => (float) $registro->Perfil,
                     'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0),
                     //'NombreCompleto' => trim("{$registro->Nombre} {$registro->ApellidoPaterno} {$registro->ApellidoMaterno}"),
