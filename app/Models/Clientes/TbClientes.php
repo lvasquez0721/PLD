@@ -33,7 +33,8 @@ class TbClientes extends Model
         'IDNacionalidad',
         'IDEstadoNacimiento',
         'Activo',
-        'Preguntas'
+        'Preguntas',
+        'IngresosEstimados',
     ];
 
     protected $casts = [

@@ -5,9 +5,8 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
 import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types'
-import { Gavel } from 'lucide-vue-next'
+import { UserRound } from 'lucide-vue-next'
 
-// Props que vienen del controlador Laravel
 const props = defineProps<{
   clientes: any[],
   toast?: { type: string, message: string }
@@ -17,12 +16,10 @@ const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Clientes', href: '/clientes' },
 ]
 
-// Variables reactivas
 const busqueda = ref('')
 const showModal = ref(false)
 const clienteSeleccionado = ref<any | null>(null)
 
-// Métodos
 const clientesFiltrados = computed(() => {
   const term = busqueda.value.toLowerCase().trim()
   if (!term) return props.clientes
@@ -47,16 +44,16 @@ function cerrarModal() {
   clienteSeleccionado.value = null
 }
 
-function descargarBasePersonas() {
-  // Simula descarga (puedes reemplazar con tu endpoint real)
-  window.open('/ruta/descargar/base/personas', '_blank')
-}
+// Se añade después la ruta correcta para la descarga
+// function descargarBasePersonas() {
+//   window.open('/ruta/descargar/base/personas', '_blank')
+// }
 </script>
 
 <template>
   <Head title="Clientes" />
   <AppLayout :breadcrumbs="breadcrumbs">
-    <Titulo :icon="Gavel" title="Consulta de Clientes" />
+    <Titulo :icon="UserRound" title="Consulta de Clientes" />
 
     <div class="mt-6">
       <input
@@ -116,7 +113,6 @@ function descargarBasePersonas() {
     <div class="flex justify-start mt-6">
       <button
         class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-        @click="descargarBasePersonas"
       >
         Descargar Base Personas
       </button>
@@ -153,7 +149,7 @@ function descargarBasePersonas() {
                 class="text-blue-600 hover:underline"
                 @click="abrirModal(cliente)"
               >
-                Ver Detalle
+                Ver De  talle
               </button>
             </td>
           </tr>

@@ -13,7 +13,7 @@ class TipoPersonaSeeder extends Seeder
      */
     public function run(): void {
         $tiposPersona = [
-            ['IDTipoPersona' => 1, 'TipoPersona' => 'Física'],
+            ['IDTipoPersona' => 1, 'TipoPersona' => 'Fisica'],
             ['IDTipoPersona' => 2, 'TipoPersona' => 'Moral'],
         ];
 

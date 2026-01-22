@@ -149,7 +149,7 @@ class ParametrosPLDSeeder extends Seeder
             [
                 'IDParametro' => 30,
                 'Parametro' => 'tokenAPIQeQ',
-                'Valor' => 'jqm7BijWfoCk8HnJJf98Eq863KCzjESt4OzEnpDnMtXA4fL6BDPU0ReMhws7sx1iQrJ36SCJnIOIMQPwb9km1T5ETWO1zOy6esw7VrZAwiErUlvVyJHosRjAmUuCbOrm',
+                'Valor' => 'YKsaMDz7m1F9sVIf6siDavc4HKVo0dpkJci1OIUSKOFAqmxKEltlqQNwcslp0GM9FmS3e0PY16rMJwxPNJB00FukGV2VkkEdnYuKejtiHpONFdJlncX2mmyBIRCTtKko',
                 'TipoDato' => 'text',
                 'Activo' => 1,
                 'TimeStampAlta' => '2024-11-19 08:21:52.407',

@@ -9,15 +9,12 @@ use Carbon\Carbon;
 
 class SistemaOrigenSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void {
         $fechaActual = Carbon::now();
 
         DB::table('catsistemas')->insert([
             ['IDSistema' => 1, 'Sistema' => 'SIT',          'Activo' => 1, 'created_at' => $fechaActual, 'updated_at' => $fechaActual],
-            ['IDSistema' => 2, 'Sistema' => 'Expertis',       'Activo' => 1, 'created_at' => $fechaActual, 'updated_at' => $fechaActual],
+            ['IDSistema' => 2, 'Sistema' => 'Xpertys',       'Activo' => 1, 'created_at' => $fechaActual, 'updated_at' => $fechaActual],
         ]);
     }
 }

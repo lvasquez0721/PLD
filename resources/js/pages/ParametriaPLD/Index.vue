@@ -6,7 +6,7 @@ import Titulo from '@/components/ui/Titulo.vue'
 import FadeIn from '@/components/ui/animation/fadeIn.vue'
 import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types'
-import { Gavel } from 'lucide-vue-next'
+import { Settings } from 'lucide-vue-next'
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -128,7 +128,7 @@ const actualizarParametros = () => {
     <FadeIn>
       <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
         <div class="flex items-center justify-between">
-          <Titulo :icon="Gavel" title="Ajuste de Parámetros PLD" size="md" weight="bold" class="mb-2" />
+          <Titulo :icon="Settings" title="Ajuste de Parámetros PLD" size="md" weight="bold" class="mb-2" />
         </div>
 
         <form @submit.prevent="actualizarParametros" class="space-y-6">

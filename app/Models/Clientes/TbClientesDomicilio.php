@@ -17,6 +17,7 @@ class TbClientesDomicilio extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'IDDomicilio',
         'IDCliente',
         'Calle',
         'NoExterior',
