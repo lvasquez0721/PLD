@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         //
-        Schema::create('cat_categoria_personas_bloqueadas', function (Blueprint $table) {
+        Schema::create('catCategoriaPersonasBloqueadas', function (Blueprint $table) {
             $table->increments('ID');
 
             // Campos
@@ -24,11 +24,10 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
         //
+        Schema::dropIfExists('catCategoriaPersonasBloqueadas');
     }
 };

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Clientes;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +14,7 @@ class LogClientesDomicilio extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'IDLogDomicilio',
         'IDDomicilio',
         'IDCliente',
         'Calle',
@@ -22,8 +23,8 @@ class LogClientesDomicilio extends Model
         'Colonia',
         'CP',
         'IDEstado',
-        'IDMunicipio',
-        'IDLocalidad',
+        'Municipio',
+        'Localidad',
         'Telefono',
     ];
 }

@@ -64,15 +64,15 @@ onMounted(() => {
 
             <div class="flex flex-col gap-5 opacity-0 translate-y-6 transition-all duration-700 delay-300 ease-in-out"
                 :class="{ 'opacity-100 translate-y-0': animateSections }">
-                <!-- Email -->
+                <!-- Usuario -->
                 <div class="flex flex-col gap-2 opacity-0 translate-y-3 transition-all duration-700 delay-400 ease-in-out"
                     :class="{ 'opacity-100 translate-y-0': animateSections }">
-                    <Label for="email" class="font-semibold text-gray-800">Correo electrónico</Label>
-                    <input id="email" type="email" name="email" autofocus tabindex="1" autocomplete="email"
-                        placeholder="ejemplo@correo.com"
+                    <Label for="usuario" class="font-semibold text-gray-800">Usuario</Label>
+                    <input id="usuario" type="text" name="usuario" autofocus tabindex="1" autocomplete="username"
+                        placeholder="ejemplo"
                         class="border border-gray-300 rounded-md px-3 py-2 transition focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 bg-white w-full"
-                        inputmode="email" spellcheck="false" aria-label="Correo electrónico" />
-                    <InputError :message="errors.email" />
+                        spellcheck="false" aria-label="Usuario" />
+                    <InputError :message="errors.usuario" />
                 </div>
 
                 <!-- Password -->

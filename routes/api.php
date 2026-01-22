@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlertasController;
+use App\Http\Controllers\AuthControllerApi;
 use App\Http\Controllers\CalculoInusualidadPrimaEmitidaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,30 +27,16 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::post('/login', function (Request $request) {
-    $credentials = $request->only('email', 'password');
 
-    if (!Auth::attempt($credentials)) {
-        return response()->json([
-            'message' => 'Credenciales inválidas'
-        ], 401);
-    }
+Route::post('/login', [AuthControllerApi::class, 'login']);
 
-    $user = Auth::user();
-    // Si usas Sanctum
-    $token = $user->createToken('api_token')->plainTextToken;
-
-    return response()->json([
-        'token' => $token,
-    ]);
-});
 
 // Rutas de OperacionesController
 Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
 Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
 
 // Ruta para inserción masiva de clientes
-Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
+// Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
 
 Route::post('/solicitudes/masivo', [SolicitudesController::class, 'storeMassive'])->middleware('auth:sanctum');
 
@@ -84,7 +71,7 @@ Route::post('/listanegracnsf/masivo', [ListaNegraCNSFController::class, 'bulkIns
 Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bulkInsert'])->middleware('auth:sanctum');
 
 //Ruta para guardar clientes generados desde el SIT
-Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
+Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'darAltaCliente'])->middleware(['auth:sanctum']);
 
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
@@ -92,3 +79,44 @@ Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarC
 //Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
 //use App\Http\Controllers\PerfilTransaccionalController;
 Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
+
+//Listas Negras BICV-----------------------------------------------------------------------------------------------------------------------
+use App\Http\Controllers\ListaNegraController;
+Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra 
+
+//------------------------------------------------------------------------------------------------------------------------------------------------
+
+Route::post('/api-login', function(Request $request) {
+    $request->validate([
+        'usuario' => 'required|string',
+        'contraseña' => 'required|string',
+    ]);
+
+    $credentials = [
+        'usuario' => $request->usuario,
+        'password' => $request->contraseña,
+    ];
+
+    if (Auth::attempt($credentials)) {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $token = $user->createToken('API Token')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'user' => $user,
+            'token' => $token,
+        ]);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Credenciales incorrectas.',
+    ], 401);
+});
+
+
+use App\Http\Controllers\ListasNegrasControllerApi;
+
+// Ruta para consultar listas negras por IDCliente (Consulta cruzada UIF y CNSF)
+Route::post('/listas-negras/consultar-por-cliente', [ListasNegrasControllerApi::class, 'getConsultaListasByIDCliente'])->middleware(['auth:sanctum']);

@@ -20,7 +20,7 @@ class CatCategoriaPersonasBloqueadas extends Model
     ];
 
     // Nombre de la tabla
-    protected $table = 'cat_categoria_personas_bloqueadas';
+    protected $table = 'catCategoriaPersonasBloqueadas';
 
     // Nombre de la clave primaria
     protected $primaryKey = 'ID';

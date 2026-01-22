@@ -51,7 +51,7 @@ class BuzonPreocupantesController extends Controller
 
         // Insertar registros en tbalertas
         DB::statement("
-            INSERT INTO tbalertas (
+            INSERT INTO tbAlertas (
                 IDRegistroAlerta,
                 Patron,
                 FechaDeteccion,
@@ -72,19 +72,19 @@ class BuzonPreocupantesController extends Controller
                 Descripcion,
                 IDReporteOP,
                 'Generado' AS Estatus
-            FROM tbbuzonpreocupantes AS r
+            FROM tbBuzonPreocupantes AS r
             WHERE r.Estatus = 'atender'
               AND r.IDReporteOP IN ($idsList)
               AND NOT EXISTS (
                   SELECT 1 
-                  FROM tbalertas AS a 
+                  FROM tbAlertas AS a 
                   WHERE a.IDReporteOP = r.IDReporteOP
               )
         ");
 
         // Actualizar estatus en tbbuzonpreocupantes
         DB::statement("
-            UPDATE tbbuzonpreocupantes
+            UPDATE tbBuzonPreocupantes
             SET Estatus = 'atender'
             WHERE IDReporteOP IN ($idsList)
         ");
@@ -103,35 +103,50 @@ class BuzonPreocupantesController extends Controller
 
 public function store(Request $request)
 {
-    // Validar los datos recibidos del formulario
-    $validated = $request->validate([
-        'Descripcion' => 'required|string|max:50',
-    ]);
-
-    // Variables
-    $Descripcion = $validated['Descripcion'];
-    $usuario = auth()->user()->nombre ?? 'Sistema';
-    $ultimoID = DB::table('tbbuzonpreocupantes')->max('IDReporteOP') ?? 0;
-    $nuevoID = $ultimoID + 1;
-
     try {
+        \Log::info('Store method called', ['request' => $request->all()]);
         
+        // Validar los datos recibidos del formulario
+        $validated = $request->validate([
+            'Descripcion' => 'required|string|max:255',
+        ]);
+
+        \Log::info('Validation passed', ['validated' => $validated]);
+
+        // Variables
+        $Descripcion = $validated['Descripcion'];
+        $usuario = auth()->check() ? auth()->user()->nombre : 'Sistema';
+        
+        \Log::info('User info', ['usuario' => $usuario]);
+
+        $ultimoID = DB::table('tbBuzonPreocupantes')->max('IDReporteOP');
+        $nuevoID = ($ultimoID !== null) ? $ultimoID + 1 : 1;
+
+        \Log::info('Calculated ID', ['nuevoID' => $nuevoID]);
+
         $BuzonPreocupante = new BuzonPreocupante();
-        $BuzonPreocupante->IDReporteOP = $nuevoID ;
-        $BuzonPreocupante->Fecha = NOW();
+        $BuzonPreocupante->IDReporteOP = $nuevoID;
+        $BuzonPreocupante->Fecha = now();  // Corregido
         $BuzonPreocupante->Descripcion = $Descripcion;
         $BuzonPreocupante->Usuario = $usuario;
         $BuzonPreocupante->Estatus = NULL;
+        
         $BuzonPreocupante->save();
+
+        \Log::info('Record saved successfully', ['id' => $nuevoID]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Registro guardado correctamente.'
-            
+            'message' => 'Registro guardado correctamente.',
+            'id' => $nuevoID
         ]);
 
-
     } catch (\Exception $e) {
+        \Log::error('Error in store method', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
         return response()->json([
             'success' => false,
             'message' => 'Error al guardar el registro: ' . $e->getMessage()

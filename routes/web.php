@@ -4,6 +4,7 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Artisan; // <-- Agregar importación de Artisan
 // Route::get('/', function () {
 //     return Inertia::render('Welcome');
 // })->name('home');
@@ -126,9 +127,23 @@ use App\Http\Controllers\PerfilTransaccionalController;
 
 Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
 Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
-// Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
-Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']);
+Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
 Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
+//----------------------------------------------------------------------------------------------------------------------------------------------
+
+Route::post('/migraciones/ejecutar', function () {
+    // Solo permitir en entorno local o administrador
+    if (!app()->environment('local')) {
+        abort(403, 'Acceso denegado');
+    }
+
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return response()->json(['success' => true, 'output' => Artisan::output()]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+});
 
 
 //----------------------------------------------------------------------------------------------------------------------------------

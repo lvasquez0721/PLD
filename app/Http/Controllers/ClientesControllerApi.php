@@ -112,8 +112,8 @@ class ClientesControllerApi extends Controller {
 
         if ($validator->fails()) {
             return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
+                'status' => false,
+                'errors' => $validator->errors()
             ], 422);
         }
 

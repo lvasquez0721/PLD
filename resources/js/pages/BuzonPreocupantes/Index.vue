@@ -70,12 +70,18 @@ const buscar = ref('')
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref<'success' | 'warning' | 'error'>('success')
+const loading = ref(false)
 
 const guardar = async () => {
   try {
     await axios.post('/buzon-preocupantes/guardar', {
       Descripcion: buscar.value,
     });
+    loading.value = true
+
+    setTimeout(() => {
+      loading.value = false
+    }, 1000)
 
     // Mostrar mensaje de éxito
     toastMessage.value = 'Reporte registrado correctamente.'
@@ -85,13 +91,14 @@ const guardar = async () => {
     // Limpiar input
     buscar.value = ''
 
-    // Cambiar a la pestaña "Buzón"
-    setTab('altaListas')
-
     // Recargar solo los datos del buzón después de un breve delay
+    
     setTimeout(() => {
       router.reload({ only: ['buzon'] })
     }, 1000)
+
+    // Cambiar a la pestaña "Buzón"
+    setTab('altaListas')
   } catch (error) {
     // Mostrar error
     toastMessage.value = 'Error al registrar reporte. Verifica los datos ingresados.'
@@ -103,6 +110,57 @@ const guardar = async () => {
 
 </script>
 
+<style scoped>
+/* Animación fade */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* Fondo con blur */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: background-color 0.3s ease;
+}
+
+/* Modo claro */
+.loader-overlay {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.spinner {
+  width: 55px;
+  height: 55px;
+  border: 5px solid rgba(0, 0, 0, 0.1);
+  border-top: 5px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Cuando la clase "dark" esté activa en el body o html */
+:deep(html.dark) .loader-overlay,
+:deep(body.dark) .loader-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+:deep(html.dark) .spinner,
+:deep(body.dark) .spinner {
+  border: 5px solid rgba(255, 255, 255, 0.1);
+  border-top: 5px solid #60a5fa;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 
 <template>
   <AppLayout title="Buzón de Operaciones Preocupantes">
@@ -175,7 +233,7 @@ const guardar = async () => {
       <div class="mt-6 flex justify-end">
         <button
           type="submit"
-          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition cursor-pointer"
         >
           Pasar alerta
         </button>
@@ -197,12 +255,19 @@ const guardar = async () => {
     <div class="mt-4 flex justify-end">
       <button
         type="submit"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition cursor-pointer"
       >
         Guardar
       </button>
     </div>
   </form>
-  <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="5000" />
+  <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="3000" />
+  <!-- Loader -->
+    <transition name="fade">
+      <div v-if="loading" class="loader-overlay">
+        <div class="spinner"></div>
+      </div>
+    </transition>
+  
   </AppLayout>
 </template>

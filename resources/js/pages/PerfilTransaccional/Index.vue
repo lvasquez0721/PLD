@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, computed, watch } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 
-// Componentes y utilidades
+// Componentes
 import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
 import { Users, FileSpreadsheet, Search } from 'lucide-vue-next'
 
-// Props desde Laravel
+const page = usePage()
+
+// -----------------------------------------
+// PROPS
+// -----------------------------------------
 interface Campo {
   IDCampo: number
   IDModulo: number
@@ -26,57 +30,86 @@ const props = defineProps<{
   campos: Campo[]
   periodos: { FechaEjecucción: string; PeriodoFormateado: string }[]
 }>()
-const loading = ref(false)
 
 // -----------------------------------------
-// Estados
+// ESTADOS
 // -----------------------------------------
+const loading = ref(false)
 const formRegistrar = ref<Record<string, any>>({})
-const showModalRegistrar = ref(false)
 const resultados = ref<any[]>([])
 const csvUrl = ref('')
 const filtroNombre = ref('')
-const showModalInfo = ref(false)
-const modalTitulo = ref('')
-const modalMensaje = ref('')
 
 // -----------------------------------------
-// Modales
+// MODALES
 // -----------------------------------------
-// Modal registrar
+const showModalRegistrar = ref(false)
+const showModalEjecutar = ref(false)
+
 const openModalRegistrar = () => (showModalRegistrar.value = true)
 const closeModalRegistrar = () => {
   showModalRegistrar.value = false
   formRegistrar.value = {}
 }
-// Modal informativo
-const mostrarModal = (titulo: string, mensaje: string) => {
-  modalTitulo.value = titulo
-  modalMensaje.value = mensaje
-  showModalInfo.value = true
-}
-const cerrarModalInfo = () => (showModalInfo.value = false)
-// Modal ejecutar perfil
-const showModalEjecutar = ref(false)
+
 const openModalEjecutar = () => (showModalEjecutar.value = true)
 const closeModalEjecutar = () => (showModalEjecutar.value = false)
 
 // -----------------------------------------
-// Guardar perfil
+// ALERTAS (FLASH + LOCAL)
+// -----------------------------------------
+const flashSuccess = computed(() => (page.props as any).flash?.success || null)
+const flashError = computed(() => (page.props as any).flash?.error || null)
+
+const alertaLocal = ref<null | { tipo: 'success' | 'error'; mensaje: string }>(null)
+const mostrarFlash = ref(false)
+let flashTimeout: number | null = null
+
+const mostrarAlerta = (tipo: 'success' | 'error', mensaje: string) => {
+  alertaLocal.value = { tipo, mensaje }
+  mostrarFlash.value = true
+
+  if (flashTimeout) clearTimeout(flashTimeout)
+  flashTimeout = window.setTimeout(() => {
+    mostrarFlash.value = false
+    alertaLocal.value = null
+  }, 5000)
+}
+
+const modalFlashTitle = computed(() => {
+  if (alertaLocal.value?.tipo === 'error') return 'Error'
+  if (alertaLocal.value?.tipo === 'success') return 'Éxito'
+  if (flashError.value) return 'Error'
+  if (flashSuccess.value) return 'Éxito'
+  return ''
+})
+
+watch([flashSuccess, flashError], () => {
+  if (flashSuccess.value || flashError.value) {
+    mostrarFlash.value = true
+    if (flashTimeout) clearTimeout(flashTimeout)
+    flashTimeout = window.setTimeout(() => (mostrarFlash.value = false), 5000)
+  }
+})
+
+// -----------------------------------------
+// GUARDAR PERFIL
 // -----------------------------------------
 const submitRegistrar = () => {
   if (loading.value) return
   loading.value = true
 
+  //console.log("Datos enviados al Registrar Perfil:", JSON.parse(JSON.stringify(formRegistrar.value)))
+
   router.post('/perfil-transaccional/insert', formRegistrar.value, {
     preserveScroll: true,
     onSuccess: () => {
-      mostrarModal('Éxito', 'Perfil guardado correctamente.')
+      // El mensaje se mostrará automáticamente desde el watch
       closeModalRegistrar()
     },
     onError: (errors) => {
       console.error(errors)
-      mostrarModal('Error', 'No se pudo guardar el perfil.')
+      mostrarAlerta('error', 'No se pudo guardar el perfil.')
     },
     onFinish: () => {
       loading.value = false
@@ -85,14 +118,14 @@ const submitRegistrar = () => {
 }
 
 // -----------------------------------------
-// Buscar información
+// BUSCAR INFORMACIÓN
 // -----------------------------------------
 const buscarInformacion = async () => {
   if (loading.value) return
   loading.value = true
 
   if (!formRegistrar.value['Periodo']) {
-    mostrarModal('Error', 'Seleccione un periodo antes de continuar.')
+    mostrarAlerta('error', 'Seleccione un periodo antes de continuar.')
     loading.value = false
     return
   }
@@ -105,53 +138,55 @@ const buscarInformacion = async () => {
     if (data.success) {
       resultados.value = data.datos
       csvUrl.value = data.csvUrl
-      mostrarModal('Éxito', data.mensaje)
+      mostrarAlerta('success', data.mensaje)
     } else {
-      mostrarModal('Sin resultados', data.mensaje || 'No se encontraron registros.')
+      mostrarAlerta('error', data.mensaje || 'No se encontraron registros.')
     }
-  } catch (error) {
-    console.error(error)
-    mostrarModal('Error', 'Ocurrió un problema al consultar la información.')
+  } catch (e: any) {
+    mostrarAlerta('error', e.response?.data?.mensaje || 'Error al consultar información.')
   }
+
   loading.value = false
 }
 
+// -----------------------------------------
+// Filtrar resultados por nombre
+// -----------------------------------------
 const resultadosFiltrados = computed(() => {
   if (!filtroNombre.value) return resultados.value
-  return resultados.value.filter((fila: any) =>
-    fila.IDCliente.toString().toLowerCase().includes(filtroNombre.value.toLowerCase())
+
+  const texto = filtroNombre.value.toLowerCase()
+
+  return resultados.value.filter((f: any) =>
+    `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
+      .toLowerCase()
+      .includes(texto)
   )
-});
+})
 
 // -----------------------------------------
-// Ejecutar perfil
+// EJECUTAR PERFIL
 // -----------------------------------------
-const ejecutarPerfil = async () => {
-  //console.log('Ejecutando perfil transaccional...')
-  if (loading.value) return
-  loading.value = true
-
-  try {
-    await axios.post('/perfil-transaccional/ejecutar')
-    mostrarModal('Ejecución completada', 'El perfil transaccional fue ejecutado correctamente.')
-
-    setTimeout(() => {
-      window.location.reload()   // Recarga completa para poder actualizar datos
-    }, 800)
-
-  } catch (error) {
-    mostrarModal('Error', 'No se pudo ejecutar el perfil.')
-    loading.value = false
-  }
-}
-
 const confirmarEjecutar = async () => {
   closeModalEjecutar()
-  await ejecutarPerfil()
+  loading.value = true
+
+  router.post('/perfil-transaccional/ejecutar', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      mostrarAlerta('success', 'Perfil transaccional ejecutado correctamente.')
+    },
+    onError: () => {
+      mostrarAlerta('error', 'No se pudo ejecutar el perfil.')
+    },
+    onFinish: () => {
+      loading.value = false
+    },
+  })
 }
 
 // -----------------------------------------
-// Títulos por sección
+// TÍTULOS DE SECCIÓN
 // -----------------------------------------
 const getTituloSeccion = (index: number) => {
   switch (index) {
@@ -173,13 +208,23 @@ const getTituloSeccion = (index: number) => {
       <Titulo :icon="Users" title="Perfil Transaccional" size="md" weight="bold" />
     </div>
 
+     <!-- ALERTA SIMPLE DEL SERVIDOR -->
+     <transition name="fade-in">
+      <div v-if="mostrarFlash && modalFlashTitle" class="mb-4 p-4 rounded-md" :class="(alertaLocal?.tipo === 'success' || flashSuccess) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <strong>{{ modalFlashTitle }}</strong>
+        <p class="mt-2">{{ alertaLocal?.mensaje || flashSuccess || flashError }}</p>
+      </div>
+    </transition>
+
     <!-- Botones -->
     <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
-      <button @click="openModalRegistrar" class="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition-all" > Registrar Perfil </button>
+      <button @click="openModalRegistrar" class="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition-all" > 
+        Registrar Perfil 
+      </button>
 
-      <!-- <button @click="ejecutarPerfil" class="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400 transition-all" > Ejecutar Perfil Transaccional </button> -->
-      <button  @click="openModalEjecutar" class="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400 transition-all"> Ejecutar Perfil Transaccional</button>
-
+      <button @click="openModalEjecutar" class="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400 transition-all">
+        Ejecutar Perfil Transaccional
+      </button>
     </div>
 
     <!-- Contenedor principal -->
@@ -287,7 +332,6 @@ const getTituloSeccion = (index: number) => {
             class="bg-blue-600 dark:bg-blue-500 text-white px-6 py-4 flex justify-between items-center"
           >
             <h2 class="text-xl font-semibold">Registrar Perfil</h2>
-            <button @click="closeModalRegistrar" class="text-white hover:text-gray-200">✕</button>
           </div>
 
           <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
@@ -379,28 +423,22 @@ const getTituloSeccion = (index: number) => {
       </div>
     </transition>
 
-    <!-- Modal informativo
-    <traon>nsition name="modal-fade">
-      <div
-        v-if="showModalInfo"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      >
-        <div
-          class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full p-6 text-center border border-gray-200 dark:border-gray-700"
-        >
-          <h2 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">
-            {{ modalTitulo }}
-          </h2>
-          <p class="mb-5 text-gray-700 dark:text-gray-300">{{ modalMensaje }}</p>
-          <button
-            @click="cerrarModalInfo"
-            class="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-400"
-          >
-            Cerrar
-          </button>
+    <!-- BLOQUEO GLOBAL MIENTRAS CARGA -->
+    <transition name="fade-in">
+      <div v-if="loading" class="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3">
+          <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"/>
+          </svg>
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Procesando información…
+          </p>
         </div>
       </div>
-    </transiti -->
+    </transition>
+
   </AppLayout>
 </template>
 
