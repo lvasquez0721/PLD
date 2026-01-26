@@ -201,7 +201,7 @@ class ClientesControllerApi extends Controller {
         }
     }
 
-        public function actualizarCliente(Request $request, $id)
+    public function actualizarCliente(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'RFC' => 'required|string|max:13',
