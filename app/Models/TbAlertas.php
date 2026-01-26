@@ -19,7 +19,8 @@ class TbAlertas extends Model
         'Cliente',
         'Poliza',
         'FechaDeteccion',
-        'IDOperacionPago',
+        // 'IDOperacionPago',
+        'IDOperacion',
         'HoraDeteccion',
         'FechaOperacion',
         'HoraOperacion',
@@ -32,7 +33,7 @@ class TbAlertas extends Model
         'Razones',
         'Evidencias',
         'IDReporteOP',
-        'IDPago',
+        // 'IDPago',
     ];
 
     /**

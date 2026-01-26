@@ -12,7 +12,7 @@ class TbOperaciones extends Model
     protected $primaryKey = 'IDOperacion';
     public $incrementing = true; // El PK SÍ es autoincrement según la migración
     protected $keyType = 'int';
-    public $timestamps = false; // No hay timestamps en la migración
+    public $timestamps = true; // No hay timestamps en la migración
 
     protected $fillable = [
         'IDCliente',
@@ -30,7 +30,7 @@ class TbOperaciones extends Model
         'NombreAgente',
         'APaternoAgente',
         'AMaternoAgente',
-        'tipoDocumento'
+        'tipoDocumento',
     ];
 
     /**
