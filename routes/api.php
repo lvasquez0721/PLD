@@ -72,6 +72,8 @@ Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bul
 
 //Ruta para guardar clientes generados desde el SIT
 Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
+// Ruta para actualizar datos de cliente (PUT /clientes/{id})
+Route::put('/clientes/{id}', [ClientesControllerApi::class, 'actualizarCliente'])->middleware(['auth:sanctum']);
 
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
