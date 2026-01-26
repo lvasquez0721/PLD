@@ -57,7 +57,7 @@ class BuscadorListasIntegral {
         // Ejecutar búsquedas en todas las listas
         $resultadoUIF = $this->buscarUIF();
         $resultadoCNSF = $this->buscarCNSF();
-        // $resultadoQeQ = $this->buscarQeQ();
+        $resultadoQeQ = $this->buscarQeQ();
 
         // Consolidar resultados
         $detalleListaBloqueadas = array_merge(
