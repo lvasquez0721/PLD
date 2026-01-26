@@ -161,6 +161,8 @@ class OperacionesController extends Controller
 
             $operacionesPagos = [];
 
+            $operacion = [];
+
             foreach ($request->detalleOperaciones as $detalleOperacion) {
                 // Buscar operación por ambos folios si ambos existen, si no por uno solo
                 $folioPoliza = $detalleOperacion['folioPoliza'] ?? null;
@@ -181,7 +183,8 @@ class OperacionesController extends Controller
                         'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.'
                     ], 422);
                 }
-                $operacion = $operacionQuery->first();
+                $op = $operacionQuery->first();
+                $operacion = $op;
 
                 if (!$operacion) {
                     return response()->json([
@@ -216,12 +219,15 @@ class OperacionesController extends Controller
             // ALERTA POR PAGO FRACCIONADOS
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
             $primerPago = $pagosOperacion->first();
-            $operacion = TbOperaciones::where('IDOperacion', $primerPago->IDOperacion)->first();
+            // $operacion = TbOperaciones::where('IDOperacion', $primerPago->IDOperacion)->first();
             $nombreAgente = $operacion->NombreAgente . ' ' . $operacion->APaternoAgente . ' ' . $operacion->AMaternoAgente;
             $montoOperacion = $operacion->PrimaTotal;
             $montoTotalPagado = $pagosOperacion->sum('Monto');
             $t = CatParametriaPLD::where('IDParametro', 15)->first();
             $tolerancia = $t->Valor;
+
+            $totalAPagar = $operacion->PrimaTotal;
+
 
             if ($pagosOperacion->count() > 1 && $montoTotalPagado >= $totalAPagar) {
 
@@ -271,6 +277,8 @@ class OperacionesController extends Controller
 
             // Calcular el total pagado en efectivo
             $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
+
+
             $totalAPagar = $operacion->PrimaTotal;
 
             // Valida si el pago total fue completado
@@ -486,21 +494,21 @@ class OperacionesController extends Controller
                 $pago->save();
             }
 
-            // ALERTA POR MONTO DE PRIMA INUSUAL
-            $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
-                ->where('IDFormaPago', 1) // 1: Efectivo
-                ->get();
+            // // ALERTA POR MONTO DE PRIMA INUSUAL
+            // $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
+            //     ->where('IDFormaPago', 1) // 1: Efectivo
+            //     ->get();
 
-            // Calcular el total pagado en efectivo
-            $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
-            $totalAPagar = $operacion->PrimaTotal;
+            // // Calcular el total pagado en efectivo
+            // $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
+            // $totalAPagar = $operacion->PrimaTotal;
 
 
-            if (
-                $totalPagadoEfectivo >= $totalAPagar
-            ) {
-                $monto = $operacion->PrimaTotal
-            }
+            // if (
+            //     $totalPagadoEfectivo >= $totalAPagar
+            // ) {
+            //     $monto = $operacion->PrimaTotal
+            // }
 
 
 
