@@ -266,6 +266,7 @@ class ClientesControllerApi extends Controller
         $detalleListaBloqueadas = [];
         $listasDetectadas = [];
 
+        // Por nombre en lugar de rfc
         if ($rfc) {
             $CNSFrfc = TbListasNegraCNSF::where('RFC', $rfc)->first();
             if ($CNSFrfc) {

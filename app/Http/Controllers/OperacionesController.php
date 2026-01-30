@@ -3,20 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
-use App\Models\CatParametriaPLD;
 use App\Models\Clientes\TbClientes;
 use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
 use App\Models\TbOperacionesBeneficiarios;
 use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
-use GuzzleHttp\Client;
+use App\Services\PLD\AnalisisPagosService;
 use Illuminate\Http\Request;
 
 class OperacionesController extends Controller
 {
     // -------------
-    //OPERACION
+    // OPERACION
     public function insertarOperacion(Request $request)
     {
         try {
@@ -61,7 +60,7 @@ class OperacionesController extends Controller
         }
 
         try {
-            $operacion = new TbOperaciones();
+            $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
             $operacion->FolioPoliza = $validatedData['FolioPoliza'];
             $operacion->FolioEndoso = $validatedData['FolioEndoso'];
@@ -85,7 +84,7 @@ class OperacionesController extends Controller
             // beneficiarios
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
             foreach ($beneficiarios as $beneficiario) {
-                $beneficiarioModel = new TbOperacionesBeneficiarios();
+                $beneficiarioModel = new TbOperacionesBeneficiarios;
                 $beneficiarioModel->IDOperacion = $operacion->IDOperacion;
                 $beneficiarioModel->RFCBeneficiario = $beneficiario['RFC'];
                 $beneficiarioModel->CURPBeneficiario = $beneficiario['CURP'];
@@ -109,7 +108,7 @@ class OperacionesController extends Controller
     }
 
     // -------------
-    //PAGO
+    // PAGO
     public function insertarOperacionPago(Request $request)
     {
         try {
@@ -127,7 +126,7 @@ class OperacionesController extends Controller
                     'detalleOperaciones' => 'required|array|min:1',
                     'detalleOperaciones.*.folioPoliza' => 'nullable|string',
                     'detalleOperaciones.*.folioEndoso' => 'nullable|string',
-                    'detalleOperaciones.*.detalleMontoPagado' => 'required|numeric'
+                    'detalleOperaciones.*.detalleMontoPagado' => 'required|numeric',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return response()->json([
@@ -144,7 +143,7 @@ class OperacionesController extends Controller
             }
 
             $cliente = TbClientes::where('IDCliente', $request->IDCliente)->first();
-            $nombreCliente = $cliente ? ($cliente->Nombre . ' ' . $cliente->ApellidoPaterno . ' ' . $cliente->ApellidoMaterno) : null;
+            $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
             $horaActual = now()->format('H:i:s');
             $fechaActual = now()->format('Y-m-d');
 
@@ -152,16 +151,16 @@ class OperacionesController extends Controller
                 return (float) $detalle['detalleMontoPagado'];
             });
 
-            if (bccomp((string)$sumaDetalles, (string)$request->montoPagado, 2) !== 0) { // precisión dos decimales
+            if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) { // precisión dos decimales
                 return response()->json([
                     'codigoError' => 422,
-                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.'
+                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.',
                 ], 422);
             }
 
             $operacionesPagos = [];
 
-            $operacion = [];
+            $operacion = null;
 
             foreach ($request->detalleOperaciones as $detalleOperacion) {
                 // Buscar operación por ambos folios si ambos existen, si no por uno solo
@@ -180,20 +179,20 @@ class OperacionesController extends Controller
                 } else {
                     return response()->json([
                         'codigoError' => 422,
-                        'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.'
+                        'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.',
                     ], 422);
                 }
                 $op = $operacionQuery->first();
                 $operacion = $op;
 
-                if (!$operacion) {
+                if (! $operacion) {
                     return response()->json([
                         'codigoError' => 404,
-                        'error' => 'No se encontró la operación correspondiente a los folios proporcionados.'
+                        'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
                     ], 404);
                 }
 
-                $pago = new TbOperacionesPagos();
+                $pago = new TbOperacionesPagos;
                 $pago->IDOperacion = $operacion->IDOperacion;
                 $pago->IDCliente = $request->IDCliente;
                 $pago->Monto = $detalleOperacion['detalleMontoPagado'];
@@ -215,310 +214,27 @@ class OperacionesController extends Controller
                 $operacionesPagos[] = $pago;
             }
 
+            // ANÁLISIS DE PAGOS Y GENERACIÓN DE ALERTAS USANDO EL NUEVO SERVICIO
+            $analisisService = new AnalisisPagosService;
 
-            // ALERTA POR PAGO FRACCIONADOS
+            // Obtener todos los pagos de la operación para el análisis
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
-            $primerPago = $pagosOperacion->first();
-            // $operacion = TbOperaciones::where('IDOperacion', $primerPago->IDOperacion)->first();
-            $nombreAgente = $operacion->NombreAgente . ' ' . $operacion->APaternoAgente . ' ' . $operacion->AMaternoAgente;
-            $montoOperacion = $operacion->PrimaTotal;
-            $montoTotalPagado = $pagosOperacion->sum('Monto');
-            $t = CatParametriaPLD::where('IDParametro', 15)->first();
-            $tolerancia = $t->Valor;
 
-            $totalAPagar = $operacion->PrimaTotal;
+            // Realizar análisis completo
+            $resultadoAnalisis = $analisisService->analizarPagos($operacion, $pagosOperacion->toArray(), $cliente);
 
+            // Generar evidencias
+            $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacion->toArray());
 
-            if ($pagosOperacion->count() > 1 && $montoTotalPagado >= $totalAPagar) {
-
-                $pagosOp = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion);
-                $montoTotal = $pagosOp->sum('Monto');
-
-                $alerta = new TbAlertas();
-                $alerta->Folio = $operacion->FolioEndoso;
-                $alerta->Patron = 'Pagos múltiples en una operación';
-                $alerta->IDCliente = $request->IDCliente;
-                $alerta->Cliente = $nombreCliente;
-                $alerta->Poliza = $operacion->FolioPoliza ?? null;
-                $alerta->FechaDeteccion = now();
-                // $alerta->IDOperacionPago = null;
-                $alerta->IDOperacion = $operacion->IDOperacion;
-                $alerta->HoraDeteccion = now()->format('H:i:s');
-                $alerta->FechaOperacion = $operacion->created_at;
-                $alerta->HoraOperacion = $horaActual;
-                $alerta->MontoOperacion = $montoTotal;
-                // $alerta->InstrumentoMonetario = null;
-                $alerta->RFCAgente = $operacion->RFCAgente ?? null;
-                $alerta->Agente = $nombreAgente ?? null;
-                $alerta->Estatus = 'Pendiente';
-                $alerta->Descripcion = 'Se detectaron múltiples pagos para la misma operación';
-                $alerta->Razones = 'Una operación tiene más de un registro de pago asociado';
-                $alerta->Evidencias = $operacion->tipoDocumento;
-                $alerta->IDReporteOP = null;
-                // $alerta->IDPago = $pago->IDOperacionPago;
-                $alerta->save();
-
-                foreach ($pagosOperacion as $pagoFrac) {
-                    $insMonetario = CatFormaPagos::where('IDFormaPago', $pagoFrac->IDFormaPago)->first();
-
-                    $pagoAlerta = new TbPagosAlertas();
-                    $pagoAlerta->IDOperacionPago = $pagoFrac->IDOperacionPago;
-                    $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
-                    $pagoAlerta->InstrumentoMonetario = $insMonetario->FormaPago;
-                    $pagoAlerta->save();
-                }
+            // Procesar alertas generadas
+            foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
+                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion);
             }
 
-
-            // ALERTA POR PAGOS ACUMULADOS EN EFECTIVO
-            $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
-                ->where('IDFormaPago', 1) // 1: Efectivo
-                ->get();
-
-            // Calcular el total pagado en efectivo
-            $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
-
-
-            $totalAPagar = $operacion->PrimaTotal;
-
-            // Valida si el pago total fue completado
-            if ($pagosEfectivo->count() > 1 && $totalPagadoEfectivo >= $totalAPagar) {
-
-
-
-                $alertaEfectivo = new TbAlertas();
-                $alertaEfectivo->Folio = $operacion->FolioEndoso;
-                $alertaEfectivo->Patron = 'Pagos acumulados en efectivo para una operación';
-                $alertaEfectivo->IDCliente = $pago->IDCliente;
-                $alertaEfectivo->Cliente = $nombreCliente;
-                $alertaEfectivo->Poliza = $operacion->FolioPoliza ?? null;
-                $alertaEfectivo->FechaDeteccion = now();
-                $alertaEfectivo->IDOperacion = $operacion->IDOperacion;
-                $alertaEfectivo->HoraDeteccion = now()->format('H:i:s');
-                $alertaEfectivo->FechaOperacion = $operacion->created_at;
-                $alertaEfectivo->HoraOperacion = $horaActual;
-                $alertaEfectivo->MontoOperacion = $montoTotal;
-                // $alertaEfectivo->InstrumentoMonetario = 'Efectivo';
-                $alertaEfectivo->RFCAgente = $operacion->RFCAgente ?? null;
-                $alertaEfectivo->Agente = $nombreAgente ?? null;
-                $alertaEfectivo->Estatus = 'Pagos acumulados en efectivo';
-                $alertaEfectivo->Descripcion = 'Se detectaron múltiples pagos en efectivo para la misma operación';
-                $alertaEfectivo->Razones = 'Una operación tiene más de un registro de pago en efectivo asociado';
-                $alertaEfectivo->Evidencias = $operacion->tipoDocumento;
-                $alertaEfectivo->IDReporteOP = null;
-                // $alertaEfectivo->IDPago = $pago->IDOperacionPago;
-                $alertaEfectivo->save();
-
-                foreach ($pagosEfectivo as $pagoEfectivo) {
-                    $insMonetario = CatFormaPagos::where('IDFormaPago', $pagoEfectivo->IDFormaPago)->first();
-
-                    $pagoAlerta = new TbPagosAlertas();
-                    $pagoAlerta->IDOperacionPago = $pagoEfectivo->IDOperacionPago;
-                    $pagoAlerta->IDRegistroAlerta = $alertaEfectivo->IDRegistroAlerta;
-                    $pagoAlerta->InstrumentoMonetario = $insMonetario->FormaPago;
-                    $pagoAlerta->save();
-                }
+            // Procesar reportes regulatorios si aplica
+            foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
+                $this->generarReporteRegulatorio($operacion, $reporte);
             }
-
-
-            // ALERTAS DE OPERACION POR MONTO RELEVANTE
-            $cliente = TbClientes::where('IDCliente', $operacion->IDCliente)->first();
-            $IDTipoPersona = $cliente->IDTipoPersona;
-            $operacion = TbOperaciones::where('IDOperacion', $request->IDOperacion)->first();
-            $pagos = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion);
-            $primaTotal = $operacion->PrimaTotal;
-
-            //monto autorizado
-            if ($IDTipoPersona == 1) { // física
-                $montoAutorizadoEfectivoMxN = CatParametriaPLD::where('IDParametro', 16)->first();
-            } elseif ($IDTipoPersona == 2) { // moral
-                $montoAutorizadoEfectivoMxN = CatParametriaPLD::where('IDParametro', 17)->first();
-            } else {
-                $montoAutorizadoEfectivoMxN = null;
-            }
-
-            if ($operacion->IDMoneda == 1) {
-
-                // pesos mexicanos
-                foreach ($pagos as $pago) {
-                    $monto = $pago->Monto;
-                    // Validar si monto es igual o superior a montoAutorizadoEfectivoMxN
-                    if (
-                        $montoAutorizadoEfectivoMxN !== null
-                        && isset($montoAutorizadoEfectivoMxN->Valor)
-                        && $monto >= $montoAutorizadoEfectivoMxN->Valor
-                    ) {
-
-
-                        $alertaEfectivo = TbAlertas::new();
-                        $alertaEfectivo->Folio = $operacion->FolioPoliza;
-                        $alertaEfectivo->Patron = 'Operacion por monto relevante excedido';
-                        $alertaEfectivo->IDCliente = $nombreCliente;
-                        $alertaEfectivo->Poliza = $operacion->FolioPoliza;
-                        $alertaEfectivo->FechaDeteccion = now();
-                        $alertaEfectivo->IDOperacion = $operacion->IDCliente;
-                        $alertaEfectivo->HoraDeteccion = now()->format('H:i:s');
-                        $alertaEfectivo->FechaOperacion = $operacion->created_at;
-                        $alertaEfectivo->HoraOperacion = $horaActual;
-                        $alertaEfectivo->MontoOperacion = $monto;
-                        $alertaEfectivo->RFCAgente = $operacion->RFCAgente ?? null;
-                        $alertaEfectivo->Agente = $nombreAgente ?? null;
-                        $alertaEfectivo->Estatus = 'Operacion por monto relevante';
-                        $alertaEfectivo->Descripcion = 'Se detecto una operacion con un monto igual o superior al umbral';
-                        $alertaEfectivo->Razones = 'El monto pagado en efectivo, es igual o mayor a lo permitido';
-                        $alertaEfectivo->Evidencias = $operacion->tipoDocumento;
-                        $alertaEfectivo->IDReporteOP = null;
-                        $alertaEfectivo->save();
-
-                        $insMonetario = CatFormaPagos::where('IDFormaPago', $pago->IDFormaPago)->first();
-
-                        $pago = TbPagosAlertas::new();
-                        $pago->IDOperacionPago = $pago->IDOperacionPago;
-                        $pago->IDRegistroAlerta = $alertaEfectivo->IDRegistroAlerta;
-                        $pago->InstrumentoMonetario = $insMonetario->FormaPago;
-                        $pago->save();
-                    }
-                }
-
-
-                if ($operacion->PrimaTotal) {
-                }
-            } elseif ($operacion->IDMoneda == 2) {
-                // Dólares americanos
-
-                $client = new Client();
-
-                // Calcular fechas para hoy, ayer, antier y antiantier
-                $hoy = now()->format('Y-m-d');
-                $ayer = now()->subDay()->format('Y-m-d');
-                $antier = now()->subDays(2)->format('Y-m-d');
-                $antiantier = now()->subDays(3)->format('Y-m-d');
-
-                $fechaInicial = $antiantier;
-                $fechaFinal = $hoy;
-
-                $url = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/{$fechaInicial}/{$fechaFinal}?token=dafb7f16f4ec83af4c269688bde5bab13903be80138f5d19773a7e83346c5aae";
-                $res = $client->request('GET', $url);
-                $body = (string) $res->getBody();
-                $responseJson = json_decode($body, true);
-
-                // Obtener el arreglo de datos
-                $datos = $responseJson['bmx']['series'][0]['datos'] ?? [];
-
-                // Buscar el dato con la fecha más reciente
-                $datoMasReciente = null;
-                if (!empty($datos)) {
-                    usort($datos, function ($a, $b) {
-                        // Suponiendo que las fechas vienen en formato 'd/m/Y'
-                        $dateA = \DateTime::createFromFormat('d/m/Y', $a['fecha']);
-                        $dateB = \DateTime::createFromFormat('d/m/Y', $b['fecha']);
-                        return $dateB <=> $dateA;
-                    });
-                    $datoMasReciente = $datos[0];
-                }
-
-                // Ahora puedes usar $datoMasReciente['dato'] para el dato más reciente
-                $precioDolarEnMx = $datoMasReciente ? $datoMasReciente['dato'] : null;
-
-                foreach ($pagos as $pago) {
-                    $montoEnDolar = (float) $pago->Monto;
-                    $maem = (float) $montoAutorizadoEfectivoMxN->Valor;
-                    $montoAutorizadoEnDolar = $maem * (float) $precioDolarEnMx;
-                }
-
-                if (
-                    $montoAutorizadoEnDolar !== null
-                    && isset($montoAutorizadoEnDolar)
-                    && $montoEnDolar >= $montoAutorizadoEnDolar
-                ) {
-
-                    $alertaEfectivo = TbAlertas::new();
-                    $alertaEfectivo->Folio = $operacion->FolioPoliza;
-                    $alertaEfectivo->Patron = 'Operacion por monto relevante excedido';
-                    $alertaEfectivo->IDCliente = $nombreCliente;
-                    $alertaEfectivo->Poliza = $operacion->FolioPoliza;
-                    $alertaEfectivo->FechaDeteccion = now();
-                    $alertaEfectivo->IDOperacion = $operacion->IDCliente;
-                    $alertaEfectivo->HoraDeteccion = now()->format('H:i:s');
-                    $alertaEfectivo->FechaOperacion = $operacion->created_at;
-                    $alertaEfectivo->HoraOperacion = $horaActual;
-                    $alertaEfectivo->MontoOperacion = $montoEnDolar;
-                    $alertaEfectivo->RFCAgente = $operacion->RFCAgente ?? null;
-                    $alertaEfectivo->Agente = $nombreAgente ?? null;
-                    $alertaEfectivo->Estatus = 'Operacion por monto relevante';
-                    $alertaEfectivo->Descripcion = 'Se detecto una operacion con un monto igual o superior al umbral';
-                    $alertaEfectivo->Razones = 'El monto pagado en efectivo, es igual o mayor a lo permitido';
-                    $alertaEfectivo->Evidencias = $operacion->tipoDocumento;
-                    $alertaEfectivo->IDReporteOP = null;
-                    $alertaEfectivo->save();
-
-                    $insMonetario = CatFormaPagos::where('IDFormaPago', $pago->IDFormaPago)->first();
-
-                    $pagoAlerta = TbPagosAlertas::new();
-                    $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
-                    $pagoAlerta->IDRegistroAlerta = $alertaEfectivo->IDRegistroAlerta;
-                    $pagoAlerta->InstrumentoMonetario = $insMonetario->FormaPago;
-                    $pagoAlerta->save();
-                }
-            }
-
-            // ALERTA POR PERSONA POLITICAMENTE EXPUESTA (PPE)
-            $esPPE = $cliente->EsPPEActivo;
-            if ($esPPE) {
-                $alerta = TbAlertas::new();
-                $alerta->Folio = $operacion->FolioPoliza;
-                $alerta->Patron = 'Operacion por monto relevante excedido';
-                $alerta->IDCliente = $nombreCliente;
-                $alerta->Poliza = $operacion->FolioPoliza;
-                $alerta->FechaDeteccion = now();
-                $alerta->IDOperacion = $operacion->IDCliente;
-                $alertaEfectivo->HoraDeteccion = now()->format('H:i:s');
-                $alertaEfectivo->FechaOperacion = $operacion->created_at;
-                $alertaEfectivo->HoraOperacion = $horaActual;
-                $alertaEfectivo->MontoOperacion = $monto;
-                $alertaEfectivo->RFCAgente = $operacion->RFCAgente ?? null;
-                $alertaEfectivo->Agente = $nombreAgente ?? null;
-                $alertaEfectivo->Estatus = 'Operacion por monto relevante';
-                $alertaEfectivo->Descripcion = 'Se detecto una operacion con un monto igual o superior al umbral';
-                $alertaEfectivo->Razones = 'El monto pagado en efectivo, es igual o mayor a lo permitido';
-                $alertaEfectivo->Evidencias = $operacion->tipoDocumento;
-                $alertaEfectivo->IDReporteOP = null;
-                $alertaEfectivo->save();
-
-                $insMonetario = CatFormaPagos::where('IDFormaPago', $pago->IDFormaPago)->first();
-
-                $pago = TbPagosAlertas::new();
-                $pago->IDOperacionPago = $pago->IDOperacionPago;
-                $pago->IDRegistroAlerta = $alertaEfectivo->IDRegistroAlerta;
-                $pago->InstrumentoMonetario = $insMonetario->FormaPago;
-                $pago->save();
-            }
-
-            // // ALERTA POR MONTO DE PRIMA INUSUAL
-            // $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
-            //     ->where('IDFormaPago', 1) // 1: Efectivo
-            //     ->get();
-
-            // // Calcular el total pagado en efectivo
-            // $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
-            // $totalAPagar = $operacion->PrimaTotal;
-
-
-            // if (
-            //     $totalPagadoEfectivo >= $totalAPagar
-            // ) {
-            //     $monto = $operacion->PrimaTotal
-            // }
-
-
-
-
-
-
-
-
-
-
 
             return response()->json($operacionesPagos, 201);
         } catch (\Exception $e) {
@@ -528,6 +244,74 @@ class OperacionesController extends Controller
                 'detalles' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion): void
+    {
+        $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
+        $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
+
+        $alerta = new TbAlertas();
+        $alerta->Folio = $operacion->FolioEndoso;
+        $alerta->Patron = $alertaData['patron'];
+        $alerta->IDCliente = $operacion->IDCliente;
+        $alerta->Cliente = $nombreCliente;
+        $alerta->Poliza = $operacion->FolioPoliza ?? null;
+        $alerta->FechaDeteccion = now();
+        $alerta->IDOperacion = $operacion->IDOperacion;
+        $alerta->HoraDeteccion = now()->format('H:i:s');
+        $alerta->FechaOperacion = $operacion->created_at;
+        $alerta->HoraOperacion = now()->format('H:i:s');
+        $alerta->MontoOperacion = $operacion->PrimaTotal;
+        $alerta->RFCAgente = $operacion->RFCAgente ?? null;
+        $alerta->Agente = $nombreAgente ?? null;
+        $alerta->Estatus = $this->determinarEstatusAlerta($alertaData);
+        $alerta->Descripcion = $alertaData['descripcion'];
+        $alerta->Razones = $alertaData['razones'];
+        $alerta->Evidencias = json_encode($evidencias);
+        $alerta->IDReporteOP = null;
+
+        $alerta->save();
+
+        // Crear registros de pagos asociados a la alerta
+        foreach ($pagosOperacion as $pago) {
+            $formaPago = CatFormaPagos::find($pago->IDFormaPago);
+            $pagoAlerta = new TbPagosAlertas();
+            $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
+            $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
+            $pagoAlerta->InstrumentoMonetario = $formaPago->FormaPago ?? 'Desconocido';
+            $pagoAlerta->save();
+        }
+    }
+
+    private function generarReporteRegulatorio($operacion, $reporte): void
+    {
+        // Lógica para generar reportes regulatorios
+        // Esto puede incluir la creación de registros en tablas específicas para reportes
+        // o la preparación de datos para envío a autoridades regulatorias
+
+        // Por ahora, solo registramos en log (en producción esto persistiría en BD)
+        \Log::info('Reporte regulatorio generado', [
+            'operacion_id' => $operacion->IDOperacion,
+            'patron' => $reporte['patron'],
+            'monto_usd' => $reporte['monto_usd'],
+            'fecha' => now(),
+        ]);
+    }
+
+    private function determinarEstatusAlerta($alertaData): string
+    {
+        // Si la alerta genera reporte regulatorio, se marca como Reportado
+        if (isset($alertaData['genera_reporte']) && $alertaData['genera_reporte']) {
+            return 'Reportado';
+        }
+
+        // Para otros casos, determinar basado en monto u otros criterios
+        if (isset($alertaData['monto_usd']) && $alertaData['monto_usd'] < 10000) {
+            return 'Cerrado';
+        }
+
+        return 'Generado';
     }
 
     // Endpoint insertar monedas
