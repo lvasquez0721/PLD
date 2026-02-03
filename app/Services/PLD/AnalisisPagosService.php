@@ -138,7 +138,7 @@ class AnalisisPagosService
         $pagosEfectivo = collect($pagos)->filter(fn ($pago) => $pago['IDFormaPago'] == 1);
 
         foreach ($pagosEfectivo as $pago) {
-            $montoEnUSD = $this->convertirAUSD($pago['Monto'], $operacion->IDMoneda);
+            $montoEnUSD = $this->convertirAUSD($pago['Monto'], (int) $operacion->IDMoneda);
 
             if ($montoEnUSD >= 10000) { // Umbral PLD estándar (configurable)
                 $resultado->esMontoRelevante = true;

@@ -16,7 +16,7 @@ class LogClientes extends Model
 
     protected $table = 'logClientes';
     protected $primaryKey = 'IDLogCliente';
-    public $incrementing = true; // Debe ser autoincremental según la migración
+    public $incrementing = true; // Continúa siendo autoincremental según la migración
     protected $keyType = 'int';
     public $timestamps = true;
 
@@ -36,7 +36,7 @@ class LogClientes extends Model
         'FolioMercantil',
         'CoincideEnListasNegras',
         'EsPPEActivo',
-        'IDNacionalidad',
+        'IDNacionalidad', // Ahora debe ser tratado como string en los modelos y formularios
         'IDEstadoNacimiento',
         'Activo',
         'TimeStampLog',
@@ -54,9 +54,19 @@ class LogClientes extends Model
         return $this->belongsTo(CatTipoPersona::class, 'IDTipoPersona', 'IDTipoPersona');
     }
 
+    /**
+     * Relación con CatNacionalidad, SIN foreign key en base de datos,
+     * ya que la migración elimina el constraint FK de IDNacionalidad!
+     *
+     * NOTA: Asegúrate de que 'IDNacionalidad' se maneje como string.
+     */
     public function nacionalidad()
     {
-        return $this->belongsTo(CatNacionalidad::class, 'IDNacionalidad', 'IDNacionalidad');
+        return $this->belongsTo(
+            CatNacionalidad::class,
+            'IDNacionalidad', // foreign key en logClientes (tipo string)
+            'IDNacionalidad'  // local key en catNacionalidad (tipo string)
+        );
     }
 
     public function estadoNacimiento()

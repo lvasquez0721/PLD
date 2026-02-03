@@ -84,7 +84,7 @@ Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::clas
 
 //Listas Negras BICV-----------------------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\ListaNegraController;
-Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra 
+Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@ class CatNacionalidad extends Model
     protected $table = 'catNacionalidad';
     protected $primaryKey = 'IDNacionalidad';
     public $incrementing = false;
-    protected $keyType = 'int';
+    protected $keyType = 'string'; // Cambiado de 'int' a 'string' acorde al tipo de la columna
     public $timestamps = true;
 
     protected $fillable = [

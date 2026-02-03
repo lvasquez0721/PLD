@@ -30,8 +30,8 @@ class ClientesControllerApi extends Controller {
             'fechaNacimiento' => 'nullable|date',
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:255',
-            'IDNacionalidad' => 'nullable|integer',
-            'IDEstadoNacimiento' => 'nullable|integer',
+            'IDNacionalidad' => 'nullable|string', // AHORA como string, antes int
+            'IDEstadoNacimiento' => 'nullable|string', // AHORA como string, antes int
             'Preguntas' => 'nullable|string',
             'ingresosEstimados' => 'nullable|numeric',
 
@@ -41,7 +41,7 @@ class ClientesControllerApi extends Controller {
             'domicilios.*.noInterior' => 'nullable|string|max:255',
             'domicilios.*.colonia' => 'required|string|max:255',
             'domicilios.*.CP' => 'required|string|max:10',
-            'domicilios.*.IDEstado' => 'required|integer',
+            'domicilios.*.IDEstado' => 'required|string', // AHORA string
             'domicilios.*.municipio' => 'required|integer',
             'domicilios.*.localidad' => 'nullable|integer',
             'domicilios.*.telefono' => 'nullable|string|max:20',
@@ -132,7 +132,7 @@ class ClientesControllerApi extends Controller {
                     'NoInterior'  => $dom['noInterior'] ?? null,
                     'Colonia'     => $dom['colonia'],
                     'CP'          => $dom['CP'],
-                    'IDEstado'    => $dom['IDEstado'],
+                    'IDEstado'    => $dom['IDEstado'], // Guardar como string
                     'IDMunicipio' => $dom['municipio'],
                     'IDLocalidad' => $dom['localidad'] ?? null,
                     'Telefono'    => $dom['telefono'] ?? null,
@@ -155,7 +155,7 @@ class ClientesControllerApi extends Controller {
             $buscador = new BuscadorListasIntegral();
             $timestamp = now()->format('Ymd_His');
             $pathEvidencia = "storage/evidencias/Cliente_{$cliente->IDCliente}_{$timestamp}";
-            
+
             $resultadoQeQ = $buscador->realizaBusqueda(
                 nuevoIDCliente: $cliente->IDCliente,
                 IDTipoPersona: $data['IDTipoPersona'],
@@ -187,13 +187,13 @@ class ClientesControllerApi extends Controller {
                 'personaBloqueada' => $cliente->CoincideEnListasNegras,
                 'detalleListaBloqueadas' => $detalleListaBloqueadas,
             ], 201);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al guardar cliente: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'message' => 'Error al guardar los datos en BD.',
                 'error' => '1',
@@ -215,8 +215,8 @@ class ClientesControllerApi extends Controller {
             'fechaNacimiento' => 'nullable|date',
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:50',
-            'IDNacionalidad' => 'nullable|integer',
-            'IDEstadoNacimiento' => 'nullable|integer',
+            'IDNacionalidad' => 'nullable|string', // AHORA string
+            'IDEstadoNacimiento' => 'nullable|string', // AHORA string
             'Preguntas' => 'nullable|string',
             'domicilios' => 'sometimes|array|min:1',
             'domicilios.*.calle' => 'required_without:domicilios.*.Calle|string|max:255',
@@ -225,7 +225,7 @@ class ClientesControllerApi extends Controller {
             'domicilios.*.noInterior' => 'nullable|string|max:20',
             'domicilios.*.colonia' => 'required|string|max:100',
             'domicilios.*.CP' => 'required|string|max:10',
-            'domicilios.*.IDEstado' => 'required|integer',
+            'domicilios.*.IDEstado' => 'required|string', // AHORA string
             'domicilios.*.municipio' => 'required|string|max:100',
             'domicilios.*.localidad' => 'nullable|string|max:100',
             'domicilios.*.telefono' => 'nullable|string|max:20',

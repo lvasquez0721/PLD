@@ -26,7 +26,7 @@ class OperacionesController extends Controller
                 'FolioEndoso' => 'required|string|max:40',
                 'FechaEmision' => 'required|date',
                 'PrimaTotal' => 'required|numeric',
-                'IDMoneda' => 'required|integer',
+                'IDMoneda' => 'required|string|max:8', // Cambiado a string
                 'FechaInicioVigencia' => 'required|date',
                 'FechaFinVigencia' => 'required|date',
                 'GastosEmision' => 'required|numeric',
@@ -75,7 +75,7 @@ class OperacionesController extends Controller
             $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
             $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
             // $operacion->PPE = $validatedData['PPE'];
-            $operacion->IDMoneda = $validatedData['IDMoneda'];
+            $operacion->IDMoneda = $validatedData['IDMoneda']; // ahora string
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
             $operacion->FechaFinVigencia = $validatedData['FechaFinVigencia'];
             // Maneja el campo tipoDocumento si viene en el request
@@ -120,8 +120,8 @@ class OperacionesController extends Controller
                 $validated = $request->validate([
                     'IDCliente' => 'required|integer',
                     'montoPagado' => 'required|numeric',
-                    'IDMoneda' => 'required|integer',
-                    'IDFormaPago' => 'required|integer',
+                    'IDMoneda' => 'required|string',
+                    'IDFormaPago' => 'required|string',
                     'TipoCambio' => 'required|numeric',
                     'FechaPago' => 'required|date',
                     'detalleOperaciones' => 'required|array|min:1',
@@ -197,8 +197,8 @@ class OperacionesController extends Controller
                 $pago->IDOperacion = $operacion->IDOperacion;
                 $pago->IDCliente = $request->IDCliente;
                 $pago->Monto = $detalleOperacion['detalleMontoPagado'];
-                $pago->IDMoneda = $request->IDMoneda;
-                $pago->IDFormaPago = $request->IDFormaPago;
+                $pago->IDMoneda = $request->IDMoneda; // string
+                $pago->IDFormaPago = $request->IDFormaPago; // string
                 $pago->TipoCambio = $request->TipoCambio;
                 $pago->FechaPago = $request->FechaPago;
 
@@ -272,7 +272,7 @@ class OperacionesController extends Controller
 
             // ALERTA POR PAGOS ACUMULADOS EN EFECTIVO
             $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
-                ->where('IDFormaPago', 1) // 1: Efectivo
+                ->where('IDFormaPago', '1') // 1: Efectivo, ahora string
                 ->get();
 
             // Calcular el total pagado en efectivo
@@ -337,7 +337,7 @@ class OperacionesController extends Controller
                 $montoAutorizadoEfectivoMxN = null;
             }
 
-            if ($operacion->IDMoneda == 1) {
+            if ($operacion->IDMoneda === 'MXN') {
 
                 // pesos mexicanos
                 foreach ($pagos as $pago) {
@@ -383,7 +383,7 @@ class OperacionesController extends Controller
 
                 if ($operacion->PrimaTotal) {
                 }
-            } elseif ($operacion->IDMoneda == 2) {
+            } elseif ($operacion->IDMoneda === 'USD') {
                 // Dólares americanos
 
                 $client = new Client();

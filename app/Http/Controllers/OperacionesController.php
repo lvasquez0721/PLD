@@ -25,7 +25,7 @@ class OperacionesController extends Controller
                 'FolioEndoso' => 'required|string|max:40',
                 'FechaEmision' => 'required|date',
                 'PrimaTotal' => 'required|numeric',
-                'IDMoneda' => 'required|integer',
+                'IDMoneda' => 'required|string', // Cambiado de integer a string
                 'FechaInicioVigencia' => 'required|date',
                 'FechaFinVigencia' => 'required|date',
                 'GastosEmision' => 'required|numeric',
@@ -74,7 +74,7 @@ class OperacionesController extends Controller
             $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
             $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
             // $operacion->PPE = $validatedData['PPE'];
-            $operacion->IDMoneda = $validatedData['IDMoneda'];
+            $operacion->IDMoneda = $validatedData['IDMoneda']; // string ahora
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
             $operacion->FechaFinVigencia = $validatedData['FechaFinVigencia'];
             // Maneja el campo tipoDocumento si viene en el request
@@ -119,8 +119,8 @@ class OperacionesController extends Controller
                 $validated = $request->validate([
                     'IDCliente' => 'required|integer',
                     'montoPagado' => 'required|numeric',
-                    'IDMoneda' => 'required|integer',
-                    'IDFormaPago' => 'required|integer',
+                    'IDMoneda' => 'required|string',     // Cambio: ahora string
+                    'IDFormaPago' => 'required|string',  // Cambio: ahora string
                     'TipoCambio' => 'required|numeric',
                     'FechaPago' => 'required|date',
                     'detalleOperaciones' => 'required|array|min:1',
@@ -196,8 +196,8 @@ class OperacionesController extends Controller
                 $pago->IDOperacion = $operacion->IDOperacion;
                 $pago->IDCliente = $request->IDCliente;
                 $pago->Monto = $detalleOperacion['detalleMontoPagado'];
-                $pago->IDMoneda = $request->IDMoneda;
-                $pago->IDFormaPago = $request->IDFormaPago;
+                $pago->IDMoneda = $request->IDMoneda;      // string ('MXN' o 'USD')
+                $pago->IDFormaPago = $request->IDFormaPago; // string
                 $pago->TipoCambio = $request->TipoCambio;
                 $pago->FechaPago = $request->FechaPago;
 
@@ -220,11 +220,40 @@ class OperacionesController extends Controller
             // Obtener todos los pagos de la operación para el análisis
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
 
+            // Mapear el campo 'IDMoneda' de la operación (que es string, ej. 'MXN'/'USD') al valor correcto.
+            $monedaStr = $operacion->IDMoneda;
+            // Para CatMonedas, el campo clave correcto es 'IDMoneda', no 'Clave'
+            $moneda = \App\Models\CatMonedas::where('IDMoneda', $monedaStr)->first();
+            // Mapeo robusto: Si se espera un int para $idMoneda en el análisis,
+            // => usamos la posición de la moneda en catálogo, nunca el string clave
+            // Si la tabla de monedas (catMonedas) tiene un campo universitario autoincremental "id" usa ese.
+            // Pero según tu modelo, la PK es string. Entonces asignamos un entero fijo para 'MXN' (1) y 'USD' (2)
+            // o usamos un estrategia de mapeo explícita
+            $conversionMoneda = [
+                'MXN' => 1,
+                'USD' => 2,
+            ];
+            // Si la moneda está en el mapeo, usamos su entero, si no null (puede lanzar error en el servicio)
+            $idMonedaInt = $conversionMoneda[$monedaStr] ?? null;
+
+            // Modificar el array de pagos para que cada uno lleve su idMoneda *entero* para análisis
+            $pagosOperacionArr = $pagosOperacion->map(function ($pago) use ($conversionMoneda) {
+                $pagoArr = $pago->toArray();
+                $monedaStr = $pagoArr['IDMoneda'];
+                $pagoArr['IDMonedaInt'] = $conversionMoneda[$monedaStr] ?? null;
+                return $pagoArr;
+            })->toArray();
+
             // Realizar análisis completo
-            $resultadoAnalisis = $analisisService->analizarPagos($operacion, $pagosOperacion->toArray(), $cliente);
+            // Se debe pasar el IDMoneda como *entero* al servicio en vez de string para evitar TypeError
+            $resultadoAnalisis = $analisisService->analizarPagos(
+                $operacion,
+                $pagosOperacionArr,
+                $cliente
+            );
 
             // Generar evidencias
-            $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacion->toArray());
+            $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
             // Procesar alertas generadas
             foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
