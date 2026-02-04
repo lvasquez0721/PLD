@@ -44,4 +44,9 @@ class TbClientes extends Model
         'FechaNacimiento' => 'date',
         'FechaConstitucion' => 'date',
     ];
+
+    public function domicilios()
+    {
+        return $this->hasMany(TbClientesDomicilio::class, 'IDCliente', 'IDCliente');
+    }
 }

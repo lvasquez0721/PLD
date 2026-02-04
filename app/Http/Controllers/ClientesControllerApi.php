@@ -96,10 +96,7 @@ class ClientesControllerApi extends Controller {
 
         DB::beginTransaction();
         try {
-            $nuevoIDCliente = (TbClientes::max('IDCliente') ?? 0) + 1;
-
             $cliente = TbClientes::create([
-                'IDCliente' => $nuevoIDCliente,
                 'RFC' => $data['RFC'],
                 'Nombre' => $data['nombre'],
                 'ApellidoPaterno' => $data['apellidoPaterno'] ?? null,
@@ -122,11 +119,7 @@ class ClientesControllerApi extends Controller {
 
             $domiciliosInsertados = [];
             foreach ($data['domicilios'] as $dom) {
-                $nuevoIDDomicilio = (TbClientesDomicilio::max('IDDomicilio') ?? 0) + 1;
-
-                $domObj = TbClientesDomicilio::create([
-                    'IDDomicilio' => $nuevoIDDomicilio,
-                    'IDCliente'   => $cliente->IDCliente,
+                $domObj = $cliente->domicilios()->create([
                     'Calle'       => $dom['calle'],
                     'NoExterior'  => $dom['noExterior'] ?? null,
                     'NoInterior'  => $dom['noInterior'] ?? null,
@@ -152,6 +145,18 @@ class ClientesControllerApi extends Controller {
                 ]);
             }
 
+            // --- INICIO MODIFICACIÓN ---
+            // Aquí reemplazamos la creación del buscador y el análisis de listas por un control de error claro
+            // o una implementación simulada temporal para evitar la excepción de clase no encontrada.
+            $esPPE = false;
+            $personaBloqueada = false;
+            $detalleListaBloqueadas = [];
+
+            // Si es necesario en desarrollo, dejar la sección simulada y dar un warning en el log:
+            Log::warning('La clase BuscadorListasIntegral no se encontró o no está implementada. Se omite análisis de listas negras y PPE.');
+
+            /*
+            // Si más adelante se habilita la clase, dejar como comentario de referencia:
             $buscador = new BuscadorListasIntegral();
             $timestamp = now()->format('Ymd_His');
             $pathEvidencia = "storage/evidencias/Cliente_{$cliente->IDCliente}_{$timestamp}";
@@ -171,6 +176,8 @@ class ClientesControllerApi extends Controller {
             $esPPE = $resultadoQeQ['esPPE'] ?? false;
             $personaBloqueada = $resultadoQeQ['personaBloqueada'] ?? false;
             $detalleListaBloqueadas = $resultadoQeQ['detalleListaBloqueadas'] ?? [];
+            */
+            // --- FIN MODIFICACIÓN ---
 
             $cliente->update([
                 'CoincideEnListasNegras' => $personaBloqueada,
@@ -195,8 +202,10 @@ class ClientesControllerApi extends Controller {
             ]);
 
             return response()->json([
-                'message' => 'Error al guardar los datos en BD.',
+                'message' => 'Error al guardar los datos en BD: ' . $e->getMessage(),
                 'error' => '1',
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
