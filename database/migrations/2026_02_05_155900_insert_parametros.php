@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::table('catParametriaPLD')->insert([
+        $parametros = [
             [
                 'IDParametro' => 1,
                 'Parametro' => 'Operaciones relevantes',
@@ -183,7 +183,17 @@ return new class extends Migration
                 'TimeStampAlta' => Carbon::parse('2024-11-19 08:21:52.407'),
                 'TimeStampModificacion' => Carbon::parse('2024-11-19 08:21:52.407'),
             ],
-        ]);
+        ];
+
+        foreach ($parametros as $parametro) {
+            $exists = DB::table('catParametriaPLD')
+                ->where('IDParametro', $parametro['IDParametro'])
+                ->exists();
+
+            if (!$exists) {
+                DB::table('catParametriaPLD')->insert($parametro);
+            }
+        }
     }
 
     /**

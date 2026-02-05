@@ -13,7 +13,7 @@ return new class extends Migration
     {
         $fechaActual = Carbon::now();
 
-        DB::table('catsistemas')->insert([
+        $sistemas = [
             [
                 'IDSistema' => 1,
                 'Sistema' => 'SIT',
@@ -28,7 +28,14 @@ return new class extends Migration
                 'created_at' => $fechaActual,
                 'updated_at' => $fechaActual
             ],
-        ]);
+        ];
+
+        foreach ($sistemas as $sistema) {
+            $existe = DB::table('catsistemas')->where('IDSistema', $sistema['IDSistema'])->exists();
+            if (!$existe) {
+                DB::table('catsistemas')->insert($sistema);
+            }
+        }
     }
 
     /**
