@@ -1,0 +1,199 @@
+{
+  "info": {
+    "name": "PLD Alert Scenarios Structured",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "PATRON_FRACCIONADO",
+      "item": [
+        {
+          "name": "1. Crear Operacion Fraccionada",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"FolioPoliza\": \"POL-FRACC-001\",\n    \"FolioEndoso\": \"END-FRACC-001\",\n    \"FechaEmision\": \"2024-01-01\",\n    \"PrimaTotal\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"FechaInicioVigencia\": \"2024-01-01\",\n    \"FechaFinVigencia\": \"2025-01-01\",\n    \"GastosEmision\": 100,\n    \"RFCAgente\": \"XAXX010101000\",\n    \"CURPAgente\": \"XAXX010101HDFXXX00\",\n    \"NombreAgente\": \"Juan\",\n    \"APaternoAgente\": \"Perez\",\n    \"AMaternoAgente\": \"Lopez\",\n    \"RazonSocialAgente\": \"Seguros SA\",\n    \"DetalleBeneficiarios\": [\n        {\n            \"RFC\": \"XAXX010101000\",\n            \"CURP\": \"XAXX010101HDFXXX00\",\n            \"nombre\": \"Beneficiario\",\n            \"apellidoPaterno\": \"Uno\",\n            \"apellidoMaterno\": \"Dos\",\n            \"preferente\": true,\n            \"porcentajeParticipacion\": 100\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion" ]
+            }
+          }
+        },
+        {
+          "name": "2. Registrar Pagos Fraccionados (Genera Alerta)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        },\n        {\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion-pago" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PATRON_ACUMULADO_EFECTIVO",
+      "item": [
+        {
+          "name": "1. Crear Operacion Efectivo Acumulado",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"FolioPoliza\": \"POL-EFEC-001\",\n    \"FolioEndoso\": \"END-EFEC-001\",\n    \"FechaEmision\": \"2024-01-01\",\n    \"PrimaTotal\": 2000,\n    \"IDMoneda\": \"MXN\",\n    \"FechaInicioVigencia\": \"2024-01-01\",\n    \"FechaFinVigencia\": \"2025-01-01\",\n    \"GastosEmision\": 0,\n    \"RFCAgente\": \"XAXX010101000\",\n    \"CURPAgente\": \"XAXX010101HDFXXX00\",\n    \"NombreAgente\": \"Juan\",\n    \"APaternoAgente\": \"Perez\",\n    \"AMaternoAgente\": \"Lopez\",\n    \"RazonSocialAgente\": \"Seguros SA\",\n    \"DetalleBeneficiarios\": [\n        {\n            \"RFC\": \"XAXX010101000\",\n            \"CURP\": \"XAXX010101HDFXXX00\",\n            \"nombre\": \"Beneficiario\",\n            \"apellidoPaterno\": \"Uno\",\n            \"apellidoMaterno\": \"Dos\",\n            \"preferente\": true,\n            \"porcentajeParticipacion\": 100\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion" ]
+            }
+          }
+        },
+        {
+          "name": "2. Registrar Pagos Efectivo (Genera Alerta)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 2000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"1\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        },\n        {\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion-pago" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PATRON_MONTO_RELEVANTE",
+      "item": [
+        {
+          "name": "1. Crear Operacion Monto Relevante",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"FolioPoliza\": \"POL-RELEV-001\",\n    \"FolioEndoso\": \"END-RELEV-001\",\n    \"FechaEmision\": \"2024-01-01\",\n    \"PrimaTotal\": 12000,\n    \"IDMoneda\": \"USD\",\n    \"FechaInicioVigencia\": \"2024-01-01\",\n    \"FechaFinVigencia\": \"2025-01-01\",\n    \"GastosEmision\": 0,\n    \"RFCAgente\": \"XAXX010101000\",\n    \"CURPAgente\": \"XAXX010101HDFXXX00\",\n    \"NombreAgente\": \"Juan\",\n    \"APaternoAgente\": \"Perez\",\n    \"AMaternoAgente\": \"Lopez\",\n    \"RazonSocialAgente\": \"Seguros SA\",\n    \"DetalleBeneficiarios\": [\n        {\n            \"RFC\": \"XAXX010101000\",\n            \"CURP\": \"XAXX010101HDFXXX00\",\n            \"nombre\": \"Beneficiario\",\n            \"apellidoPaterno\": \"Uno\",\n            \"apellidoMaterno\": \"Dos\",\n            \"preferente\": true,\n            \"porcentajeParticipacion\": 100\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion" ]
+            }
+          }
+        },
+        {
+          "name": "2. Registrar Pago Efectivo Grande (Genera Alerta)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 12000,\n    \"IDMoneda\": \"USD\",\n    \"IDFormaPago\": \"1\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-RELEV-001\",\n            \"folioEndoso\": \"END-RELEV-001\",\n            \"detalleMontoPagado\": 12000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion-pago" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PATRON_PPE",
+      "item": [
+        {
+          "name": "1. Crear Operacion PPE",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 2,\n    \"FolioPoliza\": \"POL-PPE-001\",\n    \"FolioEndoso\": \"END-PPE-001\",\n    \"FechaEmision\": \"2024-01-01\",\n    \"PrimaTotal\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"FechaInicioVigencia\": \"2024-01-01\",\n    \"FechaFinVigencia\": \"2025-01-01\",\n    \"GastosEmision\": 0,\n    \"RFCAgente\": \"XAXX010101000\",\n    \"CURPAgente\": \"XAXX010101HDFXXX00\",\n    \"NombreAgente\": \"Juan\",\n    \"APaternoAgente\": \"Perez\",\n    \"AMaternoAgente\": \"Lopez\",\n    \"RazonSocialAgente\": \"Seguros SA\",\n    \"DetalleBeneficiarios\": [\n        {\n            \"RFC\": \"XAXX010101000\",\n            \"CURP\": \"XAXX010101HDFXXX00\",\n            \"nombre\": \"Beneficiario\",\n            \"apellidoPaterno\": \"Uno\",\n            \"apellidoMaterno\": \"Dos\",\n            \"preferente\": true,\n            \"porcentajeParticipacion\": 100\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion" ]
+            }
+          }
+        },
+        {
+          "name": "2. Registrar Pago PPE (Genera Alerta)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 2,\n    \"montoPagado\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-PPE-001\",\n            \"folioEndoso\": \"END-PPE-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion-pago" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PATRON_MONTO_INUSUAL",
+      "item": [
+        {
+          "name": "1. Crear Operacion Monto Inusual",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"FolioPoliza\": \"POL-INUSUAL-001\",\n    \"FolioEndoso\": \"END-INUSUAL-001\",\n    \"FechaEmision\": \"2024-01-01\",\n    \"PrimaTotal\": 600000,\n    \"IDMoneda\": \"MXN\",\n    \"FechaInicioVigencia\": \"2024-01-01\",\n    \"FechaFinVigencia\": \"2025-01-01\",\n    \"GastosEmision\": 0,\n    \"RFCAgente\": \"XAXX010101000\",\n    \"CURPAgente\": \"XAXX010101HDFXXX00\",\n    \"NombreAgente\": \"Juan\",\n    \"APaternoAgente\": \"Perez\",\n    \"AMaternoAgente\": \"Lopez\",\n    \"RazonSocialAgente\": \"Seguros SA\",\n    \"DetalleBeneficiarios\": [\n        {\n            \"RFC\": \"XAXX010101000\",\n            \"CURP\": \"XAXX010101HDFXXX00\",\n            \"nombre\": \"Beneficiario\",\n            \"apellidoPaterno\": \"Uno\",\n            \"apellidoMaterno\": \"Dos\",\n            \"preferente\": true,\n            \"porcentajeParticipacion\": 100\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion" ]
+            }
+          }
+        },
+        {
+          "name": "2. Registrar Pago Inusual (Genera Alerta)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 600000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-INUSUAL-001\",\n            \"folioEndoso\": \"END-INUSUAL-001\",\n            \"detalleMontoPagado\": 600000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
+              "host": [ "{{BASE_URL}}" ],
+              "path": [ "api", "insertar", "operacion-pago" ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8000"
+    }
+  ]
+}

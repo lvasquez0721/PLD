@@ -39,11 +39,5 @@ class TbOperacionesPagos extends Model
         return $this->belongsTo(CatMonedas::class, 'IDMoneda', 'IDMoneda');
     }
 
-    /**
-     * Relación con la forma de pago (catFormaPagos)
-     */
-    public function formaPago()
-    {
-        return $this->belongsTo(CatFormaPagos::class, 'IDFormaPago', 'IDFormaPago');
-    }
+
 }

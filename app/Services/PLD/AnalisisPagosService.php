@@ -2,6 +2,7 @@
 
 namespace App\Services\PLD;
 
+use App\Models\CalculoInusualidadPrimaEmitida;
 use App\Models\CatFormaPagos;
 use App\Models\CatParametriaPLD;
 use App\Models\State\ResultadoAnalisisPago;
@@ -51,10 +52,10 @@ class AnalisisPagosService
         $this->analizarPPE($operacion, $resultado, $cliente);
 
         // Análisis 5: Monto inusual
-        $this->analizarMontoInusual($operacion, $resultado);
+        $this->analizarMontoInusual($operacion, $resultado, $pagos, $cliente);
 
         // Determinar estatus final
-        $this->determinarEstatusFinal($resultado);
+        $this->determinarEstatusFinal($resultado, $operacion);
 
         return $resultado;
     }
@@ -68,8 +69,7 @@ class AnalisisPagosService
         $resultado->esFraccionado = true;
 
         // Obtener tolerancia
-        $toleranciaConfig = CatParametriaPLD::where('IDParametro', 15)->first();
-        $toleranciaPorcentaje = $toleranciaConfig ? $toleranciaConfig->Valor : 0;
+        $toleranciaPorcentaje = CatParametriaPLD::getToleranciaPagosFraccionados();
 
         // Validar pagos individuales contra gastos + prima
         $montoEsperadoPago = $operacion->PrimaTotal + $operacion->GastosEmision;
@@ -136,11 +136,12 @@ class AnalisisPagosService
     {
         // Solo pagos en efectivo
         $pagosEfectivo = collect($pagos)->filter(fn ($pago) => $pago['IDFormaPago'] == 1);
+        $umbralRelevante = CatParametriaPLD::getOperacionesRelevantes();
 
         foreach ($pagosEfectivo as $pago) {
-            $montoEnUSD = $this->convertirAUSD($pago['Monto'], (int) $operacion->IDMoneda);
+            $montoEnUSD = $this->convertirAUSD($pago['Monto'], $operacion->IDMoneda);
 
-            if ($montoEnUSD >= 10000) { // Umbral PLD estándar (configurable)
+            if ($montoEnUSD >= $umbralRelevante) {
                 $resultado->esMontoRelevante = true;
                 $resultado->montoRelevanteUSD = $montoEnUSD;
 
@@ -176,65 +177,117 @@ class AnalisisPagosService
         }
     }
 
-    private function analizarMontoInusual(TbOperaciones $operacion, ResultadoAnalisisPago $resultado): void
+    private function analizarMontoInusual(TbOperaciones $operacion, ResultadoAnalisisPago $resultado, array $pagos, ?TbClientes $cliente): void
     {
-        // Aquí se debería implementar la lógica de detección de montos inusuales
-        // Por ahora, simulamos una detección basada en límites predefinidos
+        if (! $resultado->operacionTotalmentePagada) {
+            return;
+        }
 
-        // En el sistema real, esto vendría de catálculo histórico por cliente
-        $limiteInferior = 50000; // Simulado
-        $limiteSuperior = 500000; // Simulado
+        // Obtener límites de parametría (Valores en MXN)
+        // Límite Inferior: ID 14 (Monto mínimo alerta)
+        $limiteInferior = CatParametriaPLD::getMontoMinimoAlerta();
 
-        if ($operacion->PrimaTotal < $limiteInferior || $operacion->PrimaTotal > $limiteSuperior) {
-            $resultado->esMontoInusual = true;
-            $resultado->limiteInferior = $limiteInferior;
-            $resultado->limiteSuperior = $limiteSuperior;
+        // Determinar si es Persona Moral (IDTipoPersona = 2)
+        // Si no hay cliente o no es moral, se asume Persona Física (IDTipoPersona = 1)
+        $esMoral = ($cliente && $cliente->IDTipoPersona == 2);
 
-            if ($resultado->operacionTotalmentePagada) {
-                $resultado->alertasGenerar[] = [
+        // Límite Superior: ID 17 (PM) o ID 16 (PF)
+        $limiteSuperior = $esMoral
+            ? CatParametriaPLD::getValor(CatParametriaPLD::MONTO_AUTORIZACION_EFECTIVO_PM, 500000)
+            : CatParametriaPLD::getValor(CatParametriaPLD::MONTO_AUTORIZACION_EFECTIVO_PF, 300000);
+
+        // Set limits in result object, as they are relevant for any inusual monto
+        $resultado->limiteInferior = $limiteInferior;
+        $resultado->limiteSuperior = $limiteSuperior;
+
+        foreach ($pagos as $index => $pago) {
+            $montoPago = (float) $pago['Monto'];
+
+            // Convertir monto del pago a MXN para comparar con los límites
+            // Assuming all payments for an operation are in the same currency as the operation
+            $montoPagoMXN = $this->convertirAMXN($montoPago, $operacion->IDMoneda);
+
+            // Validar si el monto del pago está fuera de rango
+            if ($montoPagoMXN < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
+                $resultado->esMontoInusual = true; // Set to true if any payment is inusual
+
+                $razones = "El pago #".($index + 1)." (Monto: ".number_format($montoPago, 2)." ".($operacion->IDMoneda == 1 ? 'MXN' : 'USD').") equivalente a MXN ".number_format($montoPagoMXN, 2)." está fuera de rango permitido [".number_format($limiteInferior, 2).", ".number_format($limiteSuperior, 2)."]";
+
+                $alertData = [
                     'patron' => self::PATRON_MONTO_INUSUAL,
-                    'descripcion' => 'Prima inusual',
-                    'razones' => "Prima {$operacion->PrimaTotal} fuera de rango histórico [{$limiteInferior}, {$limiteSuperior}]",
+                    'descripcion' => 'Pago inusual detectado',
+                    'razones' => $razones,
+                    'monto_mxn' => $montoPagoMXN,
                 ];
+
+                if (isset($pago['IDPago'])) {
+                    $alertData['id_pago'] = $pago['IDPago'];
+                }
+
+                $resultado->alertasGenerar[] = $alertData;
             }
         }
     }
 
-    private function convertirAUSD(float $monto, int $idMoneda): float
+    private function obtenerTipoCambio(): float
     {
-        if ($idMoneda == 2) { // USD
+        try {
+            $client = new Client;
+
+            // Obtener tipo de cambio del día hábil anterior
+            $fecha = now()->subDay();
+            while ($fecha->isWeekend()) {
+                $fecha->subDay();
+            }
+
+            $fechaFormateada = $fecha->format('Y-m-d');
+            $url = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/{$fechaFormateada}/{$fechaFormateada}?token=dafb7f16f4ec83af4c269688bde5bab13903be80138f5d19773a7e83346c5aae";
+
+            $response = $client->request('GET', $url);
+            $data = json_decode($response->getBody(), true);
+
+            return (float) ($data['bmx']['series'][0]['datos'][0]['dato'] ?? 20.0);
+        } catch (\Exception $e) {
+            // Fallback a tipo de cambio fijo
+            return 20.0;
+        }
+    }
+
+    private function convertirAUSD(float $monto, $idMoneda): float
+    {
+        // Normalizar a string mayúsculas si es cadena, o mantener si es int
+        $moneda = is_string($idMoneda) ? strtoupper($idMoneda) : $idMoneda;
+
+        if ($moneda === 'USD' || $moneda == 2) { // USD
             return $monto;
         }
 
-        if ($idMoneda == 1) { // MXN - convertir a USD
-            try {
-                $client = new Client;
-
-                // Obtener tipo de cambio del día hábil anterior
-                $fecha = now()->subDay();
-                while ($fecha->isWeekend()) {
-                    $fecha->subDay();
-                }
-
-                $fechaFormateada = $fecha->format('Y-m-d');
-                $url = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/{$fechaFormateada}/{$fechaFormateada}?token=dafb7f16f4ec83af4c269688bde5bab13903be80138f5d19773a7e83346c5aae";
-
-                $response = $client->request('GET', $url);
-                $data = json_decode($response->getBody(), true);
-
-                $tipoCambio = $data['bmx']['series'][0]['datos'][0]['dato'] ?? 20.0;
-
-                return $monto / (float) $tipoCambio;
-            } catch (\Exception $e) {
-                // Fallback a tipo de cambio fijo
-                return $monto / 20.0;
-            }
+        if ($moneda === 'MXN' || $moneda == 1) { // MXN - convertir a USD
+            $tipoCambio = $this->obtenerTipoCambio();
+            return $monto / $tipoCambio;
         }
 
         return $monto; // Otras monedas, sin conversión por ahora
     }
 
-    private function determinarEstatusFinal(ResultadoAnalisisPago $resultado): void
+    private function convertirAMXN(float $monto, $idMoneda): float
+    {
+        // Normalizar a string mayúsculas si es cadena, o mantener si es int
+        $moneda = is_string($idMoneda) ? strtoupper($idMoneda) : $idMoneda;
+
+        if ($moneda === 'MXN' || $moneda == 1) { // MXN
+            return $monto;
+        }
+
+        if ($moneda === 'USD' || $moneda == 2) { // USD - convertir a MXN
+            $tipoCambio = $this->obtenerTipoCambio();
+            return $monto * $tipoCambio;
+        }
+
+        return $monto; // Otras monedas, sin conversión por ahora
+    }
+
+    private function determinarEstatusFinal(ResultadoAnalisisPago $resultado, TbOperaciones $operacion): void
     {
         // Si hay reportes regulatorios, el estatus final es 'Reportado'
         if (! empty($resultado->reportesRegulatorios)) {
@@ -245,13 +298,16 @@ class AnalisisPagosService
 
         // Si hay alertas para generar
         if (! empty($resultado->alertasGenerar)) {
-            // Verificar si alguna alerta se debe cerrar automáticamente
-            $montoMinimoPLD = 10000; // Umbral configurable
+            // Verificar si el monto total de la prima es menor al monto mínimo de alerta
+            $montoMinimoAlertaMXN = CatParametriaPLD::getMontoMinimoAlerta();
 
-            $alertasSobreUmbral = collect($resultado->alertasGenerar)
-                ->filter(fn ($alerta) => isset($alerta['monto_usd']) && $alerta['monto_usd'] >= $montoMinimoPLD);
+            // Convertir PrimaTotal a MXN para comparar
+            $primaTotalMXN = $this->convertirAMXN($operacion->PrimaTotal, $operacion->IDMoneda);
 
-            if ($alertasSobreUmbral->isEmpty() && $resultado->operacionTotalmentePagada) {
+            // Si la prima total es menor al umbral mínimo, se cierra automáticamente
+            // Esto aplica para alertas generadas por Fraccionado o AcumuladoEfectivo
+            // donde el riesgo se mitiga si el monto es bajo.
+            if ($primaTotalMXN < $montoMinimoAlertaMXN) {
                 $resultado->estatusFinal = self::ESTATUS_CERRADO;
             } else {
                 $resultado->estatusFinal = self::ESTATUS_GENERADO;
@@ -298,6 +354,13 @@ class AnalisisPagosService
         if ($resultado->esMontoRelevante) {
             $evidencias['monto_relevante_usd'] = $resultado->montoRelevanteUSD;
             $evidencias['tipo_cambio_usd'] = $resultado->tipoCambioUSD;
+        }
+
+        if ($resultado->esMontoInusual) {
+            $evidencias['monto_inusual'] = [
+                'limite_inferior' => $resultado->limiteInferior,
+                'limite_superior' => $resultado->limiteSuperior,
+            ];
         }
 
         $resultado->evidencias = $evidencias;
