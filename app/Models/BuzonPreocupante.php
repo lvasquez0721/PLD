@@ -10,7 +10,9 @@ class BuzonPreocupante extends Model
     use HasFactory;
 
     protected $table = 'tbBuzonPreocupantes';
+
     protected $primaryKey = 'idBuzonPreocupantes';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -18,7 +20,6 @@ class BuzonPreocupante extends Model
         'Fecha',
         'Descripcion',
         'Usuario',
-        'Estatus'
+        'Estatus',
     ];
 }
-

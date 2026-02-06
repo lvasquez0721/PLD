@@ -1,12 +1,13 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
+
 use App\Models\CatCampos;
-use App\Models\TbPerfilTransaccional;
 use App\Models\CatParametrosPerfilTrans;
+use App\Models\TbPerfilTransaccional;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PerfilTransaccionalController extends Controller
 {
@@ -41,26 +42,26 @@ class PerfilTransaccionalController extends Controller
             $data = $request->all();
 
             CatParametrosPerfilTrans::create([
-                'IDRegistroParametro'         => rand(1000, 9999), // o genera tu propio consecutivo
-                'PorcentajeNacimiento'        => $data['PorNacimiento'] ?? 0,
-                'PorcentajeResidencia'        => $data['PorResidencia'] ?? 0,
-                'PorcentajePredio'            => $data['PorPredio'] ?? 0,
-                'PorcentajeNacionalidad'      => $data['PorNacionalidad'] ?? 0,
-                'PorcentajeAmbitoLaboral'     => $data['PorAmbitoLaboral'] ?? 0,
-                'PorcentajeOrigenRecursos'    => $data['PorOrigenRecursos'] ?? 0,
+                'IDRegistroParametro' => rand(1000, 9999), // o genera tu propio consecutivo
+                'PorcentajeNacimiento' => $data['PorNacimiento'] ?? 0,
+                'PorcentajeResidencia' => $data['PorResidencia'] ?? 0,
+                'PorcentajePredio' => $data['PorPredio'] ?? 0,
+                'PorcentajeNacionalidad' => $data['PorNacionalidad'] ?? 0,
+                'PorcentajeAmbitoLaboral' => $data['PorAmbitoLaboral'] ?? 0,
+                'PorcentajeOrigenRecursos' => $data['PorOrigenRecursos'] ?? 0,
                 'PorcentajeIngresosEstimados' => $data['PorIngresosEstimados'] ?? 0,
-                'PorcentajePromedioUR'        => $data['PorPromedioUR'] ?? 0,
-                'PorcentajeUbicacion'         => $data['PorUbicacion'] ?? 35, // no viene del form, lo dejamos 30
-                'PorcentajeDatosEconomicos'   => $data['PorDatosEconomicos'] ?? 35,
-                'PorcentajeDatosLaborales'    => $data['PorDatosLaborales'] ?? 30,
-                'FechaActualizacion'          => $data['fechaaplicacion'] ?? '',
-                'TimeStampAlta'               => now(),
-                'Activo'                      => 1,
+                'PorcentajePromedioUR' => $data['PorPromedioUR'] ?? 0,
+                'PorcentajeUbicacion' => $data['PorUbicacion'] ?? 35, // no viene del form, lo dejamos 30
+                'PorcentajeDatosEconomicos' => $data['PorDatosEconomicos'] ?? 35,
+                'PorcentajeDatosLaborales' => $data['PorDatosLaborales'] ?? 30,
+                'FechaActualizacion' => $data['fechaaplicacion'] ?? '',
+                'TimeStampAlta' => now(),
+                'Activo' => 1,
             ]);
 
             return redirect()->back()->with('success', 'Perfil guardado correctamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al guardar el perfil: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al guardar el perfil: '.$e->getMessage());
         }
     }
 
@@ -73,12 +74,12 @@ class PerfilTransaccionalController extends Controller
             if (empty($periodo) && empty($idCliente)) { // respuesta si no hay parámetros
                 return response()->json([
                     'success' => false,
-                    'mensaje' => 'No ha agregado ningún valor.'
+                    'mensaje' => 'No ha agregado ningún valor.',
                 ], 400);
             }
 
-            // Caso 1: Buscar por IDCliente (para API / Postman) y 
-            if (!empty($idCliente) && empty($periodo)) {
+            // Caso 1: Buscar por IDCliente (para API / Postman) y
+            if (! empty($idCliente) && empty($periodo)) {
                 // $registro = TbPerfilTransaccional::where('IDCliente', $idCliente)->first();
                 $registro = TbPerfilTransaccional::select(
                     'tbPerfilTransaccional.*',
@@ -86,14 +87,14 @@ class PerfilTransaccionalController extends Controller
                     'tbClientes.ApellidoPaterno',
                     'tbClientes.ApellidoMaterno'
                 )
-                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
-                ->where('tbPerfilTransaccional.IDCliente', $idCliente)
-                ->first();
+                    ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                    ->where('tbPerfilTransaccional.IDCliente', $idCliente)
+                    ->first();
 
-                if (!$registro) {
+                if (! $registro) {
                     return response()->json([
                         'success' => false,
-                        'mensaje' => 'No se encontró información para el cliente especificado.'
+                        'mensaje' => 'No se encontró información para el cliente especificado.',
                     ], 404);
                 }
 
@@ -102,7 +103,7 @@ class PerfilTransaccionalController extends Controller
                     // 'mensaje' => 'Datos del cliente obtenidos correctamente.',
                     'perfilTransaccional' => (float) $registro->Perfil,
                     'IDRiesgoPerfil' => ($registro->IDRegistroPerfil ?? 0),
-                    //'NombreCompleto' => trim("{$registro->Nombre} {$registro->ApellidoPaterno} {$registro->ApellidoMaterno}"),
+                    // 'NombreCompleto' => trim("{$registro->Nombre} {$registro->ApellidoPaterno} {$registro->ApellidoMaterno}"),
                 ]);
             }
 
@@ -118,15 +119,15 @@ class PerfilTransaccionalController extends Controller
                 'tbClientes.ApellidoPaterno',
                 'tbClientes.ApellidoMaterno'
             )
-            ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
-            ->whereDate('FechaEjecucción', $periodo)
-            ->get();
+                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                ->whereDate('FechaEjecucción', $periodo)
+                ->get();
 
             if ($datos->isEmpty()) {
                 return response()->json([
                     'success' => true,
                     'mensaje' => 'No se encontraron registros para ese periodo.',
-                    'datos' => []
+                    'datos' => [],
                 ]);
             }
 
@@ -139,17 +140,17 @@ class PerfilTransaccionalController extends Controller
 
             // Encabezado CSV
             fputcsv($archivo, [
-                'IDCliente','Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
+                'IDCliente', 'Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
                 'EdoDomicilio', 'NivelRiesgoDoc', 'CalculoResidencia',
                 'EdoLabora', 'NivelRiesgoResidencia', 'CalculoLaboral', 'TotalUbicacion',
                 'Origen', 'ORecursos', 'Ingresos', 'PromedioHA', 'TotalEconomico',
-                'OcupGiro', 'NivelRiesgo', 'CalculoOcupacion', 'Perfil', 'Periodo'
+                'OcupGiro', 'NivelRiesgo', 'CalculoOcupacion', 'Perfil', 'Periodo',
             ]);
 
             foreach ($datos as $fila) {
                 fputcsv($archivo, [
                     $fila->IDCliente,
-                    $fila->Nombre . ' ' . $fila->ApellidoPaterno . ' ' . $fila->ApellidoMaterno,
+                    $fila->Nombre.' '.$fila->ApellidoPaterno.' '.$fila->ApellidoMaterno,
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
                     $fila->CalculoNacimiento,
@@ -180,28 +181,27 @@ class PerfilTransaccionalController extends Controller
                 'mensaje' => 'Datos encontrados correctamente.',
                 'csvUrl' => asset("storage/{$nombreArchivo}"),
                 'total_registros' => $datos->count(),
-                'datos' => $datos
+                'datos' => $datos,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'mensaje' => 'Error al buscar información: ' . $e->getMessage()
+                'mensaje' => 'Error al buscar información: '.$e->getMessage(),
             ], 500);
         }
     }
 
-    /* Ejecutar perfil transaccional (si se necesita lanzar SP u otro proceso)*/
+    /* Ejecutar perfil transaccional (si se necesita lanzar SP u otro proceso) */
     public function ejecutar(Request $request)
     {
         try {
             // Ejecuta SP sin parámetros (como tu ejemplo)
-            DB::statement("CALL SP_PerfilTransaccional()");
+            DB::statement('CALL SP_PerfilTransaccional()');
 
             return redirect()->back()->with('success', 'Ejecución completada correctamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al ejecutar el perfil: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al ejecutar el perfil: '.$e->getMessage());
         }
     }
-
 }

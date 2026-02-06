@@ -10,9 +10,13 @@ class CatLocalidad extends Model
     use HasFactory;
 
     protected $table = 'catLocalidad';
+
     protected $primaryKey = 'IDLocalidad';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

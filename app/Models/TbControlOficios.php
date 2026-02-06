@@ -10,8 +10,11 @@ class TbControlOficios extends Model
     use HasFactory;
 
     protected $table = 'tbcontroloficios';
+
     protected $primaryKey = 'IDRegistro';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
 
     protected $fillable = [

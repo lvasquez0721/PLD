@@ -10,9 +10,13 @@ class CatTipoPersona extends Model
     use HasFactory;
 
     protected $table = 'catTipoPersona';
+
     protected $primaryKey = 'IDTipoPersona';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

@@ -4,20 +4,19 @@ namespace App\Models\Clientes;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Clientes\CatEstados;
-use App\Models\Clientes\CatTipoPersona;
-use App\Models\Clientes\CatNacionalidad;
-use App\Models\Clientes\CatOcupacionesGiros;
-use App\Models\Clientes\TbClientes;
 
 class LogClientes extends Model
 {
     use HasFactory;
 
     protected $table = 'logClientes';
+
     protected $primaryKey = 'IDLogCliente';
+
     public $incrementing = true; // Continúa siendo autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

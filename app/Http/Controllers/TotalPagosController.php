@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\TotalPago;
+use Illuminate\Http\Request;
 
 class TotalPagosController extends Controller
 {
@@ -15,15 +15,15 @@ class TotalPagosController extends Controller
     {
         $datos = $request->input('totalpagos');
 
-        if (!is_array($datos) || empty($datos)) {
+        if (! is_array($datos) || empty($datos)) {
             return response()->json([
-                'message' => 'El parámetro "totalpagos" debe ser un arreglo de objetos totalpago.'
+                'message' => 'El parámetro "totalpagos" debe ser un arreglo de objetos totalpago.',
             ], 400);
         }
 
         // Define reglas mínimas de validación para los campos requeridos
         $reglas = [
-            'IDPoliza'     => 'required|integer',
+            'IDPoliza' => 'required|integer',
             // Agrega más validaciones/obligatorios según tu modelo si lo necesitas
         ];
 
@@ -33,15 +33,17 @@ class TotalPagosController extends Controller
         // Validación sencilla para cada objeto
         foreach ($datos as $i => $item) {
             foreach ($reglas as $campo => $regla) {
-                if (strpos($regla, 'required') !== false && (!isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
+                if (strpos($regla, 'required') !== false && (! isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
                     $errores[$i][] = "El campo $campo es obligatorio.";
                 }
             }
-            if (isset($errores[$i])) continue;
+            if (isset($errores[$i])) {
+                continue;
+            }
             $registrosAInsertar[] = $item;
         }
 
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             return response()->json([
                 'message' => 'Algunos objetos no cumplen los criterios de validación.',
                 'errores' => $errores,
@@ -53,11 +55,11 @@ class TotalPagosController extends Controller
 
             return response()->json([
                 'message' => 'Totalpagos insertados correctamente.',
-                'insertados' => $registrosAInsertar
+                'insertados' => $registrosAInsertar,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al insertar los totalpagos: ' . $e->getMessage(),
+                'message' => 'Error al insertar los totalpagos: '.$e->getMessage(),
             ], 500);
         }
     }

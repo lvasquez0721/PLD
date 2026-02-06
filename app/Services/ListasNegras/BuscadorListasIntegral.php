@@ -2,25 +2,33 @@
 
 namespace App\Services\ListasNegras;
 
-use App\Services\ListasNegras\UIF\BuscadorUIF;
 use App\Services\ListasNegras\CNSF\BuscadorCNSF;
 use App\Services\ListasNegras\QeQ\QeQ;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use App\Services\ListasNegras\UIF\BuscadorUIF;
 use Exception;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
-class BuscadorListasIntegral {
+class BuscadorListasIntegral
+{
     private $IDTipoPersona;
+
     private $RFC;
+
     private $nombre;
+
     private $apellidoPaterno;
+
     private $apellidoMaterno;
+
     private $razonSocial;
+
     private $pathEvidencia;
+
     private $nuevoIDCliente;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->IDTipoPersona = null;
         $this->RFC = '';
         $this->nombre = '';
@@ -31,7 +39,8 @@ class BuscadorListasIntegral {
         $this->nuevoIDCliente = null;
     }
 
-    public function __destruct() {
+    public function __destruct()
+    {
         unset($this->IDTipoPersona);
         unset($this->RFC);
         unset($this->nombre);
@@ -42,9 +51,10 @@ class BuscadorListasIntegral {
         unset($this->nuevoIDCliente);
     }
 
-    public function realizaBusqueda($nuevoIDCliente, $IDTipoPersona, $RFC, $nombre, $apellidoPaterno, $apellidoMaterno, $razonSocial, $pathEvidencia, $modo = 1) {
-        Log::info('Iniciando búsqueda en listas negras para el cliente ID: ' . $nuevoIDCliente);
-        
+    public function realizaBusqueda($nuevoIDCliente, $IDTipoPersona, $RFC, $nombre, $apellidoPaterno, $apellidoMaterno, $razonSocial, $pathEvidencia, $modo = 1)
+    {
+        Log::info('Iniciando búsqueda en listas negras para el cliente ID: '.$nuevoIDCliente);
+
         $this->nuevoIDCliente = $nuevoIDCliente;
         $this->IDTipoPersona = $IDTipoPersona;
         $this->rfc = $RFC;
@@ -85,17 +95,18 @@ class BuscadorListasIntegral {
             'detalleListaBloqueadas' => $detalleListaBloqueadas,
         ];
 
-        Log::info("Resultado consolidado desde BuscadorListasIntegral:", [
+        Log::info('Resultado consolidado desde BuscadorListasIntegral:', [
             'esPPE' => $resultado['esPPE'],
             'personaBloqueada' => $resultado['personaBloqueada'],
             'IDCategoria' => $resultado['IDCategoria'],
-            'totalCoincidencias' => $resultado['totalCoincidencias']
+            'totalCoincidencias' => $resultado['totalCoincidencias'],
         ]);
 
         return $resultado;
     }
 
-    private function eliminarDuplicados(array $detalles): array {
+    private function eliminarDuplicados(array $detalles): array
+    {
         $unicos = [];
         $llaves = [];
 
@@ -107,7 +118,7 @@ class BuscadorListasIntegral {
                 $detalle['rfc'] ?? ''
             );
 
-            if (!isset($llaves[$llave])) {
+            if (! isset($llaves[$llave])) {
                 $llaves[$llave] = true;
                 $unicos[] = $detalle;
             }
@@ -116,86 +127,90 @@ class BuscadorListasIntegral {
         return $unicos;
     }
 
-    private function buscarUIF() {
+    private function buscarUIF()
+    {
         $resultado = [
             'IDCategoria' => 0,
             'personaBloqueada' => false,
             'detalleListaBloqueadas' => [],
         ];
 
-            $obj = new BuscadorUIF();
-            $respuesta = $obj->doBusqueda(
-                $this->IDTipoPersona,
-                $this->nombre,
-                $this->apellidoPaterno,
-                $this->apellidoMaterno,
-                $this->razonSocial
+        $obj = new BuscadorUIF;
+        $respuesta = $obj->doBusqueda(
+            $this->IDTipoPersona,
+            $this->nombre,
+            $this->apellidoPaterno,
+            $this->apellidoMaterno,
+            $this->razonSocial
+        );
+
+        $resultado = $respuesta;
+        $totalResultados = count($resultado['detalleListaBloqueadas'] ?? []);
+
+        if ($totalResultados > 0) {
+            $this->crearAlertaUIF($resultado['detalleListaBloqueadas']);
+
+            // Registrar en bitácora
+            $nombresDetectados = implode(',', array_column($resultado['detalleListaBloqueadas'], 'nombreDetectado'));
+            $this->ingresaBitacoraLista(
+                Lista: 'UIF',
+                NombreDetectado: $nombresDetectados,
+                Origen: '3'
             );
+        }
 
-            $resultado = $respuesta;
-            $totalResultados = count($resultado['detalleListaBloqueadas'] ?? []);
+        Log::info('Búsqueda UIF completada', [
+            'IDCategoria' => $resultado['IDCategoria'],
+            'totalResultados' => $totalResultados,
+        ]);
 
-            if ($totalResultados > 0) {
-                $this->crearAlertaUIF($resultado['detalleListaBloqueadas']);
-
-                // Registrar en bitácora
-                $nombresDetectados = implode(',', array_column($resultado['detalleListaBloqueadas'], 'nombreDetectado'));
-                $this->ingresaBitacoraLista(
-                    Lista: 'UIF', 
-                    NombreDetectado: $nombresDetectados, 
-                    Origen: '3'
-                );
-            }
-
-            Log::info("Búsqueda UIF completada", [
-                'IDCategoria' => $resultado['IDCategoria'],
-                'totalResultados' => $totalResultados
-            ]);
         return $resultado;
     }
 
-    private function buscarCNSF() {
+    private function buscarCNSF()
+    {
         $resultado = [
             'IDCategoria' => 0,
             'personaBloqueada' => false,
             'detalleListaBloqueadas' => [],
         ];
 
-            $obj = new BuscadorCNSF();
-            $respuesta = $obj->doBusqueda(
-                $this->IDTipoPersona,
-                $this->nombre,
-                $this->apellidoPaterno,
-                $this->apellidoMaterno,
-                $this->razonSocial
+        $obj = new BuscadorCNSF;
+        $respuesta = $obj->doBusqueda(
+            $this->IDTipoPersona,
+            $this->nombre,
+            $this->apellidoPaterno,
+            $this->apellidoMaterno,
+            $this->razonSocial
+        );
+
+        $resultado = $respuesta;
+
+        $totalResultados = count($resultado['detalleListaBloqueadas'] ?? []);
+
+        if ($totalResultados > 0) {
+            $this->crearAlertaUIF($resultado['detalleListaBloqueadas']);
+
+            $nombresDetectados = implode(',', array_column($resultado['detalleListaBloqueadas'] ?? [], 'nombreDetectado'));
+            $origenes = 'CNSF';
+
+            $this->ingresaBitacoraLista(
+                Lista: 'CNSF',
+                NombreDetectado: $nombresDetectados,
+                Origen: '2'
             );
+        }
 
-            $resultado = $respuesta;
-
-            $totalResultados = count($resultado['detalleListaBloqueadas'] ?? []);
-
-            if ($totalResultados > 0) {
-                $this->crearAlertaUIF($resultado['detalleListaBloqueadas']);
-
-                $nombresDetectados = implode(',', array_column($resultado['detalleListaBloqueadas'] ?? [], 'nombreDetectado'));
-                $origenes = 'CNSF';
-
-                $this->ingresaBitacoraLista(
-                    Lista: 'CNSF', 
-                    NombreDetectado: $nombresDetectados, 
-                    Origen: '2'
-                );
-            }
-
-            Log::info('Búsqueda CNSF completada', [
-                'IDCategoria' => $resultado['IDCategoria'],
-                'totalResultados' => $totalResultados
-            ]);
+        Log::info('Búsqueda CNSF completada', [
+            'IDCategoria' => $resultado['IDCategoria'],
+            'totalResultados' => $totalResultados,
+        ]);
 
         return $resultado;
     }
 
-    private function buscarQeQ() {
+    private function buscarQeQ()
+    {
         $resultado = [
             'esPPE' => false,
             'personaBloqueada' => false,
@@ -205,61 +220,63 @@ class BuscadorListasIntegral {
             'archivoEvidencia' => null,
         ];
 
-            $obj = new QeQ;
-            
-            $params = [
-                'tipoPersona' => $this->IDTipoPersona,
-                'rfc' => $this->rfc,
-                'nombre' => $this->nombre,
-                'apaterno' => $this->apellidoPaterno,
-                'amaterno' => $this->apellidoMaterno,
-                'razonSocial' => $this->razonSocial,
-            ];
-            
-            $respuesta = $obj->ejecutarConsulta($params);
-            
-            if (isset($respuesta['error'])) {
-                Log::error('Error en consulta QeQ: ' . $respuesta['error']);
-                return $resultado;
+        $obj = new QeQ;
+
+        $params = [
+            'tipoPersona' => $this->IDTipoPersona,
+            'rfc' => $this->rfc,
+            'nombre' => $this->nombre,
+            'apaterno' => $this->apellidoPaterno,
+            'amaterno' => $this->apellidoMaterno,
+            'razonSocial' => $this->razonSocial,
+        ];
+
+        $respuesta = $obj->ejecutarConsulta($params);
+
+        if (isset($respuesta['error'])) {
+            Log::error('Error en consulta QeQ: '.$respuesta['error']);
+
+            return $resultado;
+        }
+
+        $resultado = $respuesta;
+        $totalResultados = $respuesta['totalCoincidencias'] ?? 0;
+
+        if ($totalResultados > 0) {
+
+            foreach ($respuesta['detalleListaBloqueadas'] as &$detalle) {
+                $nombreDetectado = $detalle['nombreDetectado'] ?? '';
+                $lista = $detalle['lista'] ?? '';
+
+                Log::info('Registros detectados en QeQ:', $respuesta['detalleListaBloqueadas']);
+
+                $this->ingresaBitacoraLista(
+                    Lista: $lista,
+                    NombreDetectado: $nombreDetectado,
+                    Origen: '1'
+                );
             }
 
-            $resultado = $respuesta;
-            $totalResultados = $respuesta['totalCoincidencias'] ?? 0;
-            
-            if ($totalResultados > 0) {
-
-                foreach ($respuesta['detalleListaBloqueadas'] as &$detalle) {
-                    $nombreDetectado = $detalle['nombreDetectado'] ?? '';
-                    $lista = $detalle['lista'] ?? '';
-                    
-                    Log::info('Registros detectados en QeQ:', $respuesta['detalleListaBloqueadas']);
-                    
-                    $this->ingresaBitacoraLista(
-                        Lista: $lista, 
-                        NombreDetectado: $nombreDetectado, 
-                        Origen: '1'
-                    );
-                    }
-
-                if (intval($respuesta['IDCategoria']) == 4 || ($respuesta['esPPE'] ?? false)) {
-                    $this->insertarClientePPE($respuesta['archivoEvidencia'] ?? null);
-                }
+            if (intval($respuesta['IDCategoria']) == 4 || ($respuesta['esPPE'] ?? false)) {
+                $this->insertarClientePPE($respuesta['archivoEvidencia'] ?? null);
             }
+        }
 
-            Log::info('Búsqueda QeQ completada', [
-                'IDCategoria' => $resultado['IDCategoria'],
-                'esPPE' => $resultado['esPPE'],
-                'totalResultados' => $totalResultados
-            ]);
-        
+        Log::info('Búsqueda QeQ completada', [
+            'IDCategoria' => $resultado['IDCategoria'],
+            'esPPE' => $resultado['esPPE'],
+            'totalResultados' => $totalResultados,
+        ]);
+
         return $respuesta;
     }
 
-    private function crearAlertaUIF(array $detalles) {
+    private function crearAlertaUIF(array $detalles)
+    {
         $cadena = $this->obtenerCadenaPersona();
-        
+
         $nombresDetectados = implode(', ', array_column($detalles, 'nombreDetectado'));
-        
+
         DB::table('tbalertas')->insert([
             'Folio' => null,
             'Patron' => 'Personas Bloqueadas',
@@ -275,16 +292,17 @@ class BuscadorListasIntegral {
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        
+
         Log::info('Alerta de listas negras creada exitosamente', [
             'IDCliente' => $this->nuevoIDCliente,
             'Cliente' => $cadena,
             'totalCoincidencias' => count($detalles),
-            'nombresDetectados' => $nombresDetectados
+            'nombresDetectados' => $nombresDetectados,
         ]);
     }
 
-    private function insertarClientePPE($evidencia = null) {
+    private function insertarClientePPE($evidencia = null)
+    {
         try {
             DB::table('tbclientesppe')->insert([
                 'IDCliente' => $this->nuevoIDCliente,
@@ -301,15 +319,16 @@ class BuscadorListasIntegral {
             Log::info('Cliente PPE insertado en tbclientesppe', [
                 'IDCliente' => $this->nuevoIDCliente,
                 'Lista' => 'QeQ',
-                'Estado' => null
+                'Estado' => null,
             ]);
         } catch (Exception $e) {
-            Log::error('Error al insertar cliente PPE: ' . $e->getMessage());
+            Log::error('Error al insertar cliente PPE: '.$e->getMessage());
         }
     }
 
     // Insertar en logDetectClientesListas
-    private function ingresaBitacoraLista($Lista, $NombreDetectado, $Origen) {
+    private function ingresaBitacoraLista($Lista, $NombreDetectado, $Origen)
+    {
         try {
             DB::table('logDetectClientesListas')->insert([
                 'IDCliente' => $this->nuevoIDCliente,
@@ -318,36 +337,38 @@ class BuscadorListasIntegral {
                 'Origen' => $Origen,
                 'TimeStampDeteccion' => now(),
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             Log::info('Bitácora de lista insertada', [
                 'Lista' => $Lista,
                 'IDCliente' => $this->nuevoIDCliente,
-                'NombreDetectado' => $NombreDetectado
+                'NombreDetectado' => $NombreDetectado,
             ]);
 
         } catch (Exception $e) {
-            Log::error('Error al insertar en logDetectClientesListas: ' . $e->getMessage());
+            Log::error('Error al insertar en logDetectClientesListas: '.$e->getMessage());
         }
     }
 
-    private function obtenerCadenaPersona(): string {
+    private function obtenerCadenaPersona(): string
+    {
         if ($this->IDTipoPersona == 2) {
             return $this->razonSocial;
         }
 
-        return trim($this->nombre . ' ' . $this->apellidoPaterno . ' ' . $this->apellidoMaterno);
+        return trim($this->nombre.' '.$this->apellidoPaterno.' '.$this->apellidoMaterno);
     }
 
-    private function getCategoria($IDCategorias) {
+    private function getCategoria($IDCategorias)
+    {
         sort($IDCategorias, SORT_NUMERIC);
         $total = count($IDCategorias);
         $IDCategoriaFinal = 0;
         $asignado = false;
 
         for ($i = 0; $i < $total; $i++) {
-            if($IDCategorias[$i] != 0 && $asignado == false){
+            if ($IDCategorias[$i] != 0 && $asignado == false) {
                 $IDCategoriaFinal = $IDCategorias[$i];
             }
         }

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\IDRRPLD;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class IDRRPLDController extends Controller
@@ -15,9 +15,9 @@ class IDRRPLDController extends Controller
     {
         $data = $request->input('registros');
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return response()->json([
-                'error' => 'El formato de entrada es incorrecto. Se esperaba un arreglo de registros bajo la clave "registros".'
+                'error' => 'El formato de entrada es incorrecto. Se esperaba un arreglo de registros bajo la clave "registros".',
             ], 400);
         }
 
@@ -74,14 +74,15 @@ class IDRRPLDController extends Controller
 
         try {
             IDRRPLD::insert($data);
+
             return response()->json([
                 'message' => 'Registros insertados correctamente',
-                'success' => true
+                'success' => true,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Ocurrió un error al insertar los registros.',
-                'details' => $e->getMessage()
+                'details' => $e->getMessage(),
             ], 500);
         }
     }

@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -36,7 +34,7 @@ return new class extends Migration
         );
 
         // Asignar el rol "Administrador" al usuario (solo si no lo tiene)
-        if (!$admin->hasRole('Administrador')) {
+        if (! $admin->hasRole('Administrador')) {
             $admin->assignRole('Administrador');
         }
     }

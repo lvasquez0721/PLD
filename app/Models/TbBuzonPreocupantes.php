@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class TbBuzonPreocupantes extends Model
 {
     protected $table = 'tbBuzonPreocupantes';
+
     protected $primaryKey = 'idBuzonPreocupantes';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [

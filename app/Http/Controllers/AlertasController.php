@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\TbAlertas;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
@@ -131,11 +130,11 @@ class AlertasController extends Controller
         $alertas = TbAlertas::whereBetween('FechaDeteccion', [$fechaInicio, $fechaFin])
             ->get();
 
-        $fileName = 'alertas_' . $fechaInicio . '_a_' . $fechaFin . '.csv';
+        $fileName = 'alertas_'.$fechaInicio.'_a_'.$fechaFin.'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
         ];
 
         $callback = function () use ($alertas) {

@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -22,7 +22,8 @@ return new class extends Migration
             Schema::table('tbOperacionesPagos', function (Blueprint $table) {
                 $table->dropForeign(['IDMoneda']);
             });
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         // Eliminar FK tbOperaciones.IDMoneda -> catMonedas.IDMoneda solo si existe
         try {
@@ -36,7 +37,8 @@ return new class extends Migration
                     break;
                 }
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -68,17 +70,17 @@ return new class extends Migration
         // FK tbOperaciones.IDMoneda -> catMonedas.IDMoneda
         Schema::table('tbOperaciones', function (Blueprint $table) {
             $table->foreign('IDMoneda')
-                  ->references('IDMoneda')
-                  ->on('catMonedas')
-                  ->onDelete('set null');
+                ->references('IDMoneda')
+                ->on('catMonedas')
+                ->onDelete('set null');
         });
 
         // FK tbOperacionesPagos.IDMoneda -> catMonedas.IDMoneda
         Schema::table('tbOperacionesPagos', function (Blueprint $table) {
             $table->foreign('IDMoneda')
-                  ->references('IDMoneda')
-                  ->on('catMonedas')
-                  ->onDelete('set null');
+                ->references('IDMoneda')
+                ->on('catMonedas')
+                ->onDelete('set null');
         });
     }
 
@@ -96,7 +98,8 @@ return new class extends Migration
             Schema::table('tbOperacionesPagos', function (Blueprint $table) {
                 $table->dropForeign(['IDMoneda']);
             });
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         try {
             $sm = Schema::getConnection()->getDoctrineSchemaManager();
@@ -109,7 +112,8 @@ return new class extends Migration
                     break;
                 }
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -136,16 +140,16 @@ return new class extends Migration
         */
         Schema::table('tbOperaciones', function (Blueprint $table) {
             $table->foreign('IDMoneda')
-                  ->references('IDMoneda')
-                  ->on('catMonedas')
-                  ->onDelete('set null');
+                ->references('IDMoneda')
+                ->on('catMonedas')
+                ->onDelete('set null');
         });
 
         Schema::table('tbOperacionesPagos', function (Blueprint $table) {
             $table->foreign('IDMoneda')
-                  ->references('IDMoneda')
-                  ->on('catMonedas')
-                  ->onDelete('set null');
+                ->references('IDMoneda')
+                ->on('catMonedas')
+                ->onDelete('set null');
         });
     }
 };

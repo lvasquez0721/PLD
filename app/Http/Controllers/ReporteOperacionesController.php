@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Services\ReporteOperaciones\ReporteOperacionesService;
 
 class ReporteOperacionesController extends Controller
 {
@@ -17,7 +16,7 @@ class ReporteOperacionesController extends Controller
     {
         // Lista de filtros esperados
         $filtros = $request->only([
-            'estatus', 'tipo', 'fecha_ini', 'fecha_fin'
+            'estatus', 'tipo', 'fecha_ini', 'fecha_fin',
         ]);
 
         // Validar que todos los campos requeridos estén presentes

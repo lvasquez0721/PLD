@@ -3,11 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class CatCategoriaPersonasBloqueadas extends Model
 {
-
     // Comentarios estáticos para cada categoría de PLD
     const COMENTARIOS_PLD = [
         1 => 'Tláloc seguros no podrá ofrecer ningún producto con la persona o empresa por ser una persona que aparece en listas bloqueadas',
@@ -27,6 +25,7 @@ class CatCategoriaPersonasBloqueadas extends Model
 
     // Laravel no espera que el PK sea string ni tenga increment
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     // No timestamps en la migración original
@@ -40,15 +39,18 @@ class CatCategoriaPersonasBloqueadas extends Model
     ];
 
     // Obtiene la categoría de PLD por su ID
-    public static function getCategoriaPLD($IDCategoria) {
+    public static function getCategoriaPLD($IDCategoria)
+    {
         if (empty($IDCategoria)) {
             return null;
         }
+
         return self::where('ID', $IDCategoria)->value('Categoria');
     }
 
-    //Obtiene los comentarios de detección según la categoría de PLD
-    public static function getComentariosDeteccion($IDCategoria) {
+    // Obtiene los comentarios de detección según la categoría de PLD
+    public static function getComentariosDeteccion($IDCategoria)
+    {
         if (empty($IDCategoria)) {
             return 'Categoría no especificada.';
         }
@@ -57,15 +59,17 @@ class CatCategoriaPersonasBloqueadas extends Model
     }
 
     // Obtiene el código del mensaje, ajuste de SIT a PLD
-    public static function getCodigoMensaje($IDCategoria) {
-        return 'PLD' . str_pad($IDCategoria, 3, '0', STR_PAD_LEFT);
+    public static function getCodigoMensaje($IDCategoria)
+    {
+        return 'PLD'.str_pad($IDCategoria, 3, '0', STR_PAD_LEFT);
     }
 
-    //Obtiene todo los datos de una categoría de PLD
-    public static function getDatosCompletos($IDCategoria) {
+    // Obtiene todo los datos de una categoría de PLD
+    public static function getDatosCompletos($IDCategoria)
+    {
         $categoria = self::find($IDCategoria);
 
-        if (!$categoria) {
+        if (! $categoria) {
             return null;
         }
 

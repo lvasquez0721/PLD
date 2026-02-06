@@ -3,21 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\ClienteHelper;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use App\Models\Clientes\CatIDClientesSistema;
+use App\Models\Clientes\LogClientes;
+use App\Models\Clientes\LogClientesDomicilio;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
-use App\Models\Clientes\CatIDClientesSistema;
-use App\Services\ListasNegras\BuscadorListasIntegral;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
-use App\Models\TbAlertas; // Agregar modelo de alertas
+use App\Models\TbAlertas;
+use App\Services\ListasNegras\BuscadorListasIntegral;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator; // Agregar modelo de alertas
 
-class ClientesControllerApi extends Controller {
-
-    public function guardarCliente(Request $request) {
+class ClientesControllerApi extends Controller
+{
+    public function guardarCliente(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'RFC' => 'nullable|string|max:18',
             'nombre' => 'nullable|string|max:255',
@@ -54,7 +57,7 @@ class ClientesControllerApi extends Controller {
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -62,7 +65,7 @@ class ClientesControllerApi extends Controller {
         $rfc = isset($data['RFC']) ? strtoupper(trim($data['RFC'])) : null;
 
         // Validación de RFC duplicado
-        if (!empty($rfc)) {
+        if (! empty($rfc)) {
             if ($rfc !== 'XAXX010101000') {
                 $existeRFC = TbClientes::whereRaw('UPPER(RFC) = ?', [$rfc])->exists();
                 if ($existeRFC) {
@@ -114,34 +117,34 @@ class ClientesControllerApi extends Controller {
                 'IDEstadoNacimiento' => $data['IDEstadoNacimiento'] ?? null,
                 'Activo' => true,
                 'Preguntas' => $data['Preguntas'] ?? null,
-                'IngresosEstimados' => $data['ingresosEstimados'] ?? null
+                'IngresosEstimados' => $data['ingresosEstimados'] ?? null,
             ]);
 
             $domiciliosInsertados = [];
             foreach ($data['domicilios'] as $dom) {
                 $domObj = $cliente->domicilios()->create([
-                    'Calle'       => $dom['calle'],
-                    'NoExterior'  => $dom['noExterior'] ?? null,
-                    'NoInterior'  => $dom['noInterior'] ?? null,
-                    'Colonia'     => $dom['colonia'],
-                    'CP'          => $dom['CP'],
-                    'IDEstado'    => $dom['IDEstado'], // Guardar como string
+                    'Calle' => $dom['calle'],
+                    'NoExterior' => $dom['noExterior'] ?? null,
+                    'NoInterior' => $dom['noInterior'] ?? null,
+                    'Colonia' => $dom['colonia'],
+                    'CP' => $dom['CP'],
+                    'IDEstado' => $dom['IDEstado'], // Guardar como string
                     'IDMunicipio' => $dom['municipio'],
                     'IDLocalidad' => $dom['localidad'] ?? null,
-                    'Telefono'    => $dom['telefono'] ?? null,
+                    'Telefono' => $dom['telefono'] ?? null,
                 ]);
 
                 $domiciliosInsertados[] = $domObj;
             }
 
-            if (!empty($data['IDSistemaOrigen']) && !empty($data['NoClienteSistema'])) {
+            if (! empty($data['IDSistemaOrigen']) && ! empty($data['NoClienteSistema'])) {
                 $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
 
                 CatIdClientesSistema::create([
                     'IDOrigenSistema' => $nuevoIDOrigen,
-                    'IDCliente'       => $cliente->IDCliente,
-                    'IDSistema'       => $data['IDSistemaOrigen'],
-                    'NCliente'        => $data['NoClienteSistema'],
+                    'IDCliente' => $cliente->IDCliente,
+                    'IDSistema' => $data['IDSistemaOrigen'],
+                    'NCliente' => $data['NoClienteSistema'],
                 ]);
             }
 
@@ -197,12 +200,12 @@ class ClientesControllerApi extends Controller {
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al guardar cliente: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Error al guardar cliente: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'message' => 'Error al guardar los datos en BD: ' . $e->getMessage(),
+                'message' => 'Error al guardar los datos en BD: '.$e->getMessage(),
                 'error' => '1',
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -239,14 +242,14 @@ class ClientesControllerApi extends Controller {
             'domicilios.*.localidad' => 'nullable|string|max:100',
             'domicilios.*.telefono' => 'nullable|string|max:20',
             'domicilios.*.principal' => 'nullable|boolean',
-            'IDSistemaOrigen' => 'nullable|string|max:100',
-            'NoClienteSistema' => 'nullable|string|max:100'
+            'IDSistemaOrigen' => 'nullable|int|max:100',
+            'NoClienteSistema' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -254,17 +257,89 @@ class ClientesControllerApi extends Controller {
 
         $cliente = TbClientes::find($id);
 
-        if (!$cliente) {
+        if (! $cliente) {
             return response()->json([
                 'codigoError' => 1,
-                'error' => 'Cliente no encontrado'
+                'error' => 'Cliente no encontrado',
             ], 404);
+        }
+
+        // Guardar el estado actual del cliente en el log antes de la actualización
+        LogClientes::create([
+            'IDCliente' => $cliente->IDCliente,
+            'RfcAnterior' => $cliente->RFC,
+            'Nombre' => $cliente->Nombre,
+            'ApellidoPaterno' => $cliente->ApellidoPaterno,
+            'ApellidoMaterno' => $cliente->ApellidoMaterno,
+            'RazonSocial' => $cliente->RazonSocial,
+            'IDTipoPersona' => $cliente->IDTipoPersona,
+            'CURP' => $cliente->CURP,
+            'IDOcupacionGiro' => $cliente->IDOcupacionGiro,
+            'FechaNacimiento' => $cliente->FechaNacimiento,
+            'FechaConstitucion' => $cliente->FechaConstitucion,
+            'FolioMercantil' => $cliente->FolioMercantil,
+            'CoincideEnListasNegras' => $cliente->CoincideEnListasNegras,
+            'EsPPEActivo' => $cliente->EsPPEActivo,
+            'IDNacionalidad' => $cliente->IDNacionalidad,
+            'IDEstadoNacimiento' => $cliente->IDEstadoNacimiento,
+            'Activo' => $cliente->Activo,
+            'TimeStampLog' => now(),
+        ]);
+
+        // Guardar el estado actual de los domicilios del cliente en el log antes de la actualización
+        $domiciliosOriginales = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
+        foreach ($domiciliosOriginales as $domicilio) {
+            // Obtener el siguiente valor IDLogDomicilio manualmente
+            $maxIdLog = LogClientesDomicilio::max('IDLogDomicilio');
+            $nextIdLog = $maxIdLog ? $maxIdLog + 1 : 1; // Siguiente autoincremental
+
+            LogClientesDomicilio::create([
+                'IDLogDomicilio' => $nextIdLog,
+                'IDDomicilio' => $domicilio->IDDomicilio,
+                'IDCliente' => $domicilio->IDCliente,
+                'Calle' => $domicilio->Calle,
+                'NoExterior' => $domicilio->NoExterior,
+                'NoInterior' => $domicilio->NoInterior,
+                'Colonia' => $domicilio->Colonia,
+                'CP' => $domicilio->CP,
+                'IDEstado' => $domicilio->IDEstado,
+                'Municipio' => $domicilio->Municipio,
+                'Localidad' => $domicilio->Localidad,
+                'Telefono' => $domicilio->Telefono,
+                'created_at' => now(), // Usar created_at para TimeStampLog
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Eliminar domicilios existentes para el cliente
+        TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->delete();
+
+        // Insertar los nuevos domicilios
+        if (isset($validated['domicilios'])) {
+            foreach ($validated['domicilios'] as $domicilioData) {
+                $calle = $domicilioData['calle'] ?? $domicilioData['Calle'] ?? null;
+                if ($calle) {
+                    TbClientesDomicilio::create([
+                        'IDCliente' => $cliente->IDCliente,
+                        'Calle' => $calle,
+                        'NoExterior' => $domicilioData['noExterior'] ?? null,
+                        'NoInterior' => $domicilioData['noInterior'] ?? null,
+                        'Colonia' => $domicilioData['colonia'] ?? null,
+                        'CP' => $domicilioData['CP'] ?? null,
+                        'IDEstado' => $domicilioData['IDEstado'] ?? null,
+                        'Municipio' => $domicilioData['municipio'] ?? null,
+                        'Localidad' => $domicilioData['localidad'] ?? null,
+                        'Telefono' => $domicilioData['telefono'] ?? null,
+                        'Principal' => $domicilioData['principal'] ?? false,
+                    ]);
+                }
+            }
         }
 
         $nombreC = trim(
             $validated['nombre']
-            . ' ' . ($validated['apellidoPaterno'] ?? '')
-            . ' ' . ($validated['apellidoMaterno'] ?? '')
+            .' '.($validated['apellidoPaterno'] ?? '')
+            .' '.($validated['apellidoMaterno'] ?? '')
         );
 
         $tokenPPE = ClienteHelper::getTokenPPE();
@@ -297,6 +372,29 @@ class ClientesControllerApi extends Controller {
         $cliente->EsPPEActivo = $esPPE;
         // CoincideEnListasNegras y Activo se actualizan más abajo según lógica
 
+        // Actualizar/crear CatIdClientesSistema relacionado si vienen los datos de sistema origen
+        if (! empty($validated['IDSistemaOrigen']) && ! empty($validated['NoClienteSistema'])) {
+            // Buscar si ya existe un registro para este cliente con el IDSistema dado
+            $catIdSistema = CatIdClientesSistema::where('IDCliente', $cliente->IDCliente)
+                ->where('IDSistema', $validated['IDSistemaOrigen'])
+                ->first();
+
+            if ($catIdSistema) {
+                // Actualizar el número de cliente si cambió
+                $catIdSistema->NCliente = $validated['NoClienteSistema'];
+                $catIdSistema->save();
+            } else {
+                // Crear uno nuevo (IDOrigenSistema autoincrement o moldear igual a crear)
+                $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
+                CatIdClientesSistema::create([
+                    'IDOrigenSistema' => $nuevoIDOrigen,
+                    'IDCliente' => $cliente->IDCliente,
+                    'IDSistema' => $validated['IDSistemaOrigen'],
+                    'NCliente' => $validated['NoClienteSistema'],
+                ]);
+            }
+        }
+
         // Buscar en listas bloqueadas por RFC actualizado
         $rfc = $validated['RFC'] ?? null;
         $coincideEnListasNegras = false;
@@ -309,25 +407,25 @@ class ClientesControllerApi extends Controller {
             if ($CNSFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
-                    "lista" => "CNSF",
-                    "nombreDetectado" => $CNSFrfc->Nombre ?? '',
-                    "IDListaOrigen" => $CNSFrfc->IDRegistroListaCNSF ?? null,
-                    "cargo" => "",
-                    "PPEActivo" => $esPPE,
+                    'lista' => 'CNSF',
+                    'nombreDetectado' => $CNSFrfc->Nombre ?? '',
+                    'IDListaOrigen' => $CNSFrfc->IDRegistroListaCNSF ?? null,
+                    'cargo' => '',
+                    'PPEActivo' => $esPPE,
                 ];
-                $listasDetectadas[] = "CNSF";
+                $listasDetectadas[] = 'CNSF';
             }
             $UIFrfc = TbListasNegrasUIF::where('RFC', $rfc)->first();
             if ($UIFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
-                    "lista" => "UIF",
-                    "nombreDetectado" => $UIFrfc->Nombre ?? '',
-                    "IDListaOrigen" => $UIFrfc->IDRegistroListaUIF ?? null,
-                    "cargo" => "",
-                    "PPEActivo" => $esPPE,
+                    'lista' => 'UIF',
+                    'nombreDetectado' => $UIFrfc->Nombre ?? '',
+                    'IDListaOrigen' => $UIFrfc->IDRegistroListaUIF ?? null,
+                    'cargo' => '',
+                    'PPEActivo' => $esPPE,
                 ];
-                $listasDetectadas[] = "UIF";
+                $listasDetectadas[] = 'UIF';
             }
         }
 
@@ -337,15 +435,15 @@ class ClientesControllerApi extends Controller {
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
             $nombreCompleto = trim(
-                ($cliente->Nombre ?? '') .
-                ' ' .
-                ($cliente->ApellidoPaterno ?? '') .
-                ' ' .
+                ($cliente->Nombre ?? '').
+                ' '.
+                ($cliente->ApellidoPaterno ?? '').
+                ' '.
                 ($cliente->ApellidoMaterno ?? '')
             );
 
-            $motivo = "Detectado en listas negras: " . implode(", ", $listasDetectadas);
-            $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(", ", $listasDetectadas);
+            $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
+            $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
             TbAlertas::create([
                 'Folio' => null,
@@ -380,5 +478,4 @@ class ClientesControllerApi extends Controller {
             'detalleListaBloqueadas' => $detalleListaBloqueadas,
         ]);
     }
-
 }

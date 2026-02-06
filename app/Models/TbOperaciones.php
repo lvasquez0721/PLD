@@ -9,9 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TbOperaciones extends Model
 {
     protected $table = 'tbOperaciones';
+
     protected $primaryKey = 'IDOperacion';
+
     public $incrementing = true; // El PK SÍ es autoincrement según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true; // No hay timestamps en la migración
 
     protected $fillable = [

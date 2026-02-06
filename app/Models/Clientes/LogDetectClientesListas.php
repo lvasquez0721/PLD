@@ -10,9 +10,13 @@ class LogDetectClientesListas extends Model
     use HasFactory;
 
     protected $table = 'logDetectClientesListas';
+
     protected $primaryKey = 'IDDeteccion';
+
     public $incrementing = true; // Debe ser autoincrementable según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

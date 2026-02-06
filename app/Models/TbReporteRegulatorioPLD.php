@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TbReporteRegulatorioPLD extends Model
 {
     protected $table = 'tbReporteRegulatorioPLD';
+
     protected $primaryKey = 'IDReporte';
+
     public $incrementing = true; // El PK ES autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

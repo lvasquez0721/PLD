@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class CatCampos extends Model
 {
     protected $table = 'catcampos'; // Nombre exacto de la tabla
+
     protected $primaryKey = 'IDCampo'; // Clave primaria
+
     public $timestamps = false; // No tiene created_at ni updated_at
 
     protected $fillable = [

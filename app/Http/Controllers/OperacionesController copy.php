@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 class OperacionesController extends Controller
 {
     // -------------
-    //OPERACION
+    // OPERACION
     public function insertarOperacion(Request $request)
     {
         try {
@@ -61,7 +61,7 @@ class OperacionesController extends Controller
         }
 
         try {
-            $operacion = new TbOperaciones();
+            $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
             $operacion->FolioPoliza = $validatedData['FolioPoliza'];
             $operacion->FolioEndoso = $validatedData['FolioEndoso'];
@@ -85,7 +85,7 @@ class OperacionesController extends Controller
             // beneficiarios
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
             foreach ($beneficiarios as $beneficiario) {
-                $beneficiarioModel = new TbOperacionesBeneficiarios();
+                $beneficiarioModel = new TbOperacionesBeneficiarios;
                 $beneficiarioModel->IDOperacion = $operacion->IDOperacion;
                 $beneficiarioModel->RFCBeneficiario = $beneficiario['RFC'];
                 $beneficiarioModel->CURPBeneficiario = $beneficiario['CURP'];
@@ -109,7 +109,7 @@ class OperacionesController extends Controller
     }
 
     // -------------
-    //PAGO
+    // PAGO
     public function insertarOperacionPago(Request $request)
     {
         try {
@@ -127,7 +127,7 @@ class OperacionesController extends Controller
                     'detalleOperaciones' => 'required|array|min:1',
                     'detalleOperaciones.*.folioPoliza' => 'nullable|string',
                     'detalleOperaciones.*.folioEndoso' => 'nullable|string',
-                    'detalleOperaciones.*.detalleMontoPagado' => 'required|numeric'
+                    'detalleOperaciones.*.detalleMontoPagado' => 'required|numeric',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return response()->json([
@@ -144,7 +144,7 @@ class OperacionesController extends Controller
             }
 
             $cliente = TbClientes::where('IDCliente', $request->IDCliente)->first();
-            $nombreCliente = $cliente ? ($cliente->Nombre . ' ' . $cliente->ApellidoPaterno . ' ' . $cliente->ApellidoMaterno) : null;
+            $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
             $horaActual = now()->format('H:i:s');
             $fechaActual = now()->format('Y-m-d');
 
@@ -152,10 +152,10 @@ class OperacionesController extends Controller
                 return (float) $detalle['detalleMontoPagado'];
             });
 
-            if (bccomp((string)$sumaDetalles, (string)$request->montoPagado, 2) !== 0) { // precisión dos decimales
+            if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) { // precisión dos decimales
                 return response()->json([
                     'codigoError' => 422,
-                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.'
+                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.',
                 ], 422);
             }
 
@@ -180,20 +180,20 @@ class OperacionesController extends Controller
                 } else {
                     return response()->json([
                         'codigoError' => 422,
-                        'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.'
+                        'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.',
                     ], 422);
                 }
                 $op = $operacionQuery->first();
                 $operacion = $op;
 
-                if (!$operacion) {
+                if (! $operacion) {
                     return response()->json([
                         'codigoError' => 404,
-                        'error' => 'No se encontró la operación correspondiente a los folios proporcionados.'
+                        'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
                     ], 404);
                 }
 
-                $pago = new TbOperacionesPagos();
+                $pago = new TbOperacionesPagos;
                 $pago->IDOperacion = $operacion->IDOperacion;
                 $pago->IDCliente = $request->IDCliente;
                 $pago->Monto = $detalleOperacion['detalleMontoPagado'];
@@ -215,12 +215,11 @@ class OperacionesController extends Controller
                 $operacionesPagos[] = $pago;
             }
 
-
             // ALERTA POR PAGO FRACCIONADOS
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
             $primerPago = $pagosOperacion->first();
             // $operacion = TbOperaciones::where('IDOperacion', $primerPago->IDOperacion)->first();
-            $nombreAgente = $operacion->NombreAgente . ' ' . $operacion->APaternoAgente . ' ' . $operacion->AMaternoAgente;
+            $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
             $montoOperacion = $operacion->PrimaTotal;
             $montoTotalPagado = $pagosOperacion->sum('Monto');
             $t = CatParametriaPLD::where('IDParametro', 15)->first();
@@ -228,13 +227,12 @@ class OperacionesController extends Controller
 
             $totalAPagar = $operacion->PrimaTotal;
 
-
             if ($pagosOperacion->count() > 1 && $montoTotalPagado >= $totalAPagar) {
 
                 $pagosOp = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion);
                 $montoTotal = $pagosOp->sum('Monto');
 
-                $alerta = new TbAlertas();
+                $alerta = new TbAlertas;
                 $alerta->Folio = $operacion->FolioEndoso;
                 $alerta->Patron = 'Pagos múltiples en una operación';
                 $alerta->IDCliente = $request->IDCliente;
@@ -261,14 +259,13 @@ class OperacionesController extends Controller
                 foreach ($pagosOperacion as $pagoFrac) {
                     $insMonetario = CatFormaPagos::where('IDFormaPago', $pagoFrac->IDFormaPago)->first();
 
-                    $pagoAlerta = new TbPagosAlertas();
+                    $pagoAlerta = new TbPagosAlertas;
                     $pagoAlerta->IDOperacionPago = $pagoFrac->IDOperacionPago;
                     $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
                     $pagoAlerta->InstrumentoMonetario = $insMonetario->FormaPago;
                     $pagoAlerta->save();
                 }
             }
-
 
             // ALERTA POR PAGOS ACUMULADOS EN EFECTIVO
             $pagosEfectivo = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)
@@ -278,15 +275,12 @@ class OperacionesController extends Controller
             // Calcular el total pagado en efectivo
             $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
 
-
             $totalAPagar = $operacion->PrimaTotal;
 
             // Valida si el pago total fue completado
             if ($pagosEfectivo->count() > 1 && $totalPagadoEfectivo >= $totalAPagar) {
 
-
-
-                $alertaEfectivo = new TbAlertas();
+                $alertaEfectivo = new TbAlertas;
                 $alertaEfectivo->Folio = $operacion->FolioEndoso;
                 $alertaEfectivo->Patron = 'Pagos acumulados en efectivo para una operación';
                 $alertaEfectivo->IDCliente = $pago->IDCliente;
@@ -312,14 +306,13 @@ class OperacionesController extends Controller
                 foreach ($pagosEfectivo as $pagoEfectivo) {
                     $insMonetario = CatFormaPagos::where('IDFormaPago', $pagoEfectivo->IDFormaPago)->first();
 
-                    $pagoAlerta = new TbPagosAlertas();
+                    $pagoAlerta = new TbPagosAlertas;
                     $pagoAlerta->IDOperacionPago = $pagoEfectivo->IDOperacionPago;
                     $pagoAlerta->IDRegistroAlerta = $alertaEfectivo->IDRegistroAlerta;
                     $pagoAlerta->InstrumentoMonetario = $insMonetario->FormaPago;
                     $pagoAlerta->save();
                 }
             }
-
 
             // ALERTAS DE OPERACION POR MONTO RELEVANTE
             $cliente = TbClientes::where('IDCliente', $operacion->IDCliente)->first();
@@ -328,7 +321,7 @@ class OperacionesController extends Controller
             $pagos = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion);
             $primaTotal = $operacion->PrimaTotal;
 
-            //monto autorizado
+            // monto autorizado
             if ($IDTipoPersona == 1) { // física
                 $montoAutorizadoEfectivoMxN = CatParametriaPLD::where('IDParametro', 16)->first();
             } elseif ($IDTipoPersona == 2) { // moral
@@ -348,7 +341,6 @@ class OperacionesController extends Controller
                         && isset($montoAutorizadoEfectivoMxN->Valor)
                         && $monto >= $montoAutorizadoEfectivoMxN->Valor
                     ) {
-
 
                         $alertaEfectivo = TbAlertas::new();
                         $alertaEfectivo->Folio = $operacion->FolioPoliza;
@@ -380,13 +372,12 @@ class OperacionesController extends Controller
                     }
                 }
 
-
                 if ($operacion->PrimaTotal) {
                 }
             } elseif ($operacion->IDMoneda === 'USD') {
                 // Dólares americanos
 
-                $client = new Client();
+                $client = new Client;
 
                 // Calcular fechas para hoy, ayer, antier y antiantier
                 $hoy = now()->format('Y-m-d');
@@ -407,11 +398,12 @@ class OperacionesController extends Controller
 
                 // Buscar el dato con la fecha más reciente
                 $datoMasReciente = null;
-                if (!empty($datos)) {
+                if (! empty($datos)) {
                     usort($datos, function ($a, $b) {
                         // Suponiendo que las fechas vienen en formato 'd/m/Y'
                         $dateA = \DateTime::createFromFormat('d/m/Y', $a['fecha']);
                         $dateB = \DateTime::createFromFormat('d/m/Y', $b['fecha']);
+
                         return $dateB <=> $dateA;
                     });
                     $datoMasReciente = $datos[0];
@@ -503,22 +495,11 @@ class OperacionesController extends Controller
             // $totalPagadoEfectivo = $pagosEfectivo->sum('Monto');
             // $totalAPagar = $operacion->PrimaTotal;
 
-
             // if (
             //     $totalPagadoEfectivo >= $totalAPagar
             // ) {
             //     $monto = $operacion->PrimaTotal
             // }
-
-
-
-
-
-
-
-
-
-
 
             return response()->json($operacionesPagos, 201);
         } catch (\Exception $e) {

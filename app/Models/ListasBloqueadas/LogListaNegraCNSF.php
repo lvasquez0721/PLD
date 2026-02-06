@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class LogListaNegraCNSF extends Model
 {
     protected $table = 'loglistanegracnsf';
+
     protected $primaryKey = 'IDLogRegistroListaCNSF';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     // Campos que se pueden llenar en masa
@@ -36,5 +39,4 @@ class LogListaNegraCNSF extends Model
         'TimeStampAlta' => 'datetime',
         'TimeStampModif' => 'datetime',
     ];
-
 }

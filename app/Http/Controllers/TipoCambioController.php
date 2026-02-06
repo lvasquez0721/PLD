@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TipoCambio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Models\TipoCambio;
 
 class TipoCambioController extends Controller
 {
@@ -15,7 +15,7 @@ class TipoCambioController extends Controller
     {
         $data = $request->input('tipocambio');
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return response()->json(['error' => 'El formato de entrada es incorrecto. Se esperaba un arreglo de tipo de cambio en "tipocambio".'], 400);
         }
 
@@ -40,14 +40,15 @@ class TipoCambioController extends Controller
 
         try {
             TipoCambio::insert($data);
+
             return response()->json([
                 'message' => 'Registros de tipo de cambio insertados correctamente',
-                'success' => true
+                'success' => true,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Ocurrió un error al insertar los registros de tipo de cambio.',
-                'details' => $e->getMessage()
+                'details' => $e->getMessage(),
             ], 500);
         }
     }

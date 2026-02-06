@@ -241,6 +241,7 @@ class OperacionesController extends Controller
                 $pagoArr = $pago->toArray();
                 $monedaStr = $pagoArr['IDMoneda'];
                 $pagoArr['IDMonedaInt'] = $conversionMoneda[$monedaStr] ?? null;
+
                 return $pagoArr;
             })->toArray();
 
@@ -280,7 +281,7 @@ class OperacionesController extends Controller
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
 
-        $alerta = new TbAlertas();
+        $alerta = new TbAlertas;
         $alerta->Folio = $operacion->FolioEndoso;
         $alerta->Patron = $alertaData['patron'];
         $alerta->IDCliente = $operacion->IDCliente;
@@ -305,7 +306,7 @@ class OperacionesController extends Controller
         // Crear registros de pagos asociados a la alerta
         foreach ($pagosOperacion as $pago) {
             $formaPago = CatFormaPagos::find($pago->IDFormaPago);
-            $pagoAlerta = new TbPagosAlertas();
+            $pagoAlerta = new TbPagosAlertas;
             $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
             $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
             $pagoAlerta->InstrumentoMonetario = $formaPago->FormaPago ?? 'Desconocido';

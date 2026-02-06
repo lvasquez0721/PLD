@@ -2,11 +2,10 @@
 
 namespace App\Services\PLD;
 
-use App\Models\CalculoInusualidadPrimaEmitida;
 use App\Models\CatFormaPagos;
 use App\Models\CatParametriaPLD;
-use App\Models\State\ResultadoAnalisisPago;
 use App\Models\Clientes\TbClientes;
+use App\Models\State\ResultadoAnalisisPago;
 use App\Models\TbOperaciones;
 use GuzzleHttp\Client;
 
@@ -211,7 +210,7 @@ class AnalisisPagosService
             if ($montoPagoMXN < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
                 $resultado->esMontoInusual = true; // Set to true if any payment is inusual
 
-                $razones = "El pago #".($index + 1)." (Monto: ".number_format($montoPago, 2)." ".($operacion->IDMoneda == 1 ? 'MXN' : 'USD').") equivalente a MXN ".number_format($montoPagoMXN, 2)." está fuera de rango permitido [".number_format($limiteInferior, 2).", ".number_format($limiteSuperior, 2)."]";
+                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.($operacion->IDMoneda == 1 ? 'MXN' : 'USD').') equivalente a MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido ['.number_format($limiteInferior, 2).', '.number_format($limiteSuperior, 2).']';
 
                 $alertData = [
                     'patron' => self::PATRON_MONTO_INUSUAL,
@@ -264,6 +263,7 @@ class AnalisisPagosService
 
         if ($moneda === 'MXN' || $moneda == 1) { // MXN - convertir a USD
             $tipoCambio = $this->obtenerTipoCambio();
+
             return $monto / $tipoCambio;
         }
 
@@ -281,6 +281,7 @@ class AnalisisPagosService
 
         if ($moneda === 'USD' || $moneda == 2) { // USD - convertir a MXN
             $tipoCambio = $this->obtenerTipoCambio();
+
             return $monto * $tipoCambio;
         }
 

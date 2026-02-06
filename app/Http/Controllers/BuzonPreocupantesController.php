@@ -2,55 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\BuzonPreocupante; // el modelo de tu tabla
+use App\Models\BuzonPreocupante;
+use App\Models\tbAlertas;
+use Illuminate\Http\Request; // el modelo de tu tabla
 use Illuminate\Support\Facades\DB;
-use App\Models\tbAlertas; // el modelo de tu tabla
-
+use Inertia\Inertia; // el modelo de tu tabla
 
 class BuzonPreocupantesController extends Controller
 {
     public function index()
-{
-    // Obtiene los registros cuyo Estatus sea NULL
-    $buzon = BuzonPreocupante::whereNull('Estatus')->get();
+    {
+        // Obtiene los registros cuyo Estatus sea NULL
+        $buzon = BuzonPreocupante::whereNull('Estatus')->get();
 
-    // Si tuvieras datos adicionales, los puedes enviar también
-    $toast = session('toast'); 
-    
-    return Inertia::render('BuzonPreocupantes/Index', [
-        'buzon' => $buzon,
-        'toast' => $toast,
-    ]);
-}
+        // Si tuvieras datos adicionales, los puedes enviar también
+        $toast = session('toast');
 
-   public function pasarAlertas(Request $request)
-{
-    try {
-        // Validar los datos del request
-        $validated = $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer'
+        return Inertia::render('BuzonPreocupantes/Index', [
+            'buzon' => $buzon,
+            'toast' => $toast,
         ]);
+    }
 
-        // Obtener el siguiente ID autoincremental
-        $validated['IDRegistroAlerta'] = (tbalertas::max('IDRegistroAlerta') ?? 0) + 1;
-
-        // Convertir los IDs a enteros
-        $ids = array_map('intval', $validated['ids']);
-
-        if (empty($ids)) {
-            return redirect()->back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se seleccionaron reportes.'
+    public function pasarAlertas(Request $request)
+    {
+        try {
+            // Validar los datos del request
+            $validated = $request->validate([
+                'ids' => 'required|array',
+                'ids.*' => 'integer',
             ]);
-        }
 
-        $idsList = implode(',', $ids);
+            // Obtener el siguiente ID autoincremental
+            $validated['IDRegistroAlerta'] = (tbalertas::max('IDRegistroAlerta') ?? 0) + 1;
 
-        // Insertar registros en tbalertas
-        DB::statement("
+            // Convertir los IDs a enteros
+            $ids = array_map('intval', $validated['ids']);
+
+            if (empty($ids)) {
+                return redirect()->back()->with('toast', [
+                    'type' => 'error',
+                    'message' => 'No se seleccionaron reportes.',
+                ]);
+            }
+
+            $idsList = implode(',', $ids);
+
+            // Insertar registros en tbalertas
+            DB::statement("
             INSERT INTO tbAlertas (
                 IDRegistroAlerta,
                 Patron,
@@ -82,78 +81,73 @@ class BuzonPreocupantesController extends Controller
               )
         ");
 
-        // Actualizar estatus en tbbuzonpreocupantes
-        DB::statement("
+            // Actualizar estatus en tbbuzonpreocupantes
+            DB::statement("
             UPDATE tbBuzonPreocupantes
             SET Estatus = 'atender'
             WHERE IDReporteOP IN ($idsList)
         ");
 
-        return response()->json(['message' => 'Alertas generadas correctamente.'], 200);
+            return response()->json(['message' => 'Alertas generadas correctamente.'], 200);
 
-    } catch (\Exception $e) {
-        return redirect()->back()->with('toast', [
-            'type' => 'error',
-            'message' => 'Ocurrió un error: ' . $e->getMessage()
-        ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Ocurrió un error: '.$e->getMessage(),
+            ]);
+        }
     }
-}
 
+    public function store(Request $request)
+    {
+        try {
+            \Log::info('Store method called', ['request' => $request->all()]);
 
+            // Validar los datos recibidos del formulario
+            $validated = $request->validate([
+                'Descripcion' => 'required|string|max:255',
+            ]);
 
-public function store(Request $request)
-{
-    try {
-        \Log::info('Store method called', ['request' => $request->all()]);
-        
-        // Validar los datos recibidos del formulario
-        $validated = $request->validate([
-            'Descripcion' => 'required|string|max:255',
-        ]);
+            \Log::info('Validation passed', ['validated' => $validated]);
 
-        \Log::info('Validation passed', ['validated' => $validated]);
+            // Variables
+            $Descripcion = $validated['Descripcion'];
+            $usuario = auth()->check() ? auth()->user()->nombre : 'Sistema';
 
-        // Variables
-        $Descripcion = $validated['Descripcion'];
-        $usuario = auth()->check() ? auth()->user()->nombre : 'Sistema';
-        
-        \Log::info('User info', ['usuario' => $usuario]);
+            \Log::info('User info', ['usuario' => $usuario]);
 
-        $ultimoID = DB::table('tbBuzonPreocupantes')->max('IDReporteOP');
-        $nuevoID = ($ultimoID !== null) ? $ultimoID + 1 : 1;
+            $ultimoID = DB::table('tbBuzonPreocupantes')->max('IDReporteOP');
+            $nuevoID = ($ultimoID !== null) ? $ultimoID + 1 : 1;
 
-        \Log::info('Calculated ID', ['nuevoID' => $nuevoID]);
+            \Log::info('Calculated ID', ['nuevoID' => $nuevoID]);
 
-        $BuzonPreocupante = new BuzonPreocupante();
-        $BuzonPreocupante->IDReporteOP = $nuevoID;
-        $BuzonPreocupante->Fecha = now();  // Corregido
-        $BuzonPreocupante->Descripcion = $Descripcion;
-        $BuzonPreocupante->Usuario = $usuario;
-        $BuzonPreocupante->Estatus = NULL;
-        
-        $BuzonPreocupante->save();
+            $BuzonPreocupante = new BuzonPreocupante;
+            $BuzonPreocupante->IDReporteOP = $nuevoID;
+            $BuzonPreocupante->Fecha = now();  // Corregido
+            $BuzonPreocupante->Descripcion = $Descripcion;
+            $BuzonPreocupante->Usuario = $usuario;
+            $BuzonPreocupante->Estatus = null;
 
-        \Log::info('Record saved successfully', ['id' => $nuevoID]);
+            $BuzonPreocupante->save();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registro guardado correctamente.',
-            'id' => $nuevoID
-        ]);
+            \Log::info('Record saved successfully', ['id' => $nuevoID]);
 
-    } catch (\Exception $e) {
-        \Log::error('Error in store method', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al guardar el registro: ' . $e->getMessage()
-        ], 500);
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro guardado correctamente.',
+                'id' => $nuevoID,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in store method', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar el registro: '.$e->getMessage(),
+            ], 500);
+        }
     }
-}
-
-
-
 }

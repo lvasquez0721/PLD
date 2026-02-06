@@ -50,7 +50,7 @@ class HandleInertiaRequests extends Middleware
             /* ===== ESTO TE FALTABA ===== */
             'flash' => [
                 'success' => session('success'),
-                'error'   => session('error'),
+                'error' => session('error'),
             ],
             /* ========================== */
         ];

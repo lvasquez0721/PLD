@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\BuzonPreocupantesController;
+use App\Http\Controllers\UsuariosController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Artisan; // <-- Agregar importación de Artisan
+use Inertia\Inertia; // <-- Agregar importación de Artisan
+
 // Route::get('/', function () {
 //     return Inertia::render('Welcome');
 // })->name('home');
@@ -38,7 +39,6 @@ Route::get('/perfil-transaccional', [App\Http\Controllers\PerfilTransaccionalCon
     ->middleware(['auth', 'verified'])
     ->name('perfil-transaccional.index');
 
-
 // ALERTAS
 Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
     ->middleware(['auth', 'verified'])
@@ -52,7 +52,7 @@ Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class
 Route::get('/alertas/download-csv', [App\Http\Controllers\AlertasController::class, 'downloadAlertasCsvByDateRange'])
     ->name('alertas.download-csv');
 
-//JFG ruta buzón preocupantes
+// JFG ruta buzón preocupantes
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('buzon-preocupantes.index');
@@ -64,7 +64,6 @@ Route::post('/buzon-preocupantes/pasar-alertas', [BuzonPreocupantesController::c
 Route::post('/buzon-preocupantes/guardar', [BuzonPreocupantesController::class, 'store'])
     ->middleware(['auth', 'verified'])
     ->name('buzon.store');
-
 
 Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'index'])
     ->middleware(['auth', 'verified'])
@@ -109,12 +108,12 @@ Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadCon
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
 
-//Rutas para Clientes
+// Rutas para Clientes
 Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('clientes.index');
 
-//Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
+// Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\ListaNegraController;
 
 Route::get('/lista-negra', [ListaNegraController::class, 'index'])->name('lista-negra.index');
@@ -122,30 +121,30 @@ Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->nam
 Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
 Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
 
-//Rutas de Perfil Transaccional------------------------------------------------------------------------------------------------------
+// Rutas de Perfil Transaccional------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\PerfilTransaccionalController;
 
 Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
 Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
 Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
 Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
-//----------------------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 Route::post('/migraciones/ejecutar', function () {
     // Solo permitir en entorno local o administrador
-    if (!app()->environment('local')) {
+    if (! app()->environment('local')) {
         abort(403, 'Acceso denegado');
     }
 
     try {
         Artisan::call('migrate', ['--force' => true]);
+
         return response()->json(['success' => true, 'output' => Artisan::output()]);
     } catch (\Exception $e) {
         return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
 });
 
-
-//----------------------------------------------------------------------------------------------------------------------------------
-require __DIR__ . '/settings.php';
-require __DIR__ . '/auth.php';
+// ----------------------------------------------------------------------------------------------------------------------------------
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

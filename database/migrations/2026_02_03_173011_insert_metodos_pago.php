@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 return new class extends \Illuminate\Database\Migrations\Migration
@@ -49,8 +48,8 @@ return new class extends \Illuminate\Database\Migrations\Migration
     public function down(): void
     {
         $ids = [
-            '01','02','03','04','05','06','08','12','13','14','15','17',
-            '23','24','25','26','27','28','29','30','31','99'
+            '01', '02', '03', '04', '05', '06', '08', '12', '13', '14', '15', '17',
+            '23', '24', '25', '26', '27', '28', '29', '30', '31', '99',
         ];
         DB::table('catFormaPagos')->whereIn('IDFormaPago', $ids)->delete();
     }

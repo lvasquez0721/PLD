@@ -3,8 +3,6 @@
 use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\AuthControllerApi;
 use App\Http\Controllers\CalculoInusualidadPrimaEmitidaController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClientesControllerApi;
 use App\Http\Controllers\EstadosController;
 use App\Http\Controllers\IDRRPLDController;
@@ -21,15 +19,15 @@ use App\Http\Controllers\ReportesOpController;
 use App\Http\Controllers\SolicitudesController;
 use App\Http\Controllers\TipoCambioController;
 use App\Http\Controllers\TotalPagosController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-
 Route::post('/login', [AuthControllerApi::class, 'login']);
-
 
 // Rutas de OperacionesController
 Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
@@ -70,7 +68,7 @@ Route::post('/listanegracnsf/masivo', [ListaNegraCNSFController::class, 'bulkIns
 
 Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bulkInsert'])->middleware('auth:sanctum');
 
-//Ruta para guardar clientes generados desde el SIT
+// Ruta para guardar clientes generados desde el SIT
 Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
 // Ruta para actualizar datos de cliente (PUT /clientes/{id})
 Route::put('/clientes/{id}', [ClientesControllerApi::class, 'actualizarCliente'])->middleware(['auth:sanctum']);
@@ -78,17 +76,18 @@ Route::put('/clientes/{id}', [ClientesControllerApi::class, 'actualizarCliente']
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');
 
-//Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
-//use App\Http\Controllers\PerfilTransaccionalController;
+// Perfil Transaccional BICV-----------------------------------------------------------------------------------------------------------------------
+// use App\Http\Controllers\PerfilTransaccionalController;
 Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar']); // Buscar registros (por fecha, nombre, etc.)
 
-//Listas Negras BICV-----------------------------------------------------------------------------------------------------------------------
+// Listas Negras BICV-----------------------------------------------------------------------------------------------------------------------
 use App\Http\Controllers\ListaNegraController;
-Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']);// Buscar en la lista negra
 
-//------------------------------------------------------------------------------------------------------------------------------------------------
+Route::post('/lista-negra/buscar', [ListaNegraController::class, 'buscar']); // Buscar en la lista negra
 
-Route::post('/api-login', function(Request $request) {
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+
+Route::post('/api-login', function (Request $request) {
     $request->validate([
         'usuario' => 'required|string',
         'contraseña' => 'required|string',
@@ -116,7 +115,6 @@ Route::post('/api-login', function(Request $request) {
         'message' => 'Credenciales incorrectas.',
     ], 401);
 });
-
 
 use App\Http\Controllers\ListasNegrasControllerApi;
 

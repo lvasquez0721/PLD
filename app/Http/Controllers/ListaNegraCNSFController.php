@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\ListaNegraCNSF;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ListaNegraCNSFController extends Controller
@@ -27,7 +27,7 @@ class ListaNegraCNSFController extends Controller
     {
         $data = $request->all();
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return response()->json([
                 'success' => false,
                 'message' => 'El payload debe ser un array de objetos.',
@@ -57,15 +57,16 @@ class ListaNegraCNSFController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Datos inválidos.',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             ListaNegraCNSF::insert($data);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Registros insertados exitosamente.'
+                'message' => 'Registros insertados exitosamente.',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -76,4 +77,3 @@ class ListaNegraCNSFController extends Controller
         }
     }
 }
-

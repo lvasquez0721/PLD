@@ -8,9 +8,6 @@ class ReporteOperacionesService
 {
     /**
      * Obtiene los reportes RRPLD según filtros enviados.
-     *
-     * @param array $filtros
-     * @return array
      */
     public function obtenerReporte(array $filtros): array
     {
@@ -58,22 +55,22 @@ class ReporteOperacionesService
                 'Descripcion',
                 'Razon',
                 'IDRRPLD',
-                'Estatus'
+                'Estatus',
             ]);
 
         // --- Filtros ---
-        if (!empty($filtros['export_regulatorio'])) {
+        if (! empty($filtros['export_regulatorio'])) {
             $query->whereIn('Folio', $filtros['reportes'] ?? []);
         } else {
-            if (!empty($filtros['estatus'])) {
+            if (! empty($filtros['estatus'])) {
                 $query->where('Estatus', $filtros['estatus']);
             }
 
-            if (!empty($filtros['tipo'])) {
+            if (! empty($filtros['tipo'])) {
                 $query->where('TipoReporte', $filtros['tipo']);
             }
 
-            if (!empty($filtros['fecha_ini']) && !empty($filtros['fecha_fin'])) {
+            if (! empty($filtros['fecha_ini']) && ! empty($filtros['fecha_fin'])) {
                 $query->whereBetween('FechaDeteccion', [$filtros['fecha_ini'], $filtros['fecha_fin']]);
             }
         }

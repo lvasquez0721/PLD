@@ -8,19 +8,16 @@ class ListasUIFService
 {
     /**
      * Dar de alta cliente en listas UIF
-     *
-     * @param array $dataCliente
-     * @return array
      */
-    public function altaListas(array $dataCliente) : array
+    public function altaListas(array $dataCliente): array
     {
         $query = DB::table('tbListasNegrasUIF')->insert([
             'Buscador' => $dataCliente['nombre'],
             'RFCCURP' => $dataCliente['RFCCURP'] ?? null,
             'FechaNac' => $dataCliente['fechaNacimiento'] ?? null,
             'FechaPubAcuerdo' => $dataCliente['fechaPublicacionAcuerdo'] ?? null,
-            'Acuerdo' => $dataCliente['acuerdo'] ?? null,       
-            'NoOficioUIF' => $dataCliente['noOficioUIF'] ?? null,     
+            'Acuerdo' => $dataCliente['acuerdo'] ?? null,
+            'NoOficioUIF' => $dataCliente['noOficioUIF'] ?? null,
             'AnioLista' => now()->year,
             'created_at' => now(),
             'updated_at' => now(),
@@ -53,8 +50,8 @@ class ListasUIFService
             ->update([
                 'FechaNac' => $dataCliente['fechaNacimiento'] ?? null,
                 'FechaPubAcuerdo' => $dataCliente['fechaPublicacionAcuerdo'] ?? null,
-                'Acuerdo' => $dataCliente['acuerdo'] ?? null,       
-                'NoOficioUIF' => $dataCliente['noOficioUIF'] ?? null,     
+                'Acuerdo' => $dataCliente['acuerdo'] ?? null,
+                'NoOficioUIF' => $dataCliente['noOficioUIF'] ?? null,
                 'updated_at' => now(),
             ]);
 
@@ -64,17 +61,18 @@ class ListasUIFService
         ];
     }
 
-    public function getConsultaListas(array $filtros) : array
+    public function getConsultaListas(array $filtros): array
     {
         $filtroNombre = $filtros['nombre'] ?? null;
         $filtroRFCCURP = $filtros['RFCCURP'] ?? null;
         $query = DB::table('tbListasNegrasUIF')->select('*');
         if ($filtroNombre) {
-            $query->where('Buscador', 'like', '%' . $filtroNombre . '%');
+            $query->where('Buscador', 'like', '%'.$filtroNombre.'%');
         }
         if ($filtroRFCCURP) {
-            $query->where('RFCCURP', 'like', '%' . $filtroRFCCURP . '%');
+            $query->where('RFCCURP', 'like', '%'.$filtroRFCCURP.'%');
         }
+
         return $query->get()->toArray();
     }
 }

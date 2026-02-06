@@ -6,9 +6,10 @@ use App\Models\CatParametriaPLD;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class ParametriaPLDController extends Controller {
-
-    public function index() {
+class ParametriaPLDController extends Controller
+{
+    public function index()
+    {
         $parametros = CatParametriaPLD::where('Activo', 1)
             ->pluck('Valor', 'Parametro')
             ->toArray();
@@ -26,11 +27,12 @@ class ParametriaPLDController extends Controller {
                 'umbralBuscadorCNSF' => $parametros['Porcentaje Match Buscador CNSF'] ?? '',
                 'montoAutorizaPagoEfectivoPF' => $parametros['Monto Autorizacion Pago Efectivo PF'] ?? '',
                 'montoAutorizaPagoEfectivoPM' => $parametros['Monto Autorizacion Pago Efectivo PM'] ?? '',
-            ]
+            ],
         ]);
     }
 
-    public function actualizar(Request $request) {
+    public function actualizar(Request $request)
+    {
         $mapeoParametros = [
             'operacionesRelevantes' => 'Operaciones relevantes',
             'desviacionEstandarInusualidad' => 'Desviacion Estandar Inusualidad',
@@ -62,11 +64,10 @@ class ParametriaPLDController extends Controller {
             }
         }
 
-
         return redirect()->route('parametria-pld.index')
             ->with('toast', [
                 'message' => "Parámetros actualizados correctamente ({$actualizados} campos)",
-                'type' => 'success'
+                'type' => 'success',
             ]);
     }
 }

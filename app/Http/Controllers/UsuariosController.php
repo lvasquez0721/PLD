@@ -25,8 +25,8 @@ class UsuariosController extends Controller
 
     public function store(Request $request)
     {
-        $anio_actual = '0' . date('Y');
-        $password = 'tlaloc_' . $anio_actual;
+        $anio_actual = '0'.date('Y');
+        $password = 'tlaloc_'.$anio_actual;
 
         // Validación
         $validated = $request->validate([
@@ -41,13 +41,13 @@ class UsuariosController extends Controller
         $nombre_letra = strtoupper(substr($validated['nombre'], 0, 1));
         $apellido_p_saneado = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $validated['apellido_p'])));
         $anio_dos_digitos = date('y');
-        $usuario_generado_base = $nombre_letra . $apellido_p_saneado . $anio_dos_digitos;
+        $usuario_generado_base = $nombre_letra.$apellido_p_saneado.$anio_dos_digitos;
 
         // Checar unicidad, si existe, agregar número incremental al final
         $usuario_generado = $usuario_generado_base;
         $count = 1;
         while (User::where('usuario', $usuario_generado)->exists()) {
-            $usuario_generado = $usuario_generado_base . $count;
+            $usuario_generado = $usuario_generado_base.$count;
             $count++;
         }
 
@@ -66,15 +66,16 @@ class UsuariosController extends Controller
             if ($role) {
                 $user->assignRole($role);
             }
+
             return inertia()->location(
-                route('usuarios.index') .
-                    '?toast_message=' . urlencode("Usuario creado correctamente. Usuario: {$usuario_generado} - Contraseña generada: {$password}") .
+                route('usuarios.index').
+                    '?toast_message='.urlencode("Usuario creado correctamente. Usuario: {$usuario_generado} - Contraseña generada: {$password}").
                     '&toast_type=success'
             );
         } catch (\Exception $e) {
             return inertia()->location(
-                route('usuarios.index') .
-                    '?toast_message=' . urlencode('Error al crear el usuario: ' . $e->getMessage()) .
+                route('usuarios.index').
+                    '?toast_message='.urlencode('Error al crear el usuario: '.$e->getMessage()).
                     '&toast_type=error'
             );
         }
@@ -87,7 +88,7 @@ class UsuariosController extends Controller
             'nombre' => 'required|string|max:255',
             'apellido_p' => 'required|string|max:255',
             'apellido_m' => 'nullable|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => 'required|email|unique:users,email,'.$id,
             'rol_id' => 'required|exists:roles,id',
         ]);
 
@@ -110,13 +111,13 @@ class UsuariosController extends Controller
 
             // Para "forzar" la redirección y recarga en Inertia, devolver Inertia::location a la ruta
             return inertia()->location(
-                route('usuarios.index') .
-                    '?toast_message=' . urlencode('Usuario actualizado correctamente.') .
+                route('usuarios.index').
+                    '?toast_message='.urlencode('Usuario actualizado correctamente.').
                     '&toast_type=success'
             );
         } catch (\Exception $e) {
             // Si hay error, devolver una recarga con el toast de error igualmente
-            return inertia()->location(route('usuarios.index') . '?toast_message=' . urlencode('Error al actualizar el usuario: ' . $e->getMessage()) . '&toast_type=error');
+            return inertia()->location(route('usuarios.index').'?toast_message='.urlencode('Error al actualizar el usuario: '.$e->getMessage()).'&toast_type=error');
         }
     }
 
@@ -128,15 +129,15 @@ class UsuariosController extends Controller
 
             // Éxito - Retornar Inertia::location para recarga y mostrar toast correcto
             return inertia()->location(
-                route('usuarios.index') .
-                    '?toast_message=' . urlencode('Usuario eliminado correctamente.') .
+                route('usuarios.index').
+                    '?toast_message='.urlencode('Usuario eliminado correctamente.').
                     '&toast_type=success'
             );
         } catch (\Exception $e) {
             // Error - Retornar Inertia::location con mensaje de error
             return inertia()->location(
-                route('usuarios.index') .
-                    '?toast_message=' . urlencode('Error al eliminar el usuario: ' . $e->getMessage()) .
+                route('usuarios.index').
+                    '?toast_message='.urlencode('Error al eliminar el usuario: '.$e->getMessage()).
                     '&toast_type=error'
             );
         }

@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TbOperacionesBeneficiarios extends Model
 {
     protected $table = 'tbOperacionesBeneficiarios';
+
     protected $primaryKey = 'IDOperacionBeneficiario';
+
     public $incrementing = true; // El PK no es autoincrement según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

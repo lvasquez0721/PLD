@@ -15,7 +15,7 @@ class ListasNegrasControllerApi extends Controller
         // Buscar cliente por su IDCliente
         $cliente = \App\Models\Clientes\TbClientes::find($id);
 
-        if (!$cliente) {
+        if (! $cliente) {
             return response()->json([
                 'error' => 'Cliente no encontrado',
                 'message' => 'No se encontró un cliente con el ID proporcionado.',

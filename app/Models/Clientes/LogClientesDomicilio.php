@@ -10,7 +10,9 @@ class LogClientesDomicilio extends Model
     use HasFactory;
 
     protected $table = 'logClientesDomicilio';
+
     protected $primaryKey = 'IDLogDomicilio';
+
     public $timestamps = true;
 
     protected $fillable = [

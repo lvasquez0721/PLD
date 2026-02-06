@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\ParametriaPLD;
+use Illuminate\Http\Request;
 
 class ParametriaController extends Controller
 {
@@ -15,9 +15,9 @@ class ParametriaController extends Controller
     {
         $datos = $request->input('parametrias');
 
-        if (!is_array($datos) || empty($datos)) {
+        if (! is_array($datos) || empty($datos)) {
             return response()->json([
-                'message' => 'El parámetro "parametrias" debe ser un arreglo de objetos.'
+                'message' => 'El parámetro "parametrias" debe ser un arreglo de objetos.',
             ], 400);
         }
 
@@ -34,15 +34,17 @@ class ParametriaController extends Controller
 
         foreach ($datos as $i => $item) {
             foreach ($reglas as $campo => $regla) {
-                if (strpos($regla, 'required') !== false && (!isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
+                if (strpos($regla, 'required') !== false && (! isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
                     $errores[$i][] = "El campo $campo es obligatorio.";
                 }
             }
-            if (isset($errores[$i])) continue;
+            if (isset($errores[$i])) {
+                continue;
+            }
             $registrosAInsertar[] = $item;
         }
 
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             return response()->json([
                 'message' => 'Algunos objetos no cumplen los criterios de validación.',
                 'errores' => $errores,
@@ -54,11 +56,11 @@ class ParametriaController extends Controller
 
             return response()->json([
                 'message' => 'Registros insertados correctamente.',
-                'insertados' => $registrosAInsertar
+                'insertados' => $registrosAInsertar,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al insertar los registros: ' . $e->getMessage(),
+                'message' => 'Error al insertar los registros: '.$e->getMessage(),
             ], 500);
         }
     }

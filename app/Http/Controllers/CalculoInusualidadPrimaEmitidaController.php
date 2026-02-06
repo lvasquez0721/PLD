@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\CalculoInusualidadPrimaEmitida;
+use Illuminate\Http\Request;
 
 class CalculoInusualidadPrimaEmitidaController extends Controller
 {
@@ -15,9 +15,9 @@ class CalculoInusualidadPrimaEmitidaController extends Controller
     {
         $datos = $request->input('registros');
 
-        if (!is_array($datos) || empty($datos)) {
+        if (! is_array($datos) || empty($datos)) {
             return response()->json([
-                'message' => 'El parámetro "registros" debe ser un arreglo de objetos.'
+                'message' => 'El parámetro "registros" debe ser un arreglo de objetos.',
             ], 400);
         }
 
@@ -52,32 +52,34 @@ class CalculoInusualidadPrimaEmitidaController extends Controller
             foreach ($reglas as $campo => $regla) {
                 $requisitos = explode('|', $regla);
                 foreach ($requisitos as $req) {
-                    if ($req === 'required' && (!isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
+                    if ($req === 'required' && (! isset($item[$campo]) || $item[$campo] === null || $item[$campo] === '')) {
                         $localErrors[] = "El campo $campo es obligatorio.";
+
                         continue;
                     }
-                    if ($req === 'date' && isset($item[$campo]) && !strtotime($item[$campo])) {
+                    if ($req === 'date' && isset($item[$campo]) && ! strtotime($item[$campo])) {
                         $localErrors[] = "El campo $campo debe ser una fecha válida.";
                     }
-                    if ($req === 'numeric' && isset($item[$campo]) && !is_numeric($item[$campo])) {
+                    if ($req === 'numeric' && isset($item[$campo]) && ! is_numeric($item[$campo])) {
                         $localErrors[] = "El campo $campo debe ser numérico.";
                     }
-                    if ($req === 'integer' && isset($item[$campo]) && !is_numeric($item[$campo])) {
+                    if ($req === 'integer' && isset($item[$campo]) && ! is_numeric($item[$campo])) {
                         $localErrors[] = "El campo $campo debe ser entero.";
                     }
-                    if ($req === 'boolean' && isset($item[$campo]) && !in_array($item[$campo], [true, false, 0, 1, '0', '1'], true)) {
+                    if ($req === 'boolean' && isset($item[$campo]) && ! in_array($item[$campo], [true, false, 0, 1, '0', '1'], true)) {
                         $localErrors[] = "El campo $campo debe ser booleano.";
                     }
                 }
             }
-            if (!empty($localErrors)) {
+            if (! empty($localErrors)) {
                 $errores[$i] = $localErrors;
+
                 continue;
             }
             $registrosAInsertar[] = $item;
         }
 
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             return response()->json([
                 'message' => 'Algunos objetos no cumplen los criterios de validación.',
                 'errores' => $errores,
@@ -89,11 +91,11 @@ class CalculoInusualidadPrimaEmitidaController extends Controller
 
             return response()->json([
                 'message' => 'Registros insertados correctamente.',
-                'insertados' => $registrosAInsertar
+                'insertados' => $registrosAInsertar,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al insertar los registros: ' . $e->getMessage(),
+                'message' => 'Error al insertar los registros: '.$e->getMessage(),
             ], 500);
         }
     }

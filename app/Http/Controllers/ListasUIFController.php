@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Services\ListasUIF\ListasUIFService;
 
 class ListasUIFController extends Controller
 {

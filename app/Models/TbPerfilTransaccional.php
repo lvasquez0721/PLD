@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TbPerfilTransaccional extends Model
 {
     protected $table = 'tbPerfilTransaccional';
+
     protected $primaryKey = 'IDRegistroPerfil';
+
     public $incrementing = true; // El PK ES autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

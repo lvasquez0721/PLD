@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TbListasNegrasUIF extends Model
 {
     protected $table = 'tbListasNegrasUIF';
+
     protected $primaryKey = 'IDRegistroListaUIF';
+
     public $incrementing = true; // El PK es autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

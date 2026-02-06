@@ -1,8 +1,8 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 return new class extends Migration
 {
@@ -19,20 +19,20 @@ return new class extends Migration
                 'Sistema' => 'SIT',
                 'Activo' => 1,
                 'created_at' => $fechaActual,
-                'updated_at' => $fechaActual
+                'updated_at' => $fechaActual,
             ],
             [
                 'IDSistema' => 2,
                 'Sistema' => 'Xpertys',
                 'Activo' => 1,
                 'created_at' => $fechaActual,
-                'updated_at' => $fechaActual
+                'updated_at' => $fechaActual,
             ],
         ];
 
         foreach ($sistemas as $sistema) {
             $existe = DB::table('catsistemas')->where('IDSistema', $sistema['IDSistema'])->exists();
-            if (!$existe) {
+            if (! $existe) {
                 DB::table('catsistemas')->insert($sistema);
             }
         }

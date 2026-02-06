@@ -11,7 +11,6 @@ class AuthControllerApi extends Controller
     /**
      * Handle an authentication request using 'usuario' and 'password'.
      *
-     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function login(Request $request)
@@ -43,7 +42,7 @@ class AuthControllerApi extends Controller
         ];
 
         try {
-            if (!\Auth::attempt($credentials)) {
+            if (! \Auth::attempt($credentials)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Credenciales inválidas',
@@ -60,7 +59,7 @@ class AuthControllerApi extends Controller
 
         try {
             $user = \Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo obtener el usuario autenticado.',
@@ -79,7 +78,7 @@ class AuthControllerApi extends Controller
 
             return response()->json([
                 'success' => true,
-                'token' => $token
+                'token' => $token,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([

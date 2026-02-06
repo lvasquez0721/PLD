@@ -1,8 +1,8 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 return new class extends Migration
 {
@@ -190,7 +190,7 @@ return new class extends Migration
                 ->where('IDParametro', $parametro['IDParametro'])
                 ->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('catParametriaPLD')->insert($parametro);
             }
         }
@@ -203,7 +203,7 @@ return new class extends Migration
     {
         DB::table('catParametriaPLD')->whereIn('IDParametro', [
             1, 2, 3, 4, 5, 8, 9, 14, 15, 16, 17,
-            26, 27, 28, 29, 30, 31, 32, 33
+            26, 27, 28, 29, 30, 31, 32, 33,
         ])->delete();
     }
 };

@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\Helpers;
 
-use App\Models\Clientes\TbClientes;
-
 class ClienteHelper
 {
     /**
@@ -21,13 +19,13 @@ class ClienteHelper
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $bearer,
+            'Authorization: Bearer '.$bearer,
             // Q-DTECT ya no retorna json, se ignora 'Accept'
         ]);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
 
         $response = curl_exec($ch);
-        $error    = curl_error($ch);
+        $error = curl_error($ch);
         curl_close($ch);
 
         if ($error) {
@@ -50,12 +48,12 @@ class ClienteHelper
     /**
      * Realiza una petición GET al endpoint PPE para buscar coincidencias de personas expuestas políticamente.
      *
-     * @param string $bearerToken  Token de autorización tipo Bearer.
-     * @param string $name         Nombre completo a buscar (los espacios serán reemplazados por '+').
-     * @param int    $percent      Porcentaje de coincidencia (default: 80).
-     * @param string $username     Nombre de usuario para el query (default: Tlaloc_01).
-     * @param string $clientId     ID del cliente (default: 780413-5348-8120).
-     * @return mixed               Respuesta decodificada (array) o null en caso de error.
+     * @param  string  $bearerToken  Token de autorización tipo Bearer.
+     * @param  string  $name  Nombre completo a buscar (los espacios serán reemplazados por '+').
+     * @param  int  $percent  Porcentaje de coincidencia (default: 80).
+     * @param  string  $username  Nombre de usuario para el query (default: Tlaloc_01).
+     * @param  string  $clientId  ID del cliente (default: 780413-5348-8120).
+     * @return mixed Respuesta decodificada (array) o null en caso de error.
      */
     public static function getPPE($bearerToken, $name, $percent = 100, $username = 'Tlaloc_01', $clientId = '780413-5348-8120')
     {
@@ -65,7 +63,7 @@ class ClienteHelper
 
         $curl = curl_init();
 
-        curl_setopt_array($curl, array(
+        curl_setopt_array($curl, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
@@ -74,10 +72,10 @@ class ClienteHelper
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $bearerToken
-            ),
-        ));
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.$bearerToken,
+            ],
+        ]);
 
         $response = curl_exec($curl);
         $err = curl_error($curl);
@@ -89,12 +87,7 @@ class ClienteHelper
         }
 
         $decoded = json_decode($response, true);
+
         return $decoded;
     }
-
-
-
-
-
-
 }

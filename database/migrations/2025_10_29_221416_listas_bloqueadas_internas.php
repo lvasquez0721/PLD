@@ -28,7 +28,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-
         Schema::create('tbListasNegrasUIF', function (Blueprint $table) {
             $table->bigIncrements('IDRegistroListaUIF'); // PK, autoincremental
             $table->string('Nombre');

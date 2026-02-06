@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Migration to change catNacionalidad.IDNacionalidad from integer to string,
@@ -39,7 +39,8 @@ return new class extends Migration
             Schema::table($logClientesTable, function (Blueprint $table) {
                 try {
                     $table->dropForeign(['IDNacionalidad']);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             });
         }
 

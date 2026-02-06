@@ -14,15 +14,21 @@ echo "=== Estructura de logClientesDomicilio ===\n";
 
 // Obtener campos de la tabla
 $columns = DB::getSchemaBuilder()->getColumnListing('logClientesDomicilio');
-echo "Campos: " . implode(', ', $columns) . "\n\n";
+echo 'Campos: '.implode(', ', $columns)."\n\n";
 
 // Obtener detalles de cada campo
-$fields = DB::select("SHOW COLUMNS FROM logClientesDomicilio");
+$fields = DB::select('SHOW COLUMNS FROM logClientesDomicilio');
 foreach ($fields as $field) {
     echo "{$field->Field}: {$field->Type}";
-    if ($field->Null === 'YES') echo ' (NULL)';
-    if ($field->Key === 'PRI') echo ' (PRIMARY KEY)';
-    if (strpos($field->Extra, 'auto_increment') !== false) echo ' (AUTO_INCREMENT)';
+    if ($field->Null === 'YES') {
+        echo ' (NULL)';
+    }
+    if ($field->Key === 'PRI') {
+        echo ' (PRIMARY KEY)';
+    }
+    if (strpos($field->Extra, 'auto_increment') !== false) {
+        echo ' (AUTO_INCREMENT)';
+    }
     echo "\n";
 }
 

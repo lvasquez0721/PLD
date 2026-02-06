@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Estados;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class EstadosController extends Controller
@@ -15,7 +15,7 @@ class EstadosController extends Controller
     {
         $data = $request->input('estados');
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return response()->json(['error' => 'El formato de entrada es incorrecto. Se esperaba un arreglo de estados en "estados".'], 400);
         }
 
@@ -37,14 +37,15 @@ class EstadosController extends Controller
 
         try {
             $estados = Estados::insert($data);
+
             return response()->json([
                 'message' => 'Estados insertados correctamente',
-                'success' => true
+                'success' => true,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Ocurrió un error al insertar los estados.',
-                'details' => $e->getMessage()
+                'details' => $e->getMessage(),
             ], 500);
         }
     }

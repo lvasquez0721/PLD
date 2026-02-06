@@ -10,9 +10,13 @@ class CatIDClientesSistema extends Model
     use HasFactory;
 
     protected $table = 'catIDClientesSistema';
+
     protected $primaryKey = 'IDOrigenSistema';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

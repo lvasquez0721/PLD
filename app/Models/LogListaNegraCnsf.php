@@ -10,6 +10,7 @@ class LogListaNegraCnsf extends Model
     use HasFactory;
 
     protected $table = 'loglistanegracnsf';
+
     protected $primaryKey = 'IDLogRegistroListaCNSF';
 
     protected $fillable = [

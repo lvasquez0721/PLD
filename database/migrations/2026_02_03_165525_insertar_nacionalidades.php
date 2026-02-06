@@ -299,7 +299,7 @@ return new class extends Migration
             'GB',
             'JP',
             'CN',
-            'IN'
+            'IN',
         ];
         DB::table('catNacionalidad')->whereIn('IDNacionalidad', $ids)->delete();
     }

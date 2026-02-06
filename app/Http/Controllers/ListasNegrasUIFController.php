@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\ListasNegrasUIF;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ListasNegrasUIFController extends Controller
@@ -22,13 +22,13 @@ class ListasNegrasUIFController extends Controller
         $records = isset($data[0]) && is_array($data) ? $data : [$data];
 
         $rules = [
-            'Buscador'         => 'required|string',
-            'RFCCURP'          => 'required|string',
-            'FechaNac'         => 'nullable|date',
-            'FechaPubAcuerdo'  => 'nullable|date',
-            'Acuerdo'          => 'nullable|string',
-            'NoOficioUIF'      => 'nullable|string',
-            'AnioLista'        => 'nullable|integer',
+            'Buscador' => 'required|string',
+            'RFCCURP' => 'required|string',
+            'FechaNac' => 'nullable|date',
+            'FechaPubAcuerdo' => 'nullable|date',
+            'Acuerdo' => 'nullable|string',
+            'NoOficioUIF' => 'nullable|string',
+            'AnioLista' => 'nullable|integer',
         ];
 
         $inserted = [];
@@ -39,6 +39,7 @@ class ListasNegrasUIFController extends Controller
 
             if ($validator->fails()) {
                 $errors[$index] = $validator->errors();
+
                 continue;
             }
 

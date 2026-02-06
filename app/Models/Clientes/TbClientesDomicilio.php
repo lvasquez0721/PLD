@@ -4,16 +4,19 @@ namespace App\Models\Clientes;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Clientes\CatEstados;
 
 class TbClientesDomicilio extends Model
 {
     use HasFactory;
 
     protected $table = 'tbClientesDomicilio';
+
     protected $primaryKey = 'IDDomicilio';
+
     public $incrementing = true; // IDDomicilio es autoincrementable según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

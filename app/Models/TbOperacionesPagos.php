@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TbOperacionesPagos extends Model
 {
     protected $table = 'tbOperacionesPagos';
+
     protected $primaryKey = 'IDOperacionPago';
+
     public $incrementing = true; // El PK ES autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -38,6 +42,4 @@ class TbOperacionesPagos extends Model
     {
         return $this->belongsTo(CatMonedas::class, 'IDMoneda', 'IDMoneda');
     }
-
-
 }

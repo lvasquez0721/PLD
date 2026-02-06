@@ -10,9 +10,13 @@ class TbClientes extends Model
     use HasFactory;
 
     protected $table = 'tbClientes';
+
     protected $primaryKey = 'IDCliente';
+
     public $incrementing = true; // IDCliente es autoincremental según la migración
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

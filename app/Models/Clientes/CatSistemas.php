@@ -10,8 +10,11 @@ class CatSistemas extends Model
     use HasFactory;
 
     protected $table = 'catSistemas';
+
     protected $primaryKey = 'IDSistema';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
 
     protected $fillable = [

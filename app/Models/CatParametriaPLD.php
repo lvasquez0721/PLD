@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class CatParametriaPLD extends Model
 {
     protected $table = 'catParametriaPLD';
+
     protected $primaryKey = 'IDParametro';
+
     public $incrementing = false; // El campo IDParametro NO es autoincremental según la migración
+
     protected $keyType = 'int';
 
     protected $fillable = [
@@ -31,24 +34,27 @@ class CatParametriaPLD extends Model
 
     // Constantes de IDs de parámetros
     const OPERACIONES_RELEVANTES = 1;
+
     const MONTO_MINIMO_ALERTA = 14;
+
     const TOLERANCIA_PAGOS_FRACCIONADOS = 15;
+
     const MONTO_AUTORIZACION_EFECTIVO_PF = 16;
+
     const MONTO_AUTORIZACION_EFECTIVO_PM = 17;
 
     /**
      * Obtiene el valor de un parámetro por su ID.
      * Retorna el valor formateado según su tipo de dato o el valor raw si no se especifica.
      *
-     * @param int $id
-     * @param mixed $default
+     * @param  mixed  $default
      * @return mixed
      */
     public static function getValor(int $id, $default = null)
     {
         $param = self::find($id);
 
-        if (!$param) {
+        if (! $param) {
             return $default;
         }
 

@@ -23,34 +23,34 @@ $user = \App\Models\User::firstOrCreate(
 
 // 3. Preparar los datos del cliente
 $data = [
-    "RFC" => "PEMJ800101ABC",
-    "nombre" => "Juan",
-    "apellidoPaterno" => "Pérez",
-    "apellidoMaterno" => "Martínez",
-    "razonSocial" => "test",
-    "IDTipoPersona" => 1,
-    "CURP" => "PEMJ800101HDFRRN01",
-    "IDOcupacionGiro" => 3,
-    "fechaNacimiento" => "1980-01-01",
-    "fechaConstitucion" => null,
-    "folioMercantil" => "Hola",
-    "IDNacionalidad" => 1,
-    "IDEstadoNacimiento" => 22,
-    "IDSistemaOrigen" => 1,
-    "NoClienteSistema" => "EXT-001",
-    "domicilios" => [
+    'RFC' => 'PEMJ800101ABC',
+    'nombre' => 'Juan',
+    'apellidoPaterno' => 'Pérez',
+    'apellidoMaterno' => 'Martínez',
+    'razonSocial' => 'test',
+    'IDTipoPersona' => 1,
+    'CURP' => 'PEMJ800101HDFRRN01',
+    'IDOcupacionGiro' => 3,
+    'fechaNacimiento' => '1980-01-01',
+    'fechaConstitucion' => null,
+    'folioMercantil' => 'Hola',
+    'IDNacionalidad' => 1,
+    'IDEstadoNacimiento' => 22,
+    'IDSistemaOrigen' => 1,
+    'NoClienteSistema' => 'EXT-001',
+    'domicilios' => [
         [
-            "calle" => "Av. Siempre Viva",
-            "noExterior" => "742",
-            "noInterior" => "A",
-            "colonia" => "Centro",
-            "CP" => "76000",
-            "IDEstado" => 22,
-            "municipio" => "Querétaro",
-            "localidad" => "Querétaro",
-            "telefono" => "4421234567"
-        ]
-    ]
+            'calle' => 'Av. Siempre Viva',
+            'noExterior' => '742',
+            'noInterior' => 'A',
+            'colonia' => 'Centro',
+            'CP' => '76000',
+            'IDEstado' => 22,
+            'municipio' => 'Querétaro',
+            'localidad' => 'Querétaro',
+            'telefono' => '4421234567',
+        ],
+    ],
 ];
 
 // 4. Crear solicitud HTTP con los datos

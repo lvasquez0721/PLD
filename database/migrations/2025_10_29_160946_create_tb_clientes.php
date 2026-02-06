@@ -183,8 +183,6 @@ return new class extends Migration
             $table->foreign('IDCliente')->references('IDCliente')->on('tbClientes')->onDelete('cascade');
         });
 
-
-
         // logClientes
         Schema::create('logClientes', function (Blueprint $table) {
             $table->bigIncrements('IDLogCliente');

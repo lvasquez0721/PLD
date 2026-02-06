@@ -2,15 +2,14 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class EstadoSeeder extends Seeder
 {
-    
-    public function run(): void {
+    public function run(): void
+    {
         $fechaActual = Carbon::now();
 
         DB::table('catestados')->insert([
