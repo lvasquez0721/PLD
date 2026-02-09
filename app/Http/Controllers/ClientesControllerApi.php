@@ -42,8 +42,8 @@ class ClientesControllerApi extends Controller {
             'domicilios.*.colonia' => 'required|string|max:255',
             'domicilios.*.CP' => 'required|string|max:10',
             'domicilios.*.IDEstado' => 'required|integer',
-            'domicilios.*.municipio' => 'required|integer',
-            'domicilios.*.localidad' => 'nullable|integer',
+            'domicilios.*.municipio' => 'required|string|max:255',
+            'domicilios.*.localidad' => 'nullable|string|max:255',
             'domicilios.*.telefono' => 'nullable|string|max:20',
             'domicilios.*.principal' => 'nullable|boolean',
 
@@ -133,8 +133,8 @@ class ClientesControllerApi extends Controller {
                     'Colonia'     => $dom['colonia'],
                     'CP'          => $dom['CP'],
                     'IDEstado'    => $dom['IDEstado'],
-                    'IDMunicipio' => $dom['municipio'],
-                    'IDLocalidad' => $dom['localidad'] ?? null,
+                    'Municipio' => $dom['municipio'],
+                    'Localidad' => $dom['localidad'] ?? null,
                     'Telefono'    => $dom['telefono'] ?? null,
                 ]);
 
@@ -204,34 +204,34 @@ class ClientesControllerApi extends Controller {
     public function actualizarCliente(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'RFC' => 'required|string|max:13',
-            'nombre' => 'required|string|max:100',
-            'apellidoPaterno' => 'nullable|string|max:100',
-            'apellidoMaterno' => 'nullable|string|max:100',
+            'RFC' => 'nullable|string|max:18',
+            'nombre' => 'nullable|string|max:255',
+            'apellidoPaterno' => 'nullable|string|max:255',
+            'apellidoMaterno' => 'nullable|string|max:255',
             'razonSocial' => 'nullable|string|max:255',
             'IDTipoPersona' => 'required|integer',
             'CURP' => 'nullable|string|max:18',
             'IDOcupacionGiro' => 'nullable|integer',
             'fechaNacimiento' => 'nullable|date',
             'fechaConstitucion' => 'nullable|date',
-            'folioMercantil' => 'nullable|string|max:50',
+            'folioMercantil' => 'nullable|string|max:255',
             'IDNacionalidad' => 'nullable|integer',
             'IDEstadoNacimiento' => 'nullable|integer',
             'Preguntas' => 'nullable|string',
-            'domicilios' => 'sometimes|array|min:1',
+            'domicilios' => 'required|array|min:1',
             'domicilios.*.calle' => 'required_without:domicilios.*.Calle|string|max:255',
             'domicilios.*.Calle' => 'required_without:domicilios.*.calle|string|max:255',
-            'domicilios.*.noExterior' => 'required|string|max:20',
-            'domicilios.*.noInterior' => 'nullable|string|max:20',
-            'domicilios.*.colonia' => 'required|string|max:100',
+            'domicilios.*.noExterior' => 'nullable|string|max:255',
+            'domicilios.*.noInterior' => 'nullable|string|max:255',
+            'domicilios.*.colonia' => 'required|string|max:255',
             'domicilios.*.CP' => 'required|string|max:10',
             'domicilios.*.IDEstado' => 'required|integer',
-            'domicilios.*.municipio' => 'required|string|max:100',
-            'domicilios.*.localidad' => 'nullable|string|max:100',
+            'domicilios.*.municipio' => 'required|string|max:255',
+            'domicilios.*.localidad' => 'nullable|string|max:255',
             'domicilios.*.telefono' => 'nullable|string|max:20',
             'domicilios.*.principal' => 'nullable|boolean',
-            'IDSistemaOrigen' => 'nullable|string|max:100',
-            'NoClienteSistema' => 'nullable|string|max:100'
+            'IDSistemaOrigen' => 'nullable|integer',
+            'NoClienteSistema' => 'nullable|string|max:255'
         ]);
 
         if ($validator->fails()) {
