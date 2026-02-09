@@ -116,13 +116,13 @@ const mainNavItems: NavItem[] = [
         badge: null,
         description: 'Gestión de listas UIF'
     },
-    {
-        title: 'Consulta Inusualidad',
-        href: '/consulta-inusualidad',
-        icon: SearchCheck,
-        badge: null,
-        description: 'Consulta de inusualidades'
-    },
+    //{
+    //    title: 'Consulta Inusualidad',
+    //    href: '/consulta-inusualidad',
+    //    icon: SearchCheck,
+    //   badge: null,
+    //    description: 'Consulta de inusualidades'
+   // },
 ];
 
 const footerNavItems: NavItem[] = [
