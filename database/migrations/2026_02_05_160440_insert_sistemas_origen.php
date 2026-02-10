@@ -31,9 +31,9 @@ return new class extends Migration
         ];
 
         foreach ($sistemas as $sistema) {
-            $existe = DB::table('catsistemas')->where('IDSistema', $sistema['IDSistema'])->exists();
+            $existe = DB::table('catSistemas')->where('IDSistema', $sistema['IDSistema'])->exists();
             if (! $existe) {
-                DB::table('catsistemas')->insert($sistema);
+                DB::table('catSistemas')->insert($sistema);
             }
         }
     }

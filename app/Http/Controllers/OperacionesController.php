@@ -97,7 +97,12 @@ class OperacionesController extends Controller
                 $beneficiarioModel->save();
             }
 
-            return response()->json($operacion, 201);
+            
+
+            return response()->json([
+                "codigoError" => 0,
+                "error" => "Operación insertada correctamente"
+            ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'codigoError' => 500,
@@ -266,7 +271,10 @@ class OperacionesController extends Controller
                 $this->generarReporteRegulatorio($operacion, $reporte);
             }
 
-            return response()->json($operacionesPagos, 201);
+            return response()->json([
+                "codigoError" => 0,
+                "error" => "Pago insertado correctamente"
+            ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'codigoError' => 500,

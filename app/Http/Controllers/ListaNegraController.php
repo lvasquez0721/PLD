@@ -176,8 +176,8 @@ class ListaNegraController extends Controller
                 'nombre' => 'required|string|max:255',
                 'rfc' => 'required|string|max:13',
                 'curp' => 'required|string|max:18',
-                'fecha_nacimiento' => 'required|date',
-                'pais' => 'required|string|max:255',
+                'fecha_nacimiento' => 'nullable|date',
+                'pais' => 'nullable|string|max:255',
                 'archivo' => 'required|file|mimes:pdf',
             ]);
 
@@ -213,9 +213,18 @@ class ListaNegraController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error Delete: '.$e->getMessage());
 
-            return redirect()->back()->with('error', 'Ocurrió un error al eliminar.');
+            // Log detailed exception info
+            Log::error('Error Delete: '.$e->getMessage(), [
+                'exception' => $e,
+                'trace'     => $e->getTraceAsString(),
+                'file'      => $e->getFile(),
+                'line'      => $e->getLine(),
+                'request'   => $request->all(),
+                'record_id' => $id,
+            ]);
+
+            return redirect()->back()->with('error', 'Ocurrió un error al eliminar: '.$e->getMessage());
         }
     }
 

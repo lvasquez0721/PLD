@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BuzonPreocupante;
-use App\Models\tbAlertas;
+use App\Models\TbAlertas;
 use Illuminate\Http\Request; // el modelo de tu tabla
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia; // el modelo de tu tabla
@@ -34,7 +34,7 @@ class BuzonPreocupantesController extends Controller
             ]);
 
             // Obtener el siguiente ID autoincremental
-            $validated['IDRegistroAlerta'] = (tbalertas::max('IDRegistroAlerta') ?? 0) + 1;
+            $validated['IDRegistroAlerta'] = (TbAlertas::max('IDRegistroAlerta') ?? 0) + 1;
 
             // Convertir los IDs a enteros
             $ids = array_map('intval', $validated['ids']);
@@ -72,7 +72,7 @@ class BuzonPreocupantesController extends Controller
                 IDReporteOP,
                 'Generado' AS Estatus
             FROM tbBuzonPreocupantes AS r
-            WHERE r.Estatus = 'atender'
+            WHERE r.Estatus IS NULL
               AND r.IDReporteOP IN ($idsList)
               AND NOT EXISTS (
                   SELECT 1 
