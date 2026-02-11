@@ -145,6 +145,47 @@ Route::post('/migraciones/ejecutar', function () {
     }
 });
 
+Route::post('/storage-link', function () {
+    // Solo permitir en entorno local o administrador
+    if (!app()->environment('local')) {
+        abort(403, 'Acceso denegado');
+    }
+
+    try {
+        Artisan::call('storage:link');
+        return response()->json(['success' => true, 'output' => Artisan::output()]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+})->middleware(['auth', 'verified'])->name('storage.link');
+
+Route::post('/limpiar-cache', function () {
+    try {
+        Artisan::call('cache:clear');
+        Artisan::call('config:clear');
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+        return response()->json(['success' => true, 'output' => Artisan::output()]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+})->middleware(['auth', 'verified'])->name('limpiar.cache');
+
+Route::post('/key-generate', function () {
+    // Solo permitir en entorno local o administrador
+    if (!app()->environment('local')) {
+        abort(403, 'Acceso denegado');
+    }
+
+    try {
+        Artisan::call('key:generate');
+        return response()->json(['success' => true, 'output' => Artisan::output()]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+})->middleware(['auth', 'verified'])->name('key.generate');
+
+
 // ----------------------------------------------------------------------------------------------------------------------------------
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
