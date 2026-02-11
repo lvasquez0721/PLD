@@ -25,7 +25,7 @@ class OperacionesController extends Controller
                 'FolioEndoso' => 'required|string|max:40',
                 'FechaEmision' => 'required|date',
                 'PrimaTotal' => 'required|numeric',
-                'IDMoneda' => 'required|string', // Cambiado de integer a string
+                'IDMoneda' => 'required|string',
                 'FechaInicioVigencia' => 'required|date',
                 'FechaFinVigencia' => 'required|date',
                 'GastosEmision' => 'required|numeric',
@@ -73,15 +73,12 @@ class OperacionesController extends Controller
             $operacion->APaternoAgente = $validatedData['APaternoAgente'];
             $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
             $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
-            // $operacion->PPE = $validatedData['PPE'];
-            $operacion->IDMoneda = $validatedData['IDMoneda']; // string ahora
+            $operacion->IDMoneda = $validatedData['IDMoneda'];
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
             $operacion->FechaFinVigencia = $validatedData['FechaFinVigencia'];
-            // Maneja el campo tipoDocumento si viene en el request
             $operacion->tipoDocumento = $request->tipoDocumento ?? null;
             $operacion->save();
 
-            // beneficiarios
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
             foreach ($beneficiarios as $beneficiario) {
                 $beneficiarioModel = new TbOperacionesBeneficiarios;
@@ -97,11 +94,9 @@ class OperacionesController extends Controller
                 $beneficiarioModel->save();
             }
 
-            
-
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Operación insertada correctamente"
+                "error" => "Operación ingresada exitosamente"
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -124,8 +119,8 @@ class OperacionesController extends Controller
                 $validated = $request->validate([
                     'IDCliente' => 'required|integer',
                     'montoPagado' => 'required|numeric',
-                    'IDMoneda' => 'required|string',     // Cambio: ahora string
-                    'IDFormaPago' => 'required|string',  // Cambio: ahora string
+                    'IDMoneda' => 'required|string',
+                    'IDFormaPago' => 'required|string',
                     'TipoCambio' => 'required|numeric',
                     'FechaPago' => 'required|date',
                     'detalleOperaciones' => 'required|array|min:1',
@@ -156,7 +151,7 @@ class OperacionesController extends Controller
                 return (float) $detalle['detalleMontoPagado'];
             });
 
-            if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) { // precisión dos decimales
+            if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) {
                 return response()->json([
                     'codigoError' => 422,
                     'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.',
@@ -164,15 +159,12 @@ class OperacionesController extends Controller
             }
 
             $operacionesPagos = [];
-
             $operacion = null;
 
             foreach ($request->detalleOperaciones as $detalleOperacion) {
-                // Buscar operación por ambos folios si ambos existen, si no por uno solo
                 $folioPoliza = $detalleOperacion['folioPoliza'] ?? null;
                 $folioEndoso = $detalleOperacion['folioEndoso'] ?? null;
 
-                // Buscar la operación por ambos folios si ambos existen, si no por uno solo
                 $operacionQuery = TbOperaciones::query();
                 if ($folioPoliza && $folioEndoso) {
                     $operacionQuery->where('FolioPoliza', $folioPoliza)
@@ -197,12 +189,40 @@ class OperacionesController extends Controller
                     ], 404);
                 }
 
+                // --- NUEVA VALIDACIÓN POLIZA PAGADA ---
+                // Verificar si la operación ya se encuentra pagada en su totalidad
+                // (Se asume que TbOperacionesPagos guarda todos los pagos previos para la operación)
+                $montoTotalPagado = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->sum('Monto');
+                // Se suma lo que entre en esta petición
+                $nuevoPago = $detalleOperacion['detalleMontoPagado'];
+                $primaTotalOperacion = $operacion->PrimaTotal;
+
+                // Si el monto total pagado + nuevo pago > prima total,
+                // o si ya está pagada,
+                // devolvemos el error 1 según catálogo solicitado:
+                if (bccomp((string)($montoTotalPagado), (string)$primaTotalOperacion, 2) >= 0) {
+                    // Ya está pagada: NO permitir
+                    return response()->json([
+                        "codigoError" => 1,
+                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad"
+                    ], 200);
+                }
+                // Opcional si deseas bloquear el EXCESO de pago, descomenta...
+                /*
+                if (bccomp((string)($montoTotalPagado + $nuevoPago), (string)$primaTotalOperacion, 2) > 0) {
+                    return response()->json([
+                        "codigoError" => 1,
+                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad"
+                    ], 200);
+                }
+                */
+
                 $pago = new TbOperacionesPagos;
                 $pago->IDOperacion = $operacion->IDOperacion;
                 $pago->IDCliente = $request->IDCliente;
                 $pago->Monto = $detalleOperacion['detalleMontoPagado'];
-                $pago->IDMoneda = $request->IDMoneda;      // string ('MXN' o 'USD')
-                $pago->IDFormaPago = $request->IDFormaPago; // string
+                $pago->IDMoneda = $request->IDMoneda;
+                $pago->IDFormaPago = $request->IDFormaPago;
                 $pago->TipoCambio = $request->TipoCambio;
                 $pago->FechaPago = $request->FechaPago;
 
@@ -222,26 +242,15 @@ class OperacionesController extends Controller
             // ANÁLISIS DE PAGOS Y GENERACIÓN DE ALERTAS USANDO EL NUEVO SERVICIO
             $analisisService = new AnalisisPagosService;
 
-            // Obtener todos los pagos de la operación para el análisis
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
-
-            // Mapear el campo 'IDMoneda' de la operación (que es string, ej. 'MXN'/'USD') al valor correcto.
             $monedaStr = $operacion->IDMoneda;
-            // Para CatMonedas, el campo clave correcto es 'IDMoneda', no 'Clave'
             $moneda = \App\Models\CatMonedas::where('IDMoneda', $monedaStr)->first();
-            // Mapeo robusto: Si se espera un int para $idMoneda en el análisis,
-            // => usamos la posición de la moneda en catálogo, nunca el string clave
-            // Si la tabla de monedas (catMonedas) tiene un campo universitario autoincremental "id" usa ese.
-            // Pero según tu modelo, la PK es string. Entonces asignamos un entero fijo para 'MXN' (1) y 'USD' (2)
-            // o usamos un estrategia de mapeo explícita
             $conversionMoneda = [
                 'MXN' => 1,
                 'USD' => 2,
             ];
-            // Si la moneda está en el mapeo, usamos su entero, si no null (puede lanzar error en el servicio)
             $idMonedaInt = $conversionMoneda[$monedaStr] ?? null;
 
-            // Modificar el array de pagos para que cada uno lleve su idMoneda *entero* para análisis
             $pagosOperacionArr = $pagosOperacion->map(function ($pago) use ($conversionMoneda) {
                 $pagoArr = $pago->toArray();
                 $monedaStr = $pagoArr['IDMoneda'];
@@ -250,31 +259,28 @@ class OperacionesController extends Controller
                 return $pagoArr;
             })->toArray();
 
-            // Realizar análisis completo
-            // Se debe pasar el IDMoneda como *entero* al servicio en vez de string para evitar TypeError
             $resultadoAnalisis = $analisisService->analizarPagos(
                 $operacion,
                 $pagosOperacionArr,
                 $cliente
             );
 
-            // Generar evidencias
             $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
-            // Procesar alertas generadas
             foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
                 $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion);
             }
 
-            // Procesar reportes regulatorios si aplica
             foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
                 $this->generarReporteRegulatorio($operacion, $reporte);
             }
 
+            // Código de éxito: 0
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Pago insertado correctamente"
+                "error" => "Operación ingresada exitosamente"
             ], 201);
+
         } catch (\Exception $e) {
             return response()->json([
                 'codigoError' => 500,
@@ -311,7 +317,6 @@ class OperacionesController extends Controller
 
         $alerta->save();
 
-        // Crear registros de pagos asociados a la alerta
         foreach ($pagosOperacion as $pago) {
             $formaPago = CatFormaPagos::find($pago->IDFormaPago);
             $pagoAlerta = new TbPagosAlertas;
@@ -324,11 +329,6 @@ class OperacionesController extends Controller
 
     private function generarReporteRegulatorio($operacion, $reporte): void
     {
-        // Lógica para generar reportes regulatorios
-        // Esto puede incluir la creación de registros en tablas específicas para reportes
-        // o la preparación de datos para envío a autoridades regulatorias
-
-        // Por ahora, solo registramos en log (en producción esto persistiría en BD)
         \Log::info('Reporte regulatorio generado', [
             'operacion_id' => $operacion->IDOperacion,
             'patron' => $reporte['patron'],
@@ -339,12 +339,10 @@ class OperacionesController extends Controller
 
     private function determinarEstatusAlerta($alertaData): string
     {
-        // Si la alerta genera reporte regulatorio, se marca como Reportado
         if (isset($alertaData['genera_reporte']) && $alertaData['genera_reporte']) {
             return 'Reportado';
         }
 
-        // Para otros casos, determinar basado en monto u otros criterios
         if (isset($alertaData['monto_usd']) && $alertaData['monto_usd'] < 10000) {
             return 'Cerrado';
         }
