@@ -56,9 +56,10 @@ class ClientesControllerApi extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'codigoError' => 1,
+                'message' => 'Faltan datos obligatorios',
                 'errors' => $validator->errors(),
-            ], 422);
+            ], 200);
         }
 
         $data = $validator->validated();
@@ -70,9 +71,10 @@ class ClientesControllerApi extends Controller
                 $existeRFC = TbClientes::whereRaw('UPPER(RFC) = ?', [$rfc])->exists();
                 if ($existeRFC) {
                     return response()->json([
+                        'codigoError' => 2,
                         'message' => 'El RFC ya se encuentra registrado.',
                         'error_code' => 'RFC_DUPLICADO',
-                    ], 409);
+                    ], 200);
                 }
             } else {
                 $nombre = strtoupper(trim($data['nombre']));
@@ -87,9 +89,10 @@ class ClientesControllerApi extends Controller
 
                 if ($existeGenerico) {
                     return response()->json([
+                        'codigoError' => 2,
                         'message' => 'Ya existe un cliente con el mismo nombre y RFC genérico.',
                         'error_code' => 'RFC_GENERICO_DUPLICADO',
-                    ], 409);
+                    ], 200);
                 }
             }
             $data['RFC'] = $rfc;
@@ -149,13 +152,10 @@ class ClientesControllerApi extends Controller
             }
 
             // --- INICIO MODIFICACIÓN ---
-            // Aquí reemplazamos la creación del buscador y el análisis de listas por un control de error claro
-            // o una implementación simulada temporal para evitar la excepción de clase no encontrada.
             $esPPE = false;
             $personaBloqueada = false;
             $detalleListaBloqueadas = [];
 
-            // Si es necesario en desarrollo, dejar la sección simulada y dar un warning en el log:
             Log::warning('La clase BuscadorListasIntegral no se encontró o no está implementada. Se omite análisis de listas negras y PPE.');
 
             /*
@@ -191,7 +191,7 @@ class ClientesControllerApi extends Controller
 
             return response()->json([
                 'codigoError' => 0,
-                'message' => 'Cliente guardado correctamente',
+                'message' => 'Cliente ingresado exitosamente',
                 'IDCliente' => $cliente->IDCliente,
                 'esPPE' => $cliente->EsPPEActivo,
                 'personaBloqueada' => $cliente->CoincideEnListasNegras,
@@ -204,12 +204,13 @@ class ClientesControllerApi extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            // Para errores de sistema, retornamos error genérico (no de validación de formato):
             return response()->json([
+                'codigoError' => 1,
                 'message' => 'Error al guardar los datos en BD: '.$e->getMessage(),
-                'error' => '1',
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-            ], 500);
+            ], 200);
         }
     }
 
@@ -250,9 +251,10 @@ class ClientesControllerApi extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'codigoError' => 1,
+                'message' => 'Faltan datos obligatorios',
                 'errors' => $validator->errors(),
-            ], 422);
+            ], 200);
         }
 
         $validated = $validator->validated();
@@ -262,8 +264,8 @@ class ClientesControllerApi extends Controller
         if (! $cliente) {
             return response()->json([
                 'codigoError' => 1,
-                'error' => 'Cliente no encontrado',
-            ], 404);
+                'message' => 'Cliente no encontrado',
+            ], 200);
         }
 
         // Guardar el estado actual del cliente en el log antes de la actualización
@@ -478,6 +480,6 @@ class ClientesControllerApi extends Controller
             'esPPE' => $esPPE,
             'personaBloqueada' => $coincideEnListasNegras,
             'detalleListaBloqueadas' => $detalleListaBloqueadas,
-        ]);
+        ], 200);
     }
 }
