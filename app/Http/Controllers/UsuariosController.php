@@ -14,7 +14,7 @@ class UsuariosController extends Controller
         $roles = Role::all();
 
         // Obtener los usuarios con sus roles
-        $users = User::with('roles')->get(['id', 'nombre', 'apellido_p', 'apellido_m', 'primer_login', 'email']);
+        $users = User::with('roles')->get(['id', 'nombre', 'apellido_p', 'apellido_m', 'primer_login', 'email', 'usuario']);
 
         return Inertia::render('Usuarios/Index', [
             'users' => $users,
@@ -40,8 +40,7 @@ class UsuariosController extends Controller
         // Generar el campo "usuario" con una nomenclatura: primera letra nombre + apellido_p (sin espacios ni tildes) + año actual en dos dígitos
         $nombre_letra = strtoupper(substr($validated['nombre'], 0, 1));
         $apellido_p_saneado = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $validated['apellido_p'])));
-        $anio_dos_digitos = date('y');
-        $usuario_generado_base = $nombre_letra.$apellido_p_saneado.$anio_dos_digitos;
+        $usuario_generado_base = $nombre_letra.$apellido_p_saneado;
 
         // Checar unicidad, si existe, agregar número incremental al final
         $usuario_generado = $usuario_generado_base;
@@ -50,6 +49,8 @@ class UsuariosController extends Controller
             $usuario_generado = $usuario_generado_base.$count;
             $count++;
         }
+
+        $usuario_generado = strtolower($usuario_generado);
 
         try {
             $user = User::create([

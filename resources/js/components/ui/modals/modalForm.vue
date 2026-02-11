@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
         <div ref="dialogRef" class="relative mx-2 w-full
             focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
           :class="widthClass ? widthClass : 'max-w-lg'" tabindex="-1">
-          <form class="relative rounded-2xl shadow-2xl bg-white dark:bg-gray-900
+          <form class="relative rounded-2xl shadow-2xl bg-white dark:bg-zinc-900
             p-3 px-1 sm:p-7 sm:px-8 border border-slate-200/70 dark:border-slate-700/60
             ring-1 ring-black/7.5 modal-inner-form-fix" @submit.prevent @click.stop>
             <!-- HEADER: título y botón cerrar alineados horizontalmente y centrados verticalmente -->

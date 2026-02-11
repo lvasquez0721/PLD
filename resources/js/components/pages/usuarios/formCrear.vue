@@ -126,7 +126,8 @@ async function submit() {
           <Label for="nombre">Nombre <span class="text-red-500">*</span></Label>
           <input id="nombre" v-model="form.nombre" :aria-invalid="!!errors.nombre" autofocus autocomplete="off"
             placeholder="Introduce el nombre" :disabled="loading"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100" />
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
           <div v-if="errors.nombre" class="text-xs text-red-500 mt-1">
             {{ errors.nombre[0] }}
           </div>
@@ -136,7 +137,8 @@ async function submit() {
           <Label for="apellido_p">Apellido paterno <span class="text-red-500">*</span></Label>
           <input id="apellido_p" v-model="form.apellido_p" :aria-invalid="!!errors.apellido_p" autocomplete="off"
             placeholder="Apellido paterno" :disabled="loading"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100" />
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
           <div v-if="errors.apellido_p" class="text-xs text-red-500 mt-1">
             {{ errors.apellido_p[0] }}
           </div>
@@ -146,14 +148,16 @@ async function submit() {
           <Label for="apellido_m">Apellido materno</Label>
           <input id="apellido_m" v-model="form.apellido_m" autocomplete="off" placeholder="Apellido materno"
             :disabled="loading"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100" />
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
         </div>
         <!-- Correo electrónico -->
         <div>
           <Label for="email">Correo electrónico <span class="text-red-500">*</span></Label>
           <input id="email" v-model="form.email" :aria-invalid="!!errors.email" autocomplete="off" type="email"
             placeholder="usuario@ejemplo.com" :disabled="loading"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100" />
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
           <div v-if="errors.email" class="text-xs text-red-500 mt-1">
             {{ errors.email[0] }}
           </div>
@@ -162,7 +166,8 @@ async function submit() {
         <div>
           <Label for="rol_id">Rol <span class="text-red-500">*</span></Label>
           <select id="rol_id" v-model="form.rol_id" :aria-invalid="!!errors.rol_id" :disabled="loading"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100">
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400">
             <option value="">Selecciona un rol</option>
             <option v-for="role in roles" :key="role.id" :value="role.id">
               {{ role.name }}

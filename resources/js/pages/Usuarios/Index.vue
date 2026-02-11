@@ -21,12 +21,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 const columns = [
+  { key: 'usuario', label: 'Usuario' },
   { key: 'nombre', label: 'Nombre' },
   { key: 'email', label: 'Email' },
 ]
 
 interface User {
   id: number
+  usuario: string
   nombre: string
   apellido_p: string
   apellido_m: string
@@ -39,6 +41,7 @@ const users = usePage().props.users as User[]
 
 const rows = users.map((user) => ({
   id: user.id,
+  usuario: user.usuario,
   nombre: `${user.nombre} ${user.apellido_p ?? ''} ${user.apellido_m ?? ''}`.trim(),
   email: user.email,
 }))
