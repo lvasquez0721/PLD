@@ -154,10 +154,7 @@ function cerrarModal() {
                         Cada color representa el nivel de atención que requiere el cliente en los filtros de listas.
                     </p>
                 </div>
-                <span
-                    class="mt-1 inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-700 dark:bg-neutral-800/80 dark:text-neutral-300">
-                    Interfaz sensible a tus movimientos
-                </span>
+
             </div>
 
             <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -182,7 +179,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-red-700 dark:text-red-300">Persona / Empresa bloqueada</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Coincidencia confirmada en listas de sanciones. Operaciones no permitidas.
+                            Persona o empresa bloqueada
                         </p>
                     </div>
                 </div>
@@ -195,7 +192,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">Coincidencia, necesita revisión</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Existe al menos una coincidencia que requiere análisis manual.
+                            Persona o empresa aparece en listas bloqueadas, necesita revisión.
                         </p>
                     </div>
                 </div>
@@ -208,7 +205,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-sky-700 dark:text-sky-200">Persona Políticamente Expuesta (PPE)</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Cliente con exposición política que requiere monitoreo reforzado.
+                            Clientes con exposición política.
                         </p>
                     </div>
                 </div>
@@ -221,7 +218,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-200">PPE, necesita revisión</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Cliente PPE con coincidencias adicionales en listas; requiere atención inmediata.
+                            Clientes políticamente expuestos; requiere atención.
                         </p>
                     </div>
                 </div>
@@ -234,7 +231,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-yellow-700 dark:text-yellow-200">Autorizada que aparece en listas</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Cliente identificado en listas, pero autorizado formalmente por el área de cumplimiento.
+                            Persona / Empresa autorizada que aparece en listas.
                         </p>
                     </div>
                 </div>
@@ -247,7 +244,7 @@ function cerrarModal() {
                     <div>
                         <p class="text-xs font-semibold text-purple-700 dark:text-purple-200">Fuera de categoría Tláloc</p>
                         <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Caso atípico respecto a las categorías estándar; requiere revisión especializada.
+                            Persona / Empresa detectada fuera de categoría Tláloc, necesita revisión
                         </p>
                     </div>
                 </div>
