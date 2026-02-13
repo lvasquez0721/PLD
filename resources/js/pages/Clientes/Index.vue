@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Head } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
 import Toast from '@/components/ui/alert/Toast.vue'
@@ -8,7 +8,22 @@ import { type BreadcrumbItem } from '@/types'
 import { UserRound } from 'lucide-vue-next'
 
 const props = defineProps<{
-    clientes: any[],
+    clientes: {
+        data: any[],
+        current_page: number,
+        last_page: number,
+        per_page: number,
+        total: number,
+        from: number,
+        to: number,
+        links: any[]
+    },
+    filters?: {
+        search?: string,
+        tipo?: string,
+        per_page?: string | number,
+        category?: string
+    },
     toast?: { type: 'success' | 'error' | 'warning', message: string }
 }>()
 
@@ -28,92 +43,91 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clientes', href: '/clientes' },
 ]
 
-const busqueda = ref('')
+const busqueda = ref(props.filters?.search || '')
 const showModal = ref(false)
 const clienteSeleccionado = ref<any | null>(null)
-const filtroTipoPersona = ref<'todos' | 'fisica' | 'moral'>('todos')
+const filtroTipoPersona = ref(props.filters?.tipo || 'todos')
+const filtroCategoriaPLD = ref(props.filters?.category ? (Array.isArray(props.filters.category) ? props.filters.category : [props.filters.category]) : ['todos'])
 const listaScrollRef = ref<HTMLElement | null>(null)
 
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
+const itemsPerPage = ref(Number(props.filters?.per_page) || 10)
 const itemsPerPageOptions = [5, 10, 20, 50, 100]
 
-const clientesFiltradosBase = computed(() => {
-    const term = busqueda.value.toLowerCase().trim()
+// Watchers para búsqueda y filtros con debounce manual para la búsqueda
+let searchTimeout: any = null
+watch(busqueda, (val) => {
+    if (searchTimeout) clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        router.get('/clientes', {
+            search: val,
+            tipo: filtroTipoPersona.value,
+            per_page: itemsPerPage.value
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        })
+    }, 300)
+})
 
-    return props.clientes.filter(c => {
-        const nombreCompleto = `${c.Nombre || ''} ${c.ApellidoPaterno || ''} ${c.ApellidoMaterno || ''}`.trim()
+watch([filtroTipoPersona, itemsPerPage, filtroCategoriaPLD], () => {
+    let categoriesToFilter = [...filtroCategoriaPLD.value];
 
-        const matchesBusqueda = !term ||
-            nombreCompleto.toLowerCase().includes(term) ||
-            (c.RFC || '').toLowerCase().includes(term) ||
-            (c.CURP || '').toLowerCase().includes(term) ||
-            (c.RazonSocial || '').toLowerCase().includes(term)
+    if (categoriesToFilter.includes('todos') && categoriesToFilter.length > 1) {
+        categoriesToFilter = categoriesToFilter.filter(cat => cat !== 'todos');
+    } else if (categoriesToFilter.length === 0) {
+        categoriesToFilter = ['todos'];
+    }
 
-        const matchesTipo =
-            filtroTipoPersona.value === 'todos' ||
-            (filtroTipoPersona.value === 'fisica' && c.IDTipoPersona === 1) ||
-            (filtroTipoPersona.value === 'moral' && c.IDTipoPersona !== 1)
-
-        return matchesBusqueda && matchesTipo
+    router.get('/clientes', {
+        search: busqueda.value,
+        tipo: filtroTipoPersona.value,
+        per_page: itemsPerPage.value,
+        category: categoriesToFilter
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
     })
 })
 
-const clientesFiltrados = computed(() => {
-    const startIndex = (currentPage.value - 1) * itemsPerPage.value
-    const endIndex = startIndex + itemsPerPage.value
-    return clientesFiltradosBase.value.slice(startIndex, endIndex)
+const clientesFiltrados = computed(() => props.clientes.data)
+
+const totalPages = computed(() => props.clientes.last_page)
+
+const totalResultados = computed(() => props.clientes.total)
+
+const currentPage = computed({
+    get: () => props.clientes.current_page,
+    set: (val) => goToPage(val)
 })
 
-const totalPages = computed(() => {
-    const total = Math.ceil(clientesFiltradosBase.value.length / itemsPerPage.value)
-    return total > 0 ? total : 1
-})
+const rangoInicio = computed(() => props.clientes.from || 0)
 
-const totalResultados = computed(() => clientesFiltradosBase.value.length)
-
-const rangoInicio = computed(() => {
-    if (totalResultados.value === 0) return 0
-    return (currentPage.value - 1) * itemsPerPage.value + 1
-})
-
-const rangoFin = computed(() => {
-    if (totalResultados.value === 0) return 0
-    return Math.min(currentPage.value * itemsPerPage.value, totalResultados.value)
-})
-
-watch([itemsPerPage, busqueda, filtroTipoPersona], () => {
-    currentPage.value = 1
-})
-
-watch(totalPages, (nuevoTotal) => {
-    if (currentPage.value > nuevoTotal) {
-        currentPage.value = nuevoTotal || 1
-    }
-})
-
-watch(currentPage, () => {
-    if (listaScrollRef.value) {
-        listaScrollRef.value.scrollTop = 0
-    }
-})
+const rangoFin = computed(() => props.clientes.to || 0)
 
 function nextPage() {
     if (currentPage.value < totalPages.value) {
-        currentPage.value++
+        goToPage(currentPage.value + 1)
     }
 }
 
 function prevPage() {
     if (currentPage.value > 1) {
-        currentPage.value--
+        goToPage(currentPage.value - 1)
     }
 }
 
 function goToPage(page: number) {
-    if (page >= 1 && page <= totalPages.value) {
-        currentPage.value = page
-    }
+    router.get('/clientes', {
+        search: busqueda.value,
+        tipo: filtroTipoPersona.value,
+        per_page: itemsPerPage.value,
+        page: page
+    }, {
+        preserveState: true,
+        preserveScroll: true
+    })
 }
 
 function abrirModal(cliente: any) {
@@ -124,6 +138,30 @@ function abrirModal(cliente: any) {
 function cerrarModal() {
     showModal.value = false
     clienteSeleccionado.value = null
+}
+
+function getCategoryTags(cliente: any) {
+    const tags = [];
+
+    if (cliente.coincidencias) {
+        tags.push({ color: 'bg-orange-500', tooltip: 'Coincidencia, necesita revisión' });
+    }
+    if (cliente.esPPE) {
+        tags.push({ color: 'bg-indigo-400', tooltip: 'PPE, necesita revisión' });
+    }
+    if (cliente.autorizadoApareceEnListas) {
+        tags.push({ color: 'bg-yellow-300', tooltip: 'Autorizada que aparece en listas' });
+    }
+    if (cliente.fueraDeCategoria) {
+        tags.push({ color: 'bg-purple-500', tooltip: 'Fuera de categoría Tláloc' });
+    }
+    if (cliente.CNSF) {
+        tags.push({ color: 'bg-rose-400', tooltip: 'Listas internas (oficios CNSF)' });
+    }
+    if (tags.length === 0) {
+        tags.push({ color: 'bg-white border border-slate-300', tooltip: 'Sin coincidencia en listas', type: 'text' });
+    }
+    return tags;
 }
 
 // Se añade después la ruta correcta para la descarga
@@ -157,7 +195,7 @@ function cerrarModal() {
 
             </div>
 
-            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <!-- Sin coincidencia en listas -->
                 <div
                     class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-blue-500/70 hover:bg-blue-50/60 hover:shadow-lg hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
@@ -171,18 +209,7 @@ function cerrarModal() {
                     </div>
                 </div>
 
-                <!-- Persona / Empresa bloqueada -->
-                <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-red-500/70 hover:bg-red-50/70 hover:shadow-lg hover:shadow-red-500/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
-                    <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-red-500 transition-all duration-200 group-hover:border-red-300/80 dark:border-neutral-700 dark:bg-red-600"></span>
-                    <div>
-                        <p class="text-xs font-semibold text-red-700 dark:text-red-300">Persona / Empresa bloqueada</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Persona o empresa bloqueada
-                        </p>
-                    </div>
-                </div>
+
 
                 <!-- Aparece en listas bloqueadas, necesita revisión -->
                 <div
@@ -197,18 +224,7 @@ function cerrarModal() {
                     </div>
                 </div>
 
-                <!-- PPE -->
-                <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-sky-500/70 hover:bg-sky-50/70 hover:shadow-lg hover:shadow-sky-500/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
-                    <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-sky-500 transition-all duration-200 group-hover:border-sky-200/80 dark:border-neutral-700"></span>
-                    <div>
-                        <p class="text-xs font-semibold text-sky-700 dark:text-sky-200">Persona Políticamente Expuesta (PPE)</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Clientes con exposición política.
-                        </p>
-                    </div>
-                </div>
+
 
                 <!-- PPE, necesita revisión -->
                 <div
@@ -281,6 +297,13 @@ function cerrarModal() {
                     <span v-if="filtroTipoPersona === 'fisica'" class="font-medium text-slate-800 dark:text-neutral-200">Personas físicas</span>
                     <span v-else-if="filtroTipoPersona === 'moral'"
                         class="font-medium text-slate-800 dark:text-neutral-200">Personas morales</span>
+                    <span v-if="(busqueda || filtroTipoPersona !== 'todos') && filtroCategoriaPLD !== 'todos'"> · </span>
+                    <span v-if="filtroCategoriaPLD === 'sin-coincidencia'" class="font-medium text-slate-800 dark:text-neutral-200">Sin coincidencia en listas</span>
+                    <span v-else-if="filtroCategoriaPLD === 'coincidencia-revision'" class="font-medium text-slate-800 dark:text-neutral-200">Coincidencia, necesita revisión</span>
+                    <span v-else-if="filtroCategoriaPLD === 'ppe-revision'" class="font-medium text-slate-800 dark:text-neutral-200">PPE, necesita revisión</span>
+                    <span v-else-if="filtroCategoriaPLD === 'autorizada-listas'" class="font-medium text-slate-800 dark:text-neutral-200">Autorizada que aparece en listas</span>
+                    <span v-else-if="filtroCategoriaPLD === 'fuera-categoria'" class="font-medium text-slate-800 dark:text-neutral-200">Fuera de categoría Tláloc</span>
+                    <span v-else-if="filtroCategoriaPLD === 'listas-internas'" class="font-medium text-slate-800 dark:text-neutral-200">Listas internas (oficios CNSF)</span>
                 </p>
             </div>
 
@@ -304,6 +327,20 @@ function cerrarModal() {
                         <option value="todos">Todos</option>
                         <option value="fisica">Física</option>
                         <option value="moral">Moral</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="filtro-categoria-pld" class="text-xs text-slate-600 dark:text-neutral-300">Categoría PLD</label>
+                    <select id="filtro-categoria-pld" v-model="filtroCategoriaPLD" multiple
+                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
+                        <option value="todos">Todas</option>
+                        <option value="sin-coincidencia">Sin coincidencia en listas</option>
+                        <option value="coincidencia-revision">Coincidencia, necesita revisión</option>
+                        <option value="ppe-revision">PPE, necesita revisión</option>
+                        <option value="autorizada-listas">Autorizada que aparece en listas</option>
+                        <option value="fuera-categoria">Fuera de categoría Tláloc</option>
+                        <option value="listas-internas">Listas internas (oficios CNSF)</option>
                     </select>
                 </div>
             </div>
@@ -334,6 +371,10 @@ function cerrarModal() {
                                 Tipo
                             </th>
                             <th
+                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                Categorias
+                            </th>
+                            <th
                                 class="border-b border-slate-200 px-3 py-2 text-center align-middle text-[11px] font-semibold dark:border-neutral-800">
                                 Acciones
                             </th>
@@ -341,7 +382,7 @@ function cerrarModal() {
                     </thead>
                     <tbody>
                         <tr v-if="!clientesFiltrados.length">
-                            <td colspan="5"
+                            <td colspan="6"
                                 class="border-t border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500 dark:border-neutral-800 dark:text-neutral-400">
                                 No se encontraron clientes con los filtros actuales.
                             </td>
@@ -369,6 +410,21 @@ function cerrarModal() {
                                     :class="cliente.IDTipoPersona === 1 ? 'text-blue-700 dark:text-blue-200' : 'text-emerald-700 dark:text-emerald-200'">
                                     {{ cliente.IDTipoPersona === 1 ? 'Física' : 'Moral' }}
                                 </span>
+                            </td>
+                            <td class="px-3 py-2 align-middle">
+                                <div class="flex flex-wrap gap-1">
+                                    <template v-for="(tag, index) in getCategoryTags(cliente)" :key="index">
+                                        <span v-if="tag.type === 'text'" class="text-sm text-slate-500 dark:text-neutral-400">
+                                            {{ tag.tooltip }}
+                                        </span>
+                                        <span v-else
+                                            :class="[tag.color]"
+                                            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium leading-4 text-white shadow-sm"
+                                            v-tooltip="tag.tooltip">
+                                            {{ tag.tooltip }}
+                                        </span>
+                                    </template>
+                                </div>
                             </td>
                             <td class="px-3 py-2 text-center align-middle">
                                 <button
@@ -414,7 +470,7 @@ function cerrarModal() {
                     Anterior
                 </button>
                 <span class="text-xs text-slate-600 dark:text-neutral-300">Página</span>
-                <input type="number" v-model.number="currentPage" @change="goToPage(currentPage)" min="1"
+                <input type="number" v-model.number="currentPage" min="1"
                     :max="totalPages"
                     class="w-16 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs text-slate-900 outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900" />
                 <span class="text-xs text-slate-600 dark:text-neutral-300">de {{ totalPages }}</span>

@@ -42,7 +42,6 @@ class TbClientes extends Model
     ];
 
     protected $casts = [
-        'CoincideEnListasNegras' => 'boolean',
         'EsPPEActivo' => 'boolean',
         'Activo' => 'boolean',
         'FechaNacimiento' => 'date',
