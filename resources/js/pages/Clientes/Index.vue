@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
@@ -22,7 +22,7 @@ const props = defineProps<{
         search?: string,
         tipo?: string,
         per_page?: string | number,
-        category?: string
+        category?: string | string[]
     },
     toast?: { type: 'success' | 'error' | 'warning', message: string }
 }>()
@@ -47,7 +47,28 @@ const busqueda = ref(props.filters?.search || '')
 const showModal = ref(false)
 const clienteSeleccionado = ref<any | null>(null)
 const filtroTipoPersona = ref(props.filters?.tipo || 'todos')
-const filtroCategoriaPLD = ref(props.filters?.category ? (Array.isArray(props.filters.category) ? props.filters.category : [props.filters.category]) : ['todos'])
+
+const pldCategoryOptions = [
+    { value: 'sin-coincidencia', label: 'Sin coincidencia en listas' },
+    { value: 'coincidencia-revision', label: 'Coincidencia, necesita revisión' },
+    { value: 'ppe-revision', label: 'PPE, necesita revisión' },
+    { value: 'autorizada-listas', label: 'Autorizada que aparece en listas' },
+    { value: 'fuera-categoria', label: 'Fuera de categoría Tláloc' },
+    { value: 'listas-internas', label: 'Listas internas (oficios CNSF)' }
+];
+
+// Initialize filtroCategoriaPLD based on incoming props.filters?.category
+const initialCategories = props.filters?.category;
+const defaultFiltroCategoriaPLD = ref<string[]>([]);
+if (initialCategories === 'todos') {
+    defaultFiltroCategoriaPLD.value = pldCategoryOptions.map(opt => opt.value); // Select all if 'todos' was initially passed
+} else if (Array.isArray(initialCategories)) {
+    defaultFiltroCategoriaPLD.value = initialCategories;
+} else if (typeof initialCategories === 'string' && initialCategories !== '') {
+    defaultFiltroCategoriaPLD.value = [initialCategories];
+}
+const filtroCategoriaPLD = ref<string[]>(defaultFiltroCategoriaPLD.value);
+
 const listaScrollRef = ref<HTMLElement | null>(null)
 
 const itemsPerPage = ref(Number(props.filters?.per_page) || 10)
@@ -58,10 +79,24 @@ let searchTimeout: any = null
 watch(busqueda, (val) => {
     if (searchTimeout) clearTimeout(searchTimeout)
     searchTimeout = setTimeout(() => {
+        let categoriesToSend: string[] | string | undefined;
+
+        if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
+            // Si todas las categorías están seleccionadas, mandamos 'todos'
+            categoriesToSend = 'todos';
+        } else if (filtroCategoriaPLD.value.length > 0) {
+            // Si hay algunas seleccionadas, mandamos ese subconjunto
+            categoriesToSend = filtroCategoriaPLD.value;
+        } else {
+            // Si no hay ninguna, no mandamos el parámetro
+            categoriesToSend = undefined;
+        }
+
         router.get('/clientes', {
             search: val,
             tipo: filtroTipoPersona.value,
-            per_page: itemsPerPage.value
+            per_page: itemsPerPage.value,
+            category: categoriesToSend
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -71,25 +106,30 @@ watch(busqueda, (val) => {
 })
 
 watch([filtroTipoPersona, itemsPerPage, filtroCategoriaPLD], () => {
-    let categoriesToFilter = [...filtroCategoriaPLD.value];
+    let categoriesToSend: string[] | string | undefined;
 
-    if (categoriesToFilter.includes('todos') && categoriesToFilter.length > 1) {
-        categoriesToFilter = categoriesToFilter.filter(cat => cat !== 'todos');
-    } else if (categoriesToFilter.length === 0) {
-        categoriesToFilter = ['todos'];
+    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
+        // If all categories are selected in the UI, send 'todos' to maintain original behavior
+        categoriesToSend = 'todos';
+    } else if (filtroCategoriaPLD.value.length > 0) {
+        // If some categories are selected, send them
+        categoriesToSend = filtroCategoriaPLD.value;
+    } else {
+        // If no categories are selected, send undefined
+        categoriesToSend = undefined;
     }
 
     router.get('/clientes', {
         search: busqueda.value,
         tipo: filtroTipoPersona.value,
         per_page: itemsPerPage.value,
-        category: categoriesToFilter
+        category: categoriesToSend // Now sends 'todos', array of categories, or undefined
     }, {
         preserveState: true,
         preserveScroll: true,
         replace: true
     })
-})
+}, { deep: true });
 
 const clientesFiltrados = computed(() => props.clientes.data)
 
@@ -106,6 +146,26 @@ const rangoInicio = computed(() => props.clientes.from || 0)
 
 const rangoFin = computed(() => props.clientes.to || 0)
 
+const categoryDisplayNames: { [key: string]: string } = {
+    'todos': 'Todas',
+    'sin-coincidencia': 'Sin coincidencia en listas',
+    'coincidencia-revision': 'Coincidencia, necesita revisión',
+    'ppe-revision': 'PPE, necesita revisión',
+    'autorizada-listas': 'Autorizada que aparece en listas',
+    'fuera-categoria': 'Fuera de categoría Tláloc',
+    'listas-internas': 'Listas internas (oficios CNSF)'
+};
+
+const displayCategoryFilters = computed(() => {
+    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
+        return 'Todas';
+    }
+    if (filtroCategoriaPLD.value.length === 0) {
+        return ''; // No categories selected, so don't display anything
+    }
+    return filtroCategoriaPLD.value.map(cat => categoryDisplayNames[cat]).join(', ');
+});
+
 function nextPage() {
     if (currentPage.value < totalPages.value) {
         goToPage(currentPage.value + 1)
@@ -119,11 +179,25 @@ function prevPage() {
 }
 
 function goToPage(page: number) {
+    let categoriesToSend: string[] | string | undefined;
+
+    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
+        // Si todas las categorías están seleccionadas, mandamos 'todos'
+        categoriesToSend = 'todos';
+    } else if (filtroCategoriaPLD.value.length > 0) {
+        // Si hay algunas seleccionadas, mandamos ese subconjunto
+        categoriesToSend = filtroCategoriaPLD.value;
+    } else {
+        // Si no hay ninguna, no mandamos el parámetro
+        categoriesToSend = undefined;
+    }
+
     router.get('/clientes', {
         search: busqueda.value,
         tipo: filtroTipoPersona.value,
         per_page: itemsPerPage.value,
-        page: page
+        page: page,
+        category: categoriesToSend
     }, {
         preserveState: true,
         preserveScroll: true
@@ -162,6 +236,81 @@ function getCategoryTags(cliente: any) {
         tags.push({ color: 'bg-white border border-slate-300', tooltip: 'Sin coincidencia en listas', type: 'text' });
     }
     return tags;
+}
+
+// PLD Category Dropdown Logic
+const showCategoryDropdown = ref(false);
+const categoryDropdownRef = ref<HTMLElement | null>(null); // Ref for the dropdown container
+const dropdownButtonRef = ref<HTMLElement | null>(null); // Ref for the dropdown button
+const dropdownPanelRef = ref<HTMLElement | null>(null); // Ref for the dropdown panel
+const dropdownPosition = ref({ top: 0, left: 0, width: 0 });
+
+function updateDropdownPosition() {
+    if (dropdownButtonRef.value) {
+        const rect = dropdownButtonRef.value.getBoundingClientRect();
+        dropdownPosition.value = {
+            top: rect.bottom + 8, // 8px = mt-2 equivalent, fixed positioning is relative to viewport
+            left: rect.left,
+            width: rect.width
+        };
+    }
+}
+
+async function toggleCategoryDropdown() {
+    showCategoryDropdown.value = !showCategoryDropdown.value;
+    if (showCategoryDropdown.value) {
+        await nextTick();
+        updateDropdownPosition();
+    }
+}
+
+// Update position on scroll/resize when dropdown is open
+function handleScrollOrResize() {
+    if (showCategoryDropdown.value) {
+        updateDropdownPosition();
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', handleDocumentClick);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleDocumentClick);
+    window.removeEventListener('scroll', handleScrollOrResize, true);
+    window.removeEventListener('resize', handleScrollOrResize);
+});
+
+const selectAllCategoriesComputed = computed<boolean>({
+    get: () => {
+        return filtroCategoriaPLD.value.length === pldCategoryOptions.length;
+    },
+    set: (value: boolean) => {
+        if (value) {
+            filtroCategoriaPLD.value = pldCategoryOptions.map(opt => opt.value);
+        } else {
+            filtroCategoriaPLD.value = [];
+        }
+    }
+});
+
+const selectedCategoryCount = computed<number>(() => {
+    return filtroCategoriaPLD.value.length;
+});
+
+// Global click handler to close dropdown
+function handleDocumentClick(event: MouseEvent) {
+    // Check if the click occurred outside the dropdown button AND outside the dropdown panel
+    if (showCategoryDropdown.value &&
+        dropdownButtonRef.value &&
+        dropdownPanelRef.value &&
+        !dropdownButtonRef.value.contains(event.target as Node) &&
+        !dropdownPanelRef.value.contains(event.target as Node)
+    ) {
+        showCategoryDropdown.value = false;
+    }
 }
 
 // Se añade después la ruta correcta para la descarga
@@ -282,33 +431,32 @@ function getCategoryTags(cliente: any) {
 
         <!-- Zona de búsqueda y filtros -->
         <div
-            class="mt-6 flex flex-col gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] md:flex-row md:items-end md:justify-between dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
-            <div>
+            class="mt-6 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
+            <!-- Informational Block -->
+            <div class="mb-4 pb-4 border-b border-slate-200 dark:border-neutral-700 md:mb-0 md:pb-0 md:border-b-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-neutral-500">
                     Explorador de clientes
                 </p>
-                <p class="mt-1 text-sm text-slate-700 dark:text-neutral-300">
+                <p class="mt-1 text-sm text-slate-700 dark:text-neutral-300 ">
                     {{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados' }}
                 </p>
-                <p v-if="busqueda || filtroTipoPersona !== 'todos'" class="mt-1 text-xs text-slate-500 dark:text-neutral-400">
+                <p v-if="busqueda || filtroTipoPersona !== 'todos' || displayCategoryFilters" class="mt-1 text-xs text-slate-500 dark:text-neutral-400 mb-2">
                     Refinando por
                     <span v-if="busqueda" class="font-medium text-slate-800 dark:text-neutral-200">“{{ busqueda }}”</span>
-                    <span v-if="busqueda && filtroTipoPersona !== 'todos'"> · </span>
+                    <span v-if="busqueda && (filtroTipoPersona !== 'todos' || displayCategoryFilters)"> · </span>
                     <span v-if="filtroTipoPersona === 'fisica'" class="font-medium text-slate-800 dark:text-neutral-200">Personas físicas</span>
-                    <span v-else-if="filtroTipoPersona === 'moral'"
-                        class="font-medium text-slate-800 dark:text-neutral-200">Personas morales</span>
-                    <span v-if="(busqueda || filtroTipoPersona !== 'todos') && filtroCategoriaPLD !== 'todos'"> · </span>
-                    <span v-if="filtroCategoriaPLD === 'sin-coincidencia'" class="font-medium text-slate-800 dark:text-neutral-200">Sin coincidencia en listas</span>
-                    <span v-else-if="filtroCategoriaPLD === 'coincidencia-revision'" class="font-medium text-slate-800 dark:text-neutral-200">Coincidencia, necesita revisión</span>
-                    <span v-else-if="filtroCategoriaPLD === 'ppe-revision'" class="font-medium text-slate-800 dark:text-neutral-200">PPE, necesita revisión</span>
-                    <span v-else-if="filtroCategoriaPLD === 'autorizada-listas'" class="font-medium text-slate-800 dark:text-neutral-200">Autorizada que aparece en listas</span>
-                    <span v-else-if="filtroCategoriaPLD === 'fuera-categoria'" class="font-medium text-slate-800 dark:text-neutral-200">Fuera de categoría Tláloc</span>
-                    <span v-else-if="filtroCategoriaPLD === 'listas-internas'" class="font-medium text-slate-800 dark:text-neutral-200">Listas internas (oficios CNSF)</span>
+                    <span v-else-if="filtroTipoPersona === 'moral'" class="font-medium text-slate-800 dark:text-neutral-200">Personas morales</span>
+                    <span v-if="(busqueda || filtroTipoPersona !== 'todos') && displayCategoryFilters" class="font-medium text-slate-800 dark:text-neutral-200"> · </span>
+                    <span v-if="displayCategoryFilters" class="font-medium text-slate-800 dark:text-neutral-200">{{ displayCategoryFilters }}</span>
                 </p>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div class="relative w-full sm:w-72">
+            <div style="height:0.5rem;"></div>
+
+            <!-- Interactive Controls Block -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+                <!-- Search Input -->
+                <div class="relative w-full md:col-span-2 lg:col-span-2">
                     <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400 dark:text-neutral-500">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -320,31 +468,70 @@ function getCategoryTags(cliente: any) {
                         placeholder="Busca por nombre, RFC, CURP o razón social" />
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="filtro-tipo-persona" class="text-xs text-slate-600 dark:text-neutral-300">Tipo de persona</label>
+                <!-- Tipo de persona select -->
+                <div class="flex flex-col gap-2">
                     <select id="filtro-tipo-persona" v-model="filtroTipoPersona"
-                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
+                        class="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
                         <option value="todos">Todos</option>
                         <option value="fisica">Física</option>
                         <option value="moral">Moral</option>
                     </select>
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="filtro-categoria-pld" class="text-xs text-slate-600 dark:text-neutral-300">Categoría PLD</label>
-                    <select id="filtro-categoria-pld" v-model="filtroCategoriaPLD" multiple
-                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
-                        <option value="todos">Todas</option>
-                        <option value="sin-coincidencia">Sin coincidencia en listas</option>
-                        <option value="coincidencia-revision">Coincidencia, necesita revisión</option>
-                        <option value="ppe-revision">PPE, necesita revisión</option>
-                        <option value="autorizada-listas">Autorizada que aparece en listas</option>
-                        <option value="fuera-categoria">Fuera de categoría Tláloc</option>
-                        <option value="listas-internas">Listas internas (oficios CNSF)</option>
-                    </select>
+                <!-- Categoría PLD checkboxes grouped -->
+                <div class="relative md:col-span-3 lg:col-span-1" ref="categoryDropdownRef">
+                    <!-- Dropdown Button -->
+                    <button
+                        id="pld-category-dropdown-button"
+                        ref="dropdownButtonRef"
+                        @click="toggleCategoryDropdown"
+                        type="button"
+                        class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
+                    >
+                        <span>Categoría PLD</span>
+                        <span v-if="selectedCategoryCount > 0" class="ml-2 px-2 py-0.5 bg-blue-500 text-white rounded-full text-[10px]">
+                            {{ selectedCategoryCount }}
+                        </span>
+                        <svg class="h-4 w-4 text-slate-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Dropdown Panel (fixed positioning to escape overflow containers) -->
+        <Teleport to="body">
+            <div
+                v-if="showCategoryDropdown"
+                ref="dropdownPanelRef"
+                class="fixed z-[9999] w-72 origin-top-right rounded-md border border-slate-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                :style="{
+                    top: dropdownPosition.top + 'px',
+                    left: dropdownPosition.left + 'px'
+                }"
+                role="menu"
+                aria-orientation="vertical"
+                aria-labelledby="pld-category-dropdown-button"
+            >
+                <div class="p-4">
+                    <div class="mb-2">
+                        <label class="inline-flex items-center text-xs text-slate-900 dark:text-white">
+                            <input type="checkbox" v-model="selectAllCategoriesComputed"
+                                class="form-checkbox rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:checked:bg-blue-600 dark:focus:ring-offset-neutral-900">
+                            <span class="ml-2 font-semibold">Seleccionar todas</span>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 border-t border-slate-200 pt-2 dark:border-neutral-700">
+                        <label v-for="option in pldCategoryOptions" :key="option.value" class="inline-flex items-center text-xs text-slate-900 dark:text-white">
+                            <input type="checkbox" :value="option.value" v-model="filtroCategoriaPLD"
+                                class="form-checkbox rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:checked:bg-blue-600 dark:focus:ring-offset-neutral-900">
+                            <span class="ml-2">{{ option.label }}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
 
         <!-- Listado de clientes -->
         <div
