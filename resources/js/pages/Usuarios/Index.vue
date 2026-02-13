@@ -213,7 +213,7 @@ const deleteUser = async () => {
     <FadeIn>
       <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
         <div class="flex items-center justify-between">
-          <Titulo :icon="Users" title="Gestión de Usuarios" size="md" weight="bold" class="mb-2" />
+          <!-- <Titulo :icon="Users" title="Gestión de Usuarios" size="md" weight="bold" class="mb-2" /> -->
         </div>
         <Datatable :columns="columns" :rows="rows" :custom-buttons="customButtons" :row-actions="rowActions"
           @button-click="handleButtonClick" @row-action="handleRowAction" />

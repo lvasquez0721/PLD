@@ -323,7 +323,7 @@ function handleDocumentClick(event: MouseEvent) {
 
     <Head title="Clientes" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Titulo :icon="UserRound" title="Consulta de Clientes" />
+        <!-- <Titulo :icon="UserRound" title="Consulta de Clientes" /> -->
 
         <!-- Leyenda de colores PLD con tarjetas sensoriales -->
         <div

@@ -297,10 +297,8 @@
 </script>
 
 <template>
-  <AppLayout title="Lista Negra">
-    <div class="flex items-center justify-between">
-      <Titulo :icon="ListX" title="Listas Negras CNSF" size="md" weight="bold" class="mb-2" />
-    </div>
+    <AppLayout :breadcrumbs="breadcrumbs">
+
 
     <!-- ALERTA SIMPLE DEL SERVIDOR -->
     <transition name="fade-in">
