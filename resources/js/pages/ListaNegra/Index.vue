@@ -4,7 +4,7 @@
   import AppLayout from '@/layouts/AppLayout.vue';
   import Titulo from '@/components/ui/Titulo.vue';
   import { ListX } from 'lucide-vue-next';
-  
+
   const page = usePage();
   const isSubmitting = ref(false)
 
@@ -18,7 +18,7 @@
   const erroresValidacion = ref<Record<string, string>>({});
   const mostrarAlertaErrores = ref(false);
 
-  
+
   /* ===== CONTROL DE FLASH DEL SERVIDOR ===== */
   const flashSuccess = computed(() => (page.props as any).flash?.success || null);
   const flashError = computed(() => (page.props as any).flash?.error || null);
@@ -54,7 +54,7 @@
 
   function validarCampos(): boolean {
     erroresValidacion.value = {};
-    if (form.value.accion === 2) { 
+    if (form.value.accion === 2) {
       if (!form.value.archivoListaNegra) {
         erroresValidacion.value.archivoListaNegra = 'Debe ingresar el archivo correspondiente para poder eliminar el registro';
       }
@@ -75,11 +75,11 @@
   }
 
   function getInputClass(fieldName: string): string {
-    return erroresValidacion.value[fieldName] ? 'form-input border-red-500' : 'form-input';
+    return erroresValidacion.value[fieldName] ? 'border-red-500' : '';
   }
 
   function getFileInputClass(fieldName: string): string {
-    return erroresValidacion.value[fieldName] ? 'form-file border-red-500' : 'form-file';
+    return erroresValidacion.value[fieldName] ? 'border-red-500' : '';
   }
 
   function cerrarAlertaErrores() { mostrarAlertaErrores.value = false; }
@@ -155,13 +155,13 @@
 
   function submitForm() {
     if (!validarCampos()) return;
-    
+
     // Validación simple del archivo - SOLO ESTAS 5 LÍNEAS
     if (form.value.archivoListaNegra) {
       const fileSizeMB = form.value.archivoListaNegra.size / (1024 * 1024);
       if (fileSizeMB > 50) {
         mostrarAlertaErrores.value = true;
-        erroresValidacion.value.archivoListaNegra = 
+        erroresValidacion.value.archivoListaNegra =
           `El archivo es muy grande (${fileSizeMB.toFixed(2)} MB). Compresión recomendada.`;
         return;
       }
@@ -178,11 +178,11 @@
     formData.append('accion', String(form.value.accion));
 
     let url = '';
-    if (form.value.accion === 1) 
+    if (form.value.accion === 1)
       url = `/lista-negra/update/${selectedId.value}`;
-    else if (form.value.accion === 2) 
+    else if (form.value.accion === 2)
       url = `/lista-negra/delete/${selectedId.value}`;
-    else 
+    else
       url = `/lista-negra/insert`;
 
     // for (const [key, value] of formData.entries()) {
@@ -193,7 +193,7 @@
         onStart: () => { isSubmitting.value = true },
         onFinish: () => { isSubmitting.value = false },
         onSuccess: () => {
-          console.log("SERVIDOR DEVUELVE:", page.props.flash); //trae los mensajes del servidor 
+          console.log("SERVIDOR DEVUELVE:", page.props.flash); //trae los mensajes del servidor
           closeModal();
         },
         onError: (errors) => { console.error('Errores de validación:', errors); },
@@ -218,6 +218,9 @@
   const search = ref('');
   const perPage = ref(10);
   const currentPage = ref(1);
+
+  // New ref for the page input
+  const goToPageInput = ref(currentPage.value);
 
   function normalize(text: string): string {
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -248,6 +251,22 @@
 
   function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
   function prevPage() { if (currentPage.value > 1) currentPage.value-- }
+
+  // Function to handle direct page input
+  function handleGoToPage() {
+    let pageNum = Math.floor(Number(goToPageInput.value)); // Ensure it's an integer
+    if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages.value) {
+      // Invalid input, reset to current valid page
+      goToPageInput.value = currentPage.value;
+    } else {
+      currentPage.value = pageNum;
+    }
+  }
+
+  // Watch currentPage changes to update goToPageInput
+  watch(currentPage, (newPage) => {
+    goToPageInput.value = newPage;
+  });
 
   watch([search, perPage], () => (currentPage.value = 1))
 
@@ -285,140 +304,198 @@
 
     <!-- ALERTA SIMPLE DEL SERVIDOR -->
     <transition name="fade-in">
-      <div v-if="mostrarFlash && modalFlashTitle" class="mb-4 p-4 rounded-md" :class="flashSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        <strong class="font-semibold">{{ modalFlashTitle }}</strong>
-        <p class="mt-2" v-if="flashSuccess">{{ flashSuccess }}</p>
-        <p class="mt-2" v-if="flashError">{{ flashError }}</p>
+      <div v-if="mostrarFlash && modalFlashTitle"
+        class="mb-4 rounded-xl border p-4 shadow-sm backdrop-blur-sm transition-shadow duration-300 ease-out flex items-start justify-between gap-3"
+        :class="{
+          'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-300': flashSuccess,
+          'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300': flashError
+        }">
+        <div class="flex-1">
+          <strong class="font-semibold" :class="flashSuccess ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">{{ modalFlashTitle }}</strong>
+          <p class="mt-2" v-if="flashSuccess">{{ flashSuccess }}</p>
+          <p class="mt-2" v-if="flashError">{{ flashError }}</p>
+        </div>
+        <button @click="mostrarFlash = false" :class="flashSuccess ? 'text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200' : 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200'" class="transition-colors">✕</button>
       </div>
     </transition>
 
 
     <section class="content">
       <!-- FILTROS -->
-      <div class="filter-section">  
-        <div class="filter-item">
-          <label>Número de elementos</label>
-          <select v-model.number="perPage" :disabled="isLoading" class="form-input">
+      <div class="mt-6 flex flex-col gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] md:flex-row md:items-end md:justify-start dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
+        <div class="flex flex-col gap-1 w-48">
+          <label class="text-xs text-slate-600 dark:text-neutral-300">Número de elementos</label>
+          <select v-model.number="perPage" :disabled="isLoading" class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
             <option :value="10">10</option>
             <option :value="25">25</option>
             <option :value="50">50</option>
             <option :value="100">100</option><option :value="-1">Todos</option>
           </select>
         </div>
-        <div class="filter-item">
-          <label>Buscar una persona</label>
-          <input v-model="search" :disabled="isLoading" type="text" placeholder="Nombre o RFC" class="form-input" />
+        <div class="relative w-72 flex flex-col">
+          <label class="text-xs text-slate-600 dark:text-neutral-300 mb-1 block">Buscar una persona</label>
+          <div class="relative">
+            <input
+              v-model="search"
+              :disabled="isLoading"
+              type="text"
+              placeholder="Nombre o RFC"
+              class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-inner outline-none ring-0 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_1px_rgba(59,130,246,0.35)] dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900"
+            />
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M15.5 15.5 20 20m-3-9a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+              </svg>
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- PAGINADOR -->
-      <div class="row">
-        <div class="col-md-12">
-          <div class="pagination-controls">
-            <button @click="prevPage" :disabled="currentPage === 1" class="pagination-btn">&lt;</button>
-            <span class="pagination-text">Página {{ currentPage }} de {{ totalPages }}</span>
-            <button @click="nextPage" :disabled="currentPage === totalPages" class="pagination-btn">&gt;</button>
-          </div>
-          <br>
-          <div class="table-responsive">
-            <div class="table-header">
-              <div v-if="showingMessage" class="results-info">{{ showingMessage }}</div>
-              <button @click="openAddModal" :disabled="isLoading" class="add-button">+</button>
+      <!-- PAGINADOR Y TABLA -->
+      <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)]">
+            <div class="p-4 flex items-center justify-between">
+              <div v-if="showingMessage" class="text-xs text-slate-500 dark:text-neutral-400">{{ showingMessage }}</div>
+              <button @click="openAddModal" :disabled="isLoading" class="inline-flex items-center rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-blue-600 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-blue-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-blue-400 dark:hover:bg-blue-900/90">
+                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Agregar Registro
+              </button>
             </div>
-            <table id="table-lista-negra-cnsf" class="data-table">
-              <thead>
-                <tr class="table-header-row">
-                  <th>#</th>
-                  <th>Nombre</th>
-                  <th>RFC</th>
-                  <th class="text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody v-if="paginatedListas.length" class="table-body">
-                <tr v-for="item in paginatedListas" :key="item.IDRegistroListaCNSF" class="table-row">
-                  <td>{{ item.IDRegistroListaCNSF }}</td>
-                  <td>{{ item.Nombre }}</td>
-                  <td>{{ item.RFC }}</td>
-                  <td class="text-center actions-cell w-30">
-                    <button @click="openEditModal(item)" class="edit-btn">✏️</button>
-                    <button @click="openDeleteModal(item)" class="delete-btn">🗑️</button>
-                  </td>
-                </tr>
-              </tbody>
-              <tbody v-else>
-                <tr class="no-results-row">
-                  <td colspan="4">No hay resultados para "{{ search }}"</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="max-h-[28rem] overflow-y-auto">
+              <table id="table-lista-negra-cnsf" class="min-w-full border-collapse text-sm text-slate-900 dark:text-white">
+                <thead>
+                  <tr class="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 text-xs font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-gradient-to-r dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95 dark:text-neutral-200">
+                    <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">#</th>
+                    <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Nombre</th>
+                    <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">RFC</th>
+                    <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody v-if="paginatedListas.length" class="table-body">
+                  <tr v-for="item in paginatedListas" :key="item.IDRegistroListaCNSF" class="group cursor-pointer border-b border-l-2 border-slate-100 border-l-transparent bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-l-blue-400 hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-neutral-800/60 dark:border-l-transparent dark:bg-neutral-950/40 dark:hover:border-l-blue-500 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)]">
+                    <td class="px-3 py-2 align-middle">{{ item.IDRegistroListaCNSF }}</td>
+                    <td class="px-3 py-2 align-middle">{{ item.Nombre }}</td>
+                    <td class="px-3 py-2 align-middle">{{ item.RFC }}</td>
+                    <td class="px-3 py-2 text-center align-middle">
+                      <button @click="openEditModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 transition-all duration-200 ease-out hover:text-amber-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-amber-400 dark:hover:text-amber-300 dark:focus-visible:ring-offset-neutral-950">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Editar
+                      </button>
+                      <button @click="openDeleteModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-red-600 transition-all duration-200 ease-out hover:text-red-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-red-400 dark:hover:text-red-300 dark:focus-visible:ring-offset-neutral-950">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tbody v-else>
+                  <tr class="table-row">
+                    <td colspan="4" class="px-3 py-2 text-center text-sm text-slate-500 dark:text-neutral-400">No hay resultados para "{{ search }}"</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </div>
+          <!-- Controles de paginación -->
+          <div class="mt-4 flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-100 bg-gradient-to-r from-white via-slate-50/70 to-white p-3 text-slate-900 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4 dark:border-neutral-800 dark:bg-gradient-to-r dark:from-neutral-950/95 dark:via-neutral-900/90 dark:to-neutral-950/95 dark:text-white">
+              <p class="text-xs text-slate-500 dark:text-neutral-400">{{ showingMessage }}</p>
+              <div class="flex items-center space-x-2">
+                  <button @click="prevPage" :disabled="currentPage === 1"
+                      class="rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:bg-neutral-800/90">
+                      Anterior
+                  </button>
+                  <span class="text-xs text-slate-600 dark:text-neutral-300">Página</span>
+                  <input type="number" v-model.number="goToPageInput" @change="handleGoToPage" min="1" :max="totalPages"
+                      class="w-16 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs text-slate-900 outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900" />
+                  <span class="text-xs text-slate-600 dark:text-neutral-300">de {{ totalPages }}</span>
+                  <button @click="nextPage" :disabled="currentPage === totalPages"
+                      class="rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:bg-neutral-800/90">
+                      Siguiente
+                  </button>
+              </div>
+          </div>
     </section>
 
     <!-- MODAL -->
-    <transition name="fade-in">
-      <div v-if="showModal" class="modal-overlay">
-        <div class="modal-container">
+    <transition name="modal-fade">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity">
+        <div class="modal-fade-card relative w-full max-w-xl rounded-2xl border border-slate-200 bg-gradient-to-b from-white via-slate-50 to-white p-6 text-slate-900 shadow-2xl shadow-slate-300/70 transition-transform duration-200 ease-out dark:border-neutral-700 dark:bg-gradient-to-b dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950 dark:text-white dark:shadow-black/70">
 
-          <div class="modal-header"> <!-- ALERTA -->
-            <h2 class="modal-title">{{ modalTitle }}</h2>
-            <div v-if="mostrarAlertaErrores" class="error-alert">
-              <div class="alert-content">
-                <h3 class="alert-title">Por favor revise la siguiente información en el formulario:</h3>
-                <ul class="error-list">
+          <button
+            class="absolute right-3 top-3 rounded-full bg-white/0 px-2 py-1 text-slate-400 shadow-none transition-all duration-150 hover:bg-slate-100/80 hover:text-slate-600 hover:shadow-sm dark:bg-transparent dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200"
+            @click="closeModal">
+            ✕
+          </button>
+
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-neutral-700">
+            <h3 class="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+              <span class="h-6 w-1 rounded-full bg-gradient-to-b from-blue-400 to-blue-600"></span>
+              {{ modalTitle }}
+            </h3>
+          </div>
+
+          <div v-if="mostrarAlertaErrores" class="mt-4 p-3 rounded-lg border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300 flex items-start justify-between gap-3">
+              <div class="flex-1">
+                <h4 class="font-semibold text-red-800 dark:text-red-200 mb-1">Por favor revise la siguiente información en el formulario:</h4>
+                <ul class="mt-2 text-sm list-disc list-inside space-y-1">
                   <li v-for="(error, field) in erroresValidacion" :key="field">{{ error }}</li>
                 </ul>
               </div>
-              <button @click="cerrarAlertaErrores" class="alert-close-btn">✕</button>
+              <button @click="cerrarAlertaErrores" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors">✕</button>
             </div>
-          </div>
-             
-          <div class="modal-content"> 
-            <form @submit.prevent="submitForm" class="form-container">
-              <div v-if="form.accion === 2" class="delete-confirmation">
+
+          <div class="flex-1 overflow-y-auto pr-1 text-sm space-y-4 py-4">
+            <form @submit.prevent="submitForm" class="space-y-4">
+              <div v-if="form.accion === 2" class="text-center text-base text-slate-700 dark:text-neutral-300 mb-4">
                 <p>¿Estás segura de eliminar al usuario <strong>{{ form.nombreListaNegra }}</strong> con RFC <strong>{{ form.RFCListaNegra }}</strong> de la lista negra?</p>
+                <p class="text-red-500 font-semibold mt-2">Esta acción no se puede deshacer.</p>
               </div>
 
-              <div v-if="form.accion !== 2" class="form-fields">
+              <div v-if="form.accion !== 2" class="space-y-4">
                 <input type="hidden" v-model="form.accion" />
-                <div class="form-field">
-                  <label>Nombre</label>
-                  <input v-model="form.nombreListaNegra" placeholder="Ingresa el Nombre Completo" type="text" :class="getInputClass('nombreListaNegra')" />
+                <div class="flex flex-col">
+                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">Nombre</label>
+                  <input v-model="form.nombreListaNegra" placeholder="Ingresa el Nombre Completo" type="text" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 ${getInputClass('nombreListaNegra')}`" />
                 </div>
-                <div class="form-field">
-                  <label>RFC</label>
-                  <input v-model="form.RFCListaNegra" placeholder="Ingresa el RFC" type="text" :class="getInputClass('RFCListaNegra')" />
+                <div class="flex flex-col">
+                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">RFC</label>
+                  <input v-model="form.RFCListaNegra" placeholder="Ingresa el RFC" type="text" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 ${getInputClass('RFCListaNegra')}`" />
                 </div>
-                <div class="form-field">
-                  <label>CURP</label>
-                  <input v-model="form.CURPListaNegra" placeholder="Ingresa el CURP" type="text" :class="getInputClass('CURPListaNegra')" />
+                <div class="flex flex-col">
+                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">CURP</label>
+                  <input v-model="form.CURPListaNegra" placeholder="Ingresa el CURP" type="text" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 ${getInputClass('CURPListaNegra')}`" />
                 </div>
-                <div class="form-field">
-                  <label>Fecha de Nacimiento</label>
-                  <input v-model="form.Fecha_NacimientoListaNegra" type="date" :class="getInputClass('Fecha_NacimientoListaNegra')" />
+                <div class="flex flex-col">
+                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">Fecha de Nacimiento</label>
+                  <input v-model="form.Fecha_NacimientoListaNegra" type="date" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 ${getInputClass('Fecha_NacimientoListaNegra')}`" />
                 </div>
-                <div class="form-field">
-                  <label>País</label>
-                  <select v-model="form.paisOtro" :class="getInputClass('paisOtro')">
+                <div class="flex flex-col">
+                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">País</label>
+                  <select v-model="form.paisOtro" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 ${getInputClass('paisOtro')}`">
                     <option value="">Seleccione una opción</option>
                     <option value="MEXICO">MEXICO</option>
                     <option value="Otro">Otro</option>
                   </select>
-                  <input v-if="form.paisOtro === 'Otro'" v-model="form.paisListaNegra" placeholder="Especifique el país" :class="getInputClass('paisListaNegra')" class="mt-2" />
+                  <input v-if="form.paisOtro === 'Otro'" v-model="form.paisListaNegra" placeholder="Especifique el país" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 mt-2 ${getInputClass('paisListaNegra')}`" />
                 </div>
               </div>
 
-              <div class="form-field">
-                <label>Subir Oficio<span class="required-asterisk">*</span></label>
-                <input @change="handleFileChange" type="file" accept="application/pdf, application/x-pdf, application/acrobat, applications/pdf, text/pdf, application/vnd.pdf" :class="getFileInputClass('archivoListaNegra')" />
+              <div class="flex flex-col">
+                <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">Subir Oficio<span class="text-red-500 ml-0.5">*</span></label>
+                <input @change="handleFileChange" type="file" accept="application/pdf, application/x-pdf, application/acrobat, applications/pdf, text/pdf, application/vnd.pdf" :class="`w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-neutral-700 dark:file:text-neutral-200 dark:hover:file:bg-neutral-600 ${getFileInputClass('archivoListaNegra')}`" />
               </div>
             </form>
           </div>
-          <div class="modal-footer">
-            <div class="modal-actions">
-              <button @click="closeModal" class="cancel-btn">Cancelar</button>
-              <button @click="submitForm" class="submit-btn">{{ actionButtonText }}</button>
+          <div class="flex justify-end pt-4 mt-4 border-t border-slate-200 dark:border-neutral-700">
+            <div class="flex gap-2">
+              <button @click="closeModal" class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700">Cancelar</button>
+              <button @click="submitForm" class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">{{ actionButtonText }}</button>
             </div>
           </div>
         </div>
@@ -443,89 +520,3 @@
 
   </AppLayout>
 </template>
-
-<!-- ESTYLOS -->
-<style scoped>
-  /* Inputs base */
-  .form-input, .form-file, select { width:100%; padding:0.5rem 0.75rem; border-radius:0.5rem; transition:all 0.2s; outline:none; background:#FFF; color:#1F2937; border:1px solid #D1D5DB; }
-  .dark .form-input, .dark .form-file, .dark select { background:#374151; border-color:#4B5563; color:#F9FAFB; }
-  .form-input::placeholder { color:#9CA3AF; } .dark .form-input::placeholder { color:#9CA3AF; }
-  .form-input:hover, .form-file:hover { box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-  .form-input:focus, .form-file:focus { border-color:#3B82F6; box-shadow:0 0 0 2px rgba(59,130,246,0.3); }
-  .dark .form-input:focus, .dark .form-file:focus { border-color:#3B82F6; box-shadow:0 0 0 2px rgba(59,130,246,0.3); }
-
-  /* File inputs */
-  .form-file { cursor:pointer; background:#F3F4F6; } .dark .form-file { background:#4B5563; }
-  .form-file::file-selector-button { margin-right:1rem; padding:0.35rem 0.75rem; border:none; border-radius:0.375rem; background:#6B7280; color:#FFF; font-weight:500; cursor:pointer; transition:background 0.2s; }
-  .form-file:hover::file-selector-button { background:#4B5563; } .dark .form-file::file-selector-button { background:#6B7280; } .dark .form-file:hover::file-selector-button { background:#9CA3AF; }
-
-  /* Utilidades */
-  .border-red-500 { border-color:#EF4444 !important; }
-
-  /* Filtros */
-  .filter-section { display:flex; flex-direction:column; gap:1rem; margin-bottom:1rem; }
-  .filter-item { display:flex; flex-direction:column; width:16rem; }
-  .filter-item label { color:#374151; font-weight:500; margin-bottom:0.25rem; } .dark .filter-item label { color:#D1D5DB; }
-
-  /* Paginación */
-  .pagination-controls { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
-  .pagination-btn { padding:0.4rem 0.9rem; border-radius:0.5rem; border:1px solid #D1D5DB; background:#fff; color:#374151; font-weight:500; transition:0.2s; }
-  .pagination-btn:hover { background:#E5E7EB; } .pagination-btn:disabled { opacity:0.5; cursor:not-allowed; }
-  .pagination-btn:focus { outline:none; border-color:#3B82F6; box-shadow:0 0 0 2px rgba(59,130,246,0.3); }
-  .dark .pagination-btn { background:#374151; border-color:#4B5563; color:#F9FAFB; } .dark .pagination-btn:hover { background:#4B5563; }
-  .pagination-text { color:#374151; font-weight:500; } .dark .pagination-text { color:#D1D5DB; }
-
-  /* Tabla */
-  .table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
-  .results-info { font-size:0.875rem; color:#374151; } .dark .results-info { color:#D1D5DB; }
-  .add-button { padding:0.5rem 1.5rem; border-radius:0.5rem; background:#2563EB; color:white; font-weight:500; transition:0.2s; }
-  .add-button:hover { background:#1D4ED8; } .add-button:disabled { opacity:0.5; cursor:not-allowed; }
-  .data-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
-  .table-header-row { background:#F3F4F6; color:#374151; } .dark .table-header-row { background:#374151; color:#D1D5DB; }
-  .table-header-row th { border:1px solid #D1D5DB; padding:0.5rem 1rem; text-align:left; } .dark .table-header-row th { border-color:#4B5563; }
-  .table-body { background:#FFF; color:#374151; } .dark .table-body { background:#1F2937; color:#D1D5DB; }
-  .table-row { transition:background 0.2s; } .table-row:hover { background:#F9FAFB; } .dark .table-row:hover { background:#374151; }
-  .table-row td { border:1px solid #D1D5DB; padding:0.5rem 1rem; } .dark .table-row td { border-color:#4B5563; }
-  .actions-cell { text-align:center; }
-  .edit-btn { padding:0.25rem 0.5rem; background:#F59E0B; color:white; border-radius:0.25rem; transition:0.2s; } .edit-btn:hover { background:#D97706; }
-  .delete-btn { padding:0.25rem 0.5rem; background:#EF4444; color:white; border-radius:0.25rem; margin-left:0.5rem; transition:0.2s; } .delete-btn:hover { background:#DC2626; }
-  .no-results-row td { background:#FFF; color:#374151; text-align:center; padding:0.5rem; border:1px solid #D1D5DB; }
-  .dark .no-results-row td { background:#1F2937; color:#D1D5DB; border-color:#4B5563; }
-
-  /* Modal */
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:50; padding:1rem; }
-  .modal-container { background:#FFF; border-radius:0.75rem; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:24rem; max-width:100%; max-height:90vh; display:flex; flex-direction:column; }
-  .dark .modal-container { background:#1F2937; }
-  .modal-header { padding:1.5rem; border-bottom:1px solid #E5E7EB; flex-shrink:0; } .dark .modal-header { border-color:#374151; }
-  .modal-title { font-size:1.25rem; font-weight:600; }
-  .error-alert { margin-top:1rem; padding:1rem; border:1px solid #FCA5A5; background:#FEF2F2; border-radius:0.5rem; display:flex; justify-content:space-between; align-items:flex-start; }
-  .dark .error-alert { border-color:#7F1D1D; background:rgba(127,29,29,0.1); }
-  .alert-content { flex:1; }
-  .alert-title { color:#991B1B; font-weight:600; margin-bottom:0.5rem; } .dark .alert-title { color:#FECACA; }
-  .error-list { color:#DC2626; font-size:0.875rem; list-style:disc inside; line-height:1.5; } .dark .error-list { color:#FCA5A5; }
-  .alert-close-btn { margin-left:0.5rem; color:#EF4444; transition:0.2s; } .alert-close-btn:hover { color:#DC2626; }
-  .dark .alert-close-btn { color:#FCA5A5; } .dark .alert-close-btn:hover { color:#F87171; }
-  .modal-content { flex:1; overflow-y:auto; padding:1.5rem; }
-  .form-container { display:flex; flex-direction:column; gap:1rem; }
-  .delete-confirmation { margin-bottom:0.5rem; }
-  .form-fields { display:flex; flex-direction:column; gap:1rem; }
-  .form-field { display:flex; flex-direction:column; }
-  .form-field label { font-size:0.875rem; font-weight:500; color:#374151; margin-bottom:0.25rem; } .dark .form-field label { color:#D1D5DB; }
-  .required-asterisk { color:#EF4444; }
-  .modal-footer { padding:1.5rem; border-top:1px solid #E5E7EB; flex-shrink:0; } .dark .modal-footer { border-color:#374151; }
-  .modal-actions { display:flex; justify-content:flex-end; gap:0.5rem; }
-  .cancel-btn { padding:0.5rem 1rem; border-radius:0.5rem; background:#D1D5DB; color:#374151; transition:0.2s; } .cancel-btn:hover { background:#9CA3AF; }
-  .dark .cancel-btn { background:#4B5563; color:#D1D5DB; } .dark .cancel-btn:hover { background:#6B7280; }
-  .submit-btn { padding:0.5rem 1rem; border-radius:0.5rem; background:#2563EB; color:white; transition:0.2s; } .submit-btn:hover { background:#1D4ED8; }
-
-  /* Scrollbar */
-  .overflow-y-auto { scrollbar-width:thin; scrollbar-color:#cbd5e0 #f7fafc; } .dark .overflow-y-auto { scrollbar-color:#4a5568 #2d3748; }
-  .overflow-y-auto::-webkit-scrollbar { width:6px; }
-  .overflow-y-auto::-webkit-scrollbar-track { background:#f7fafc; border-radius:3px; } .dark .overflow-y-auto::-webkit-scrollbar-track { background:#2d3748; }
-  .overflow-y-auto::-webkit-scrollbar-thumb { background:#cbd5e0; border-radius:3px; } .dark .overflow-y-auto::-webkit-scrollbar-thumb { background:#4a5568; }
-  .overflow-y-auto::-webkit-scrollbar-thumb:hover { background:#a0aec0; } .dark .overflow-y-auto::-webkit-scrollbar-thumb:hover { background:#718096; }
-
-  /* Transiciones */
-  .fade-in-enter-active, .fade-in-leave-active { transition:opacity 0.3s ease; }
-  .fade-in-enter-from, .fade-in-leave-to { opacity:0; }
-</style>
