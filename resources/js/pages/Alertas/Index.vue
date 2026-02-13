@@ -17,9 +17,42 @@ onMounted(() => {
   const observer = new MutationObserver(checkTheme);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 });
+interface EvidenciasFormateadas {
+  totalPagado: string | null;
+  totalPagos: number | null;
+  operacionPagada: boolean | null;
+  saldoPendiente: string | null;
+  tieneDiferencias: boolean;
+  raw: string;
+}
+
+interface Alerta {
+  IDRegistroAlerta: number;
+  Folio: string;
+  Patron: string;
+  IDCliente: number;
+  Cliente: string;
+  Poliza: string;
+  FechaDeteccion: string;
+  HoraDeteccion: string;
+  FechaOperacion: string;
+  HoraOperacion: string;
+  MontoOperacion: number;
+  InstrumentoMonetario: string;
+  RFCAgente: string;
+  Agente: string;
+  Estatus: string;
+  Descripcion: string;
+  Razones: string;
+  Evidencias: string;
+  IDReporteOP: number;
+  IDPago: number;
+  IDOperacionPago: number;
+}
+
 const fechaInicio = ref('');
 const fechaFin = ref('');
-const alertas = ref([]);
+const alertas = ref<Alerta[]>([]);
 const isLoading = ref(false);
 const focusedInput = ref<string | null>(null);
 
@@ -60,6 +93,60 @@ const downloadCsv = async () => {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error al descargar el CSV:', error);
+  }
+};
+
+// Función para formatear evidencias y mostrar solo lo relevante
+const formatEvidencias = (evidencias: string): EvidenciasFormateadas => {
+  if (!evidencias) {
+    return {
+      totalPagado: null,
+      totalPagos: null,
+      operacionPagada: null,
+      saldoPendiente: null,
+      tieneDiferencias: false,
+      raw: evidencias,
+    };
+  }
+  
+  try {
+    const data = typeof evidencias === 'string' ? JSON.parse(evidencias) : evidencias;
+    
+    const totalPagado = data.total_pagado || 0;
+    const totalPagos = data.total_pagos || 0;
+    const operacionPagada = data.operacion_pagada || false;
+    const saldoPendiente = data.saldo_pendiente || 0;
+    
+    // Verificar si hay diferencias en el análisis fraccionado
+    const tieneDiferencias = data.analisis_fraccionado?.some((item: any) => !item.dentro_tolerance) || false;
+    
+    // Formatear moneda
+    const formatoMoneda = (monto: number) => {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 2,
+      }).format(monto);
+    };
+    
+    return {
+      totalPagado: formatoMoneda(totalPagado),
+      totalPagos,
+      operacionPagada,
+      saldoPendiente: formatoMoneda(saldoPendiente),
+      tieneDiferencias,
+      raw: evidencias, // Guardar el JSON completo por si se necesita
+    };
+  } catch (error) {
+    // Si no es JSON válido, devolver el texto original
+    return {
+      totalPagado: null,
+      totalPagos: null,
+      operacionPagada: null,
+      saldoPendiente: null,
+      tieneDiferencias: false,
+      raw: evidencias,
+    };
   }
 };
 </script>
@@ -250,7 +337,7 @@ const downloadCsv = async () => {
                     class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
                     Razones</th>
                   <th
-                    class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
+                    class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap min-w-[220px]">
                     Evidencias</th>
                   <th
                     class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
@@ -327,9 +414,39 @@ const downloadCsv = async () => {
                     <td
                       class="px-6 py-4 whitespace-nowrap text-[13px] text-slate-600/85 dark:text-neutral-300/90 max-w-xs truncate font-light tracking-[0.003em]">
                       {{ alerta.Razones }}</td>
-                    <td
-                      class="px-6 py-4 whitespace-nowrap text-[13px] text-blue-600/85 dark:text-blue-300/75 hover:text-blue-700/90 dark:hover:text-blue-200/90 cursor-pointer font-medium tracking-[0.003em] transition-colors duration-300">
-                      {{ alerta.Evidencias }}</td>
+                    <td class="px-6 py-4 text-[13px] font-light tracking-[0.003em]">
+                      <template v-if="formatEvidencias(alerta.Evidencias).totalPagado !== null">
+                        <div class="flex flex-col gap-1.5 min-w-[200px]">
+                          <div class="flex items-center gap-2">
+                            <span class="text-slate-600/85 dark:text-neutral-300/90 font-medium">Total:</span>
+                            <span class="text-slate-700/90 dark:text-neutral-100/90 font-semibold">
+                              {{ formatEvidencias(alerta.Evidencias).totalPagado }}
+                            </span>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-slate-500/75 dark:text-neutral-400/80 text-[12px]">Pagos:</span>
+                            <span class="text-slate-600/85 dark:text-neutral-300/90 text-[12px] font-medium">
+                              {{ formatEvidencias(alerta.Evidencias).totalPagos }}
+                            </span>
+                            <span class="text-slate-500/75 dark:text-neutral-400/80 text-[12px]">•</span>
+                            <span 
+                              :class="[
+                                'text-[12px] font-medium px-2 py-0.5 rounded-full',
+                                formatEvidencias(alerta.Evidencias).operacionPagada
+                                  ? 'bg-green-50/70 dark:bg-green-900/20 text-green-700/90 dark:text-green-300/90'
+                                  : 'bg-amber-50/70 dark:bg-amber-900/20 text-amber-700/90 dark:text-amber-300/90'
+                              ]">
+                              {{ formatEvidencias(alerta.Evidencias).operacionPagada ? 'Pagada' : 'Pendiente' }}
+                            </span>
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <div class="text-slate-500/70 dark:text-neutral-400/70 text-[12px] italic max-w-xs truncate">
+                          {{ alerta.Evidencias || 'Sin evidencias' }}
+                        </div>
+                      </template>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-[13px] text-slate-500/80 dark:text-neutral-400/85 font-light tracking-[0.003em]">
                       {{ alerta.IDReporteOP }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-[13px] text-slate-500/80 dark:text-neutral-400/85 font-light tracking-[0.003em]">
