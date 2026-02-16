@@ -8,11 +8,11 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
 import { Users, FileSpreadsheet, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { type BreadcrumbItem } from '@/types';
-import { buzonPreocupantes } from '@/routes/index.js';
+import { dashboard } from '@/routes/index.js';
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Perfil transaccional',
-        href: buzonPreocupantes().url,
+        href: dashboard().url,
     },
 ];
 

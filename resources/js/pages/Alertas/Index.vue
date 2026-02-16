@@ -5,7 +5,7 @@ import Titulo from '@/components/ui/Titulo.vue';
 import { Bell, Search, Calendar, Download } from 'lucide-vue-next';
 import axios from 'axios';
 import { type BreadcrumbItem } from '@/types';
-import { buzonPreocupantes } from '@/routes/index.js';
+import { dashboard } from '@/routes/index.js';
 
 
 // Detect theme for custom date input styling
@@ -157,7 +157,7 @@ const formatEvidencias = (evidencias: string): EvidenciasFormateadas => {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Módulo de Alertas',
-        href: buzonPreocupantes().url,
+        href: dashboard().url,
     },
 ];
 </script>

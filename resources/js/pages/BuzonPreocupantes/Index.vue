@@ -9,7 +9,7 @@ import '@vuepic/vue-datepicker/dist/main.css';
 import { router } from '@inertiajs/vue3'
 import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types';
-import { buzonPreocupantes } from '@/routes/index.js';
+import { dashboard } from '@/routes/index.js';
 
 
 // Tipado del buzon
@@ -102,7 +102,7 @@ const guardar = async () => {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Buzon de operaciones preocupantes',
-        href: buzonPreocupantes().url,
+        href: dashboard().url,
     },
 ];
 
@@ -186,6 +186,29 @@ const breadcrumbs: BreadcrumbItem[] = [
 :deep(.dark) .checkbox-custom {
     accent-color: rgb(96, 165, 250);
 }
+
+/* ===== Tabs blue highlight for active ==== */
+.tab-active {
+    /* background gradient blue & white for light, blue & gray for dark */
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff !important;
+    /* for dark mode override */
+    /* Optionally: border-color: #3b82f6; */
+    /* Optionally: font-weight: 500; */
+    /* Extra shadow for pop effect */
+    box-shadow: 0 2px 12px 0 rgba(59,130,246,0.12);
+    border: 1.5px solid #3b82f6;
+}
+.tab-active:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+:deep(.dark) .tab-active {
+    background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
+    color: #fff !important;
+    border-color: #2563eb;
+}
+/* if you want to keep the same rounded corners etc as existing, don't touch them */
 </style>
 
 <template>
@@ -196,42 +219,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         <div
             class="min-h-[calc(100vh-6rem)] bg-gradient-to-br from-slate-50/40 via-slate-50/60 to-blue-50/25 dark:from-neutral-950 dark:via-neutral-900/95 dark:to-neutral-900/90 transition-colors duration-700">
             <div class="max-w-[1800px] mx-auto px-6 sm:px-8 py-6">
-                <!-- Header -->
-                <!-- <div
-          class="bg-[#f8fafc]/60 dark:bg-neutral-900/90 backdrop-blur-xl border-b border-slate-100/40 dark:border-neutral-800/70 shadow-[0_1px_4px_rgba(0,0,0,0.015)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.12)] mb-8 rounded-[20px] overflow-hidden transition-all duration-700"
-        >
-          <div class="px-8 py-6">
-            <div class="flex items-center gap-4">
-              <div class="relative">
-                <div
-                  class="absolute inset-0 bg-cyan-400/8 blur-2xl rounded-full scale-150 opacity-60 transition-all duration-700"
-                />
-                <div
-                  class="relative bg-gradient-to-br from-cyan-400/85 to-cyan-500/85 dark:from-neutral-800 dark:to-neutral-900 p-3 rounded-[14px] shadow-[0_3px_12px_rgba(34,211,238,0.15)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.35)] transition-all duration-700 hover:shadow-[0_5px_18px_rgba(34,211,238,0.2)] hover:scale-[1.02]"
-                >
-                  <FileText
-                    :size="22"
-                    :stroke-width="1.75"
-                    class="text-white/95 transition-colors duration-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <h1
-                  class="text-[26px] font-semibold tracking-[-0.03em] text-slate-800/90 dark:text-slate-100/90 leading-tight transition-colors duration-500"
-                >
-                  Buzón de Operaciones Preocupantes
-                </h1>
-                <p
-                  class="text-[13px] text-slate-500/75 dark:text-neutral-400/85 mt-1 tracking-[0.005em] leading-relaxed font-light transition-colors duration-500"
-                >
-                  Gestión de reportes y generación de alertas
-                </p>
-              </div>
-            </div>
-          </div>
-        </div> -->
-
 
                 <!-- Tabs -->
                 <div
@@ -239,7 +226,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <button @click="setTab('altaListas')" :class="[
                         'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
                         activeTab === 'altaListas'
-                            ? 'bg-white dark:bg-neutral-800 text-slate-800 dark:text-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.06)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] border border-slate-200/60 dark:border-neutral-700'
+                            ? 'tab-active'
                             : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
                     ]">
                         Buzón
@@ -247,7 +234,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <button @click="setTab('consulta')" :class="[
                         'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
                         activeTab === 'consulta'
-                            ? 'bg-white dark:bg-neutral-800 text-slate-800 dark:text-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.06)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.25)] border border-slate-200/60 dark:border-neutral-700'
+                            ? 'tab-active'
                             : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
                     ]">
                         Registrar Reporte
