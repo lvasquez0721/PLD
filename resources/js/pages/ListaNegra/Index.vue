@@ -254,7 +254,7 @@
 
   // Function to handle direct page input
   function handleGoToPage() {
-    let pageNum = Math.floor(Number(goToPageInput.value)); // Ensure it's an integer
+    const pageNum = Math.floor(Number(goToPageInput.value)); // Ensure it's an integer
     if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages.value) {
       // Invalid input, reset to current valid page
       goToPageInput.value = currentPage.value;

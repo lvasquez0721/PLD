@@ -61,6 +61,9 @@ class TbReporteRegulatorioPLD extends Model
         'Descripcion',
         'Razon',
         'Estatus',
+        // Campos añadidos por la migración 2026_02_17_144002_añadir_columns_to_tb_reporte_regulatorio_p_l_d
+        'IDTipoReporte',
+        'IDTipoOperacion',
     ];
 
     /**
@@ -77,5 +80,21 @@ class TbReporteRegulatorioPLD extends Model
     public function moneda()
     {
         return $this->belongsTo(CatMonedas::class, 'IDMoneda', 'IDMoneda');
+    }
+
+    /**
+     * Relación con el tipo de reporte (catTipoReporte)
+     */
+    public function tipoReporte()
+    {
+        return $this->belongsTo(CatTipoReporte::class, 'IDTipoReporte', 'IDTipoReporte');
+    }
+
+    /**
+     * Relación con el tipo de operación (catTipoOperacion)
+     */
+    public function tipoOperacion()
+    {
+        return $this->belongsTo(CatTipoOperacion::class, 'IDTipoOperacion', 'IDTipoOperacion');
     }
 }

@@ -18,4 +18,12 @@ class CatTipoOperacion extends Model
         'IDTipoOperacion',
         'TipoOperacion',
     ];
+
+    /**
+     * Relación con los reportes regulatorios (tbReporteRegulatorioPLD)
+     */
+    public function reportesRegulatorios()
+    {
+        return $this->hasMany(TbReporteRegulatorioPLD::class, 'IDTipoOperacion', 'IDTipoOperacion');
+    }
 }

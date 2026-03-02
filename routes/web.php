@@ -44,6 +44,10 @@ Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('alertas.index');
 
+Route::post('/alertas/emitir-reporte', [App\Http\Controllers\AlertasController::class, 'emitirReporteAlerta'])
+    ->middleware(['auth', 'verified'])
+    ->name('alertas.emitir-reporte');
+
 // Ruta para obtener alertas por rango de fechas
 Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
     ->name('alertas.date-range');
@@ -51,6 +55,11 @@ Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class
 // Ruta para descargar alertas por rango de fechas en CSV
 Route::get('/alertas/download-csv', [App\Http\Controllers\AlertasController::class, 'downloadAlertasCsvByDateRange'])
     ->name('alertas.download-csv');
+
+// Folios de póliza por cliente
+Route::get('/clientes/{id}/polizas', [App\Http\Controllers\AlertasController::class, 'getPolizasPorCliente'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.polizas');
 
 // JFG ruta buzón preocupantes
 Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])

@@ -21,6 +21,7 @@ class TbClientes extends Model
 
     protected $fillable = [
         // 'IDCliente', // NO incluimos campos autoincrementales en $fillable
+        'ckAgente',
         'RFC',
         'Nombre',
         'ApellidoPaterno',

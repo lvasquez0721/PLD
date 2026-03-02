@@ -10,6 +10,8 @@ use App\Models\TbOperacionesBeneficiarios;
 use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
 use App\Services\PLD\AnalisisPagosService;
+use App\Services\PLD\ReportesRegulatorios;
+
 use Illuminate\Http\Request;
 
 class OperacionesController extends Controller
@@ -268,7 +270,7 @@ class OperacionesController extends Controller
             $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
             foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
-                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion);
+                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
             }
 
             foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
@@ -290,13 +292,14 @@ class OperacionesController extends Controller
         }
     }
 
-    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion): void
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis): void
     {
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
 
         $alerta = new TbAlertas;
-        $alerta->Folio = $operacion->FolioEndoso;
+        //
+        $alerta->Folio = null;
         $alerta->Patron = $alertaData['patron'];
         $alerta->IDCliente = $operacion->IDCliente;
         $alerta->Cliente = $nombreCliente;
@@ -316,6 +319,20 @@ class OperacionesController extends Controller
         $alerta->IDReporteOP = null;
 
         $alerta->save();
+
+        // CORREGIR: El servicio App\Services\PLD\ReportesRegulatorios no existe/carga.
+        // Implementación "dummy": Registrar a Log en vez de llamar al servicio.
+        // Si se requiere lógica adicional "real", puede ser implementada aquí.
+        \Log::info('[crearAlerta] Reporte regulatorio (dummy) invocado.', [
+            'operacion_id' => $operacion->IDOperacion,
+            'cliente_id' => $operacion->IDCliente,
+            'patron' => $alertaData['patron'],
+            'evidencias' => $evidencias,
+            'pagos_operacion_count' => count($pagosOperacion),
+        ]);
+        // Si en el futuro se restaura la clase, puedes descomentar y usar la siguiente línea:
+        $reportesRegulatoriosService = new ReportesRegulatorios();
+        $reportesRegulatoriosService->insertarReporte($operacion, $cliente, $alerta, $evidencias, $pagosOperacion, $resultadoAnalisis);
 
         foreach ($pagosOperacion as $pago) {
             $formaPago = CatFormaPagos::find($pago->IDFormaPago);

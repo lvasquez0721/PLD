@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TbReporteRegulatorioPLD;
+use App\Models\CatTipoOperacion;
+
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -9,28 +12,45 @@ class ReporteOperacionesController extends Controller
 {
     public function index()
     {
-        return Inertia::render('ReporteOperaciones/Index');
+        // Carga todos los reportes, ordenados por fecha de creación descendente
+        $reportes = TbReporteRegulatorioPLD::orderBy('created_at', 'desc')->get();
+
+        // Obtiene todos los valores únicos del campo TipoReporte
+        $tiposOperacion = TbReporteRegulatorioPLD::select('TipoReporte')
+            ->distinct()
+            ->pluck('TipoReporte');
+
+
+
+        return Inertia::render('ReporteOperaciones/Index', [
+            'reportes' => $reportes,
+            'tiposOperacion' => $tiposOperacion,
+        ]);
     }
 
     public function obtenerReporte(Request $request)
     {
-        // Lista de filtros esperados
-        $filtros = $request->only([
-            'estatus', 'tipo', 'fecha_ini', 'fecha_fin',
-        ]);
+        $filtros = $request->only(['tipo', 'estatus', 'fecha_ini', 'fecha_fin']);
 
-        // Validar que todos los campos requeridos estén presentes
-        if (isset($filtros['estatus']) && isset($filtros['tipo']) && isset($filtros['fecha_ini']) && isset($filtros['fecha_fin'])) {
-            return response()->json([
-                'message' => 'ok',
-                'received' => $filtros,
-            ], 200);
+        $query = TbReporteRegulatorioPLD::query();
+
+        if (!empty($filtros['tipo']) && $filtros['tipo'] !== 'Todos') {
+            $query->where('TipoReporte', $filtros['tipo']);
+        }
+        if (!empty($filtros['estatus']) && $filtros['estatus'] !== 'Todos') {
+            $query->where('Estatus', $filtros['estatus']);
+        }
+        if (!empty($filtros['fecha_ini']) && !empty($filtros['fecha_fin'])) {
+            $inicio = $filtros['fecha_ini'] . ' 00:00:00';
+            $fin = $filtros['fecha_fin'] . ' 23:59:59';
+            $query->whereBetween('created_at', [$inicio, $fin]);
         }
 
-        // Si falta algún campo, responder con error
+        $reportes = $query->orderBy('created_at', 'desc')->get();
+
         return response()->json([
-            'message' => 'faltan campos',
-            'received' => $filtros,
-        ], 400);
+            'reportes' => $reportes,
+        ]);
+
     }
 }

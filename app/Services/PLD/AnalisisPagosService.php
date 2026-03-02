@@ -14,13 +14,13 @@ class AnalisisPagosService
     // Constantes para patrones de alerta
     const PATRON_FRACCIONADO = 'Fraccionado';
 
-    const PATRON_ACUMULADO_EFECTIVO = 'AcumuladoEfectivo';
+    const PATRON_ACUMULADO_EFECTIVO = 'Acumulado';
 
-    const PATRON_MONTO_RELEVANTE = 'MontoRelevante';
+    const PATRON_MONTO_RELEVANTE = 'Relevante';
 
     const PATRON_PPE = 'PPE';
 
-    const PATRON_MONTO_INUSUAL = 'MontoInusual';
+    const PATRON_MONTO_INUSUAL = 'Inusual';
 
     // Constantes para estatus
     const ESTATUS_GENERADO = 'Generado';
@@ -125,8 +125,8 @@ class AnalisisPagosService
             $resultado->esAcumuladoEfectivo = true;
             $resultado->alertasGenerar[] = [
                 'patron' => self::PATRON_ACUMULADO_EFECTIVO,
-                'descripcion' => 'Pagos acumulados en efectivo',
-                'razones' => 'Operación totalmente pagada con múltiples pagos en efectivo',
+                'descripcion' => 'Acumulados',
+                'razones' => 'Pagos acumulados en efectivo: Operación totalmente pagada con múltiples pagos en efectivo',
             ];
         }
     }
@@ -146,7 +146,7 @@ class AnalisisPagosService
 
                 $resultado->alertasGenerar[] = [
                     'patron' => self::PATRON_MONTO_RELEVANTE,
-                    'descripcion' => 'Operación por monto relevante',
+                    'descripcion' => 'Operaciones por monto relevante',
                     'razones' => "Monto en efectivo excede umbral PLD: USD {$montoEnUSD}",
                     'monto_usd' => $montoEnUSD,
                     'genera_reporte' => true,
