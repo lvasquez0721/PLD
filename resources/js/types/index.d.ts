@@ -16,7 +16,6 @@ export interface NavItem {
     icon?: LucideIcon;
     isActive?: boolean;
     badge?: string | null;
-    description?: string;
 }
 
 export type AppPageProps<

@@ -44,8 +44,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 const busqueda = ref(props.filters?.search || '')
-const showModal = ref(false)
-const clienteSeleccionado = ref<any | null>(null)
 const filtroTipoPersona = ref(props.filters?.tipo || 'todos')
 
 const pldCategoryOptions = [
@@ -204,15 +202,12 @@ function goToPage(page: number) {
     })
 }
 
-function abrirModal(cliente: any) {
-    clienteSeleccionado.value = cliente
-    showModal.value = true
+// Redirigir a la ruta de detalle de cliente
+function irADetalleCliente(cliente: any) {
+    router.get(`/clientes/ver-detalles/${cliente.IDCliente}`);
 }
 
-function cerrarModal() {
-    showModal.value = false
-    clienteSeleccionado.value = null
-}
+// No longer needed: Modal visibility or clienteSeleccionado
 
 function getCategoryTags(cliente: any) {
     const tags = [];
@@ -233,7 +228,7 @@ function getCategoryTags(cliente: any) {
         tags.push({ color: 'bg-rose-400', tooltip: 'Listas internas (oficios CNSF)' });
     }
     if (tags.length === 0) {
-        tags.push({ color: 'bg-white border border-slate-300', tooltip: 'Sin coincidencia en listas', type: 'text' });
+        tags.push({ color: 'bg-white border border-gray-300', tooltip: 'Sin coincidencia en listas', type: 'text' });
     }
     return tags;
 }
@@ -313,116 +308,137 @@ function handleDocumentClick(event: MouseEvent) {
     }
 }
 
-// Se añade después la ruta correcta para la descarga
-// function descargarBasePersonas() {
-//   window.open('/ruta/descargar/base/personas', '_blank')
-// }
+function descargarCSV() {
+    let categoriesToSend: string[] | string | undefined;
+
+    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
+        categoriesToSend = 'todos';
+    } else if (filtroCategoriaPLD.value.length > 0) {
+        categoriesToSend = filtroCategoriaPLD.value;
+    } else {
+        categoriesToSend = undefined;
+    }
+
+    const params = new URLSearchParams();
+    if (busqueda.value) params.append('search', busqueda.value);
+    if (filtroTipoPersona.value !== 'todos') params.append('tipo', filtroTipoPersona.value);
+    if (categoriesToSend) {
+        if (Array.isArray(categoriesToSend)) {
+            categoriesToSend.forEach(cat => params.append('category[]', cat));
+        } else {
+            params.append('category', categoriesToSend);
+        }
+    }
+
+    window.location.href = `/clientes/exportar?${params.toString()}`;
+}
+
 </script>
 
 <template>
 
     <Head title="Clientes" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <!-- <Titulo :icon="UserRound" title="Consulta de Clientes" /> -->
+        <!-- Ambient background elements -->
+        <div
+            class="fixed inset-0 -z-50 opacity-15 [background-image:url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2Fsvg%22%3E%3Cg%20fill%3D%22%23a0aec0%22%20fill-opacity%3D%220.1%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
+        <div
+            class="fixed -top-1/2 left-1/2 -z-40 h-[1200px] w-[1200px] -translate-x-1/2 rounded-full bg-gradient-to-br from-blue-50 via-blue-50/0 to-blue-100/0 opacity-60 dark:from-blue-950/20" />
+
 
         <!-- Leyenda de colores PLD con tarjetas sensoriales -->
         <div
-            class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-sm backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 dark:shadow-inner dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.9)]">
+            class="mt-2 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h4 class="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                    <h4 class="flex items-center gap-2.5 text-base font-semibold text-gray-800 dark:text-white">
                         <span
-                            class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-blue-600 dark:bg-neutral-800 dark:text-blue-400">
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-blue-600 ring-1 ring-inset ring-gray-200/50 dark:bg-neutral-800/80 dark:text-blue-400 dark:ring-neutral-700/50">
                             <UserRound class="h-4 w-4" />
                         </span>
-                        Código de color categorías PLD
+                        Código de Color PLD
                     </h4>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-neutral-400">
-                        Cada color representa el nivel de atención que requiere el cliente en los filtros de listas.
+                    <p class="mt-1 text-xs text-gray-500 dark:text-neutral-400">
+                        Cada color representa una categoría de riesgo para el monitoreo de clientes.
                     </p>
                 </div>
-
             </div>
 
             <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <!-- Sin coincidencia en listas -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-blue-500/70 hover:bg-blue-50/60 hover:shadow-lg hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-blue-400/80 hover:bg-white hover:shadow-2xl hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-300 bg-white transition-all duration-200 group-hover:border-blue-400/80 dark:border-neutral-700 dark:bg-transparent"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md border border-gray-300 bg-white shadow-sm transition-all duration-300 group-hover:border-blue-400/80 dark:border-neutral-700 dark:bg-transparent"></span>
                     <div>
-                        <p class="text-xs font-semibold text-slate-800 dark:text-neutral-200">Sin coincidencia en listas</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            No se encontraron registros en listas de observación o sanciones.
+                        <p class="text-xs font-semibold text-gray-800 dark:text-neutral-200">Sin coincidencia</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Cliente sin registros en listas de observación.
                         </p>
                     </div>
                 </div>
-
-
 
                 <!-- Aparece en listas bloqueadas, necesita revisión -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-orange-500/70 hover:bg-orange-50/70 hover:shadow-lg hover:shadow-orange-500/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-orange-400/80 hover:bg-white hover:shadow-2xl hover:shadow-orange-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-orange-500 transition-all duration-200 group-hover:border-orange-200/80 dark:border-neutral-700"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-orange-500 shadow-sm shadow-orange-500/30 transition-all duration-300"></span>
                     <div>
-                        <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">Coincidencia, necesita revisión</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Persona o empresa aparece en listas bloqueadas, necesita revisión.
+                        <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">Coincidencia</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Aparece en listas bloqueadas, requiere revisión.
                         </p>
                     </div>
                 </div>
 
-
-
                 <!-- PPE, necesita revisión -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-indigo-400/70 hover:bg-indigo-50/70 hover:shadow-lg hover:shadow-indigo-400/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-indigo-400/80 hover:bg-white hover:shadow-2xl hover:shadow-indigo-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-indigo-400 transition-all duration-200 group-hover:border-indigo-200/80 dark:border-neutral-700"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-indigo-400 shadow-sm shadow-indigo-400/30 transition-all duration-300"></span>
                     <div>
-                        <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-200">PPE, necesita revisión</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Clientes políticamente expuestos; requiere atención.
+                        <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-200">PPE</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Persona Políticamente Expuesta; atención especial.
                         </p>
                     </div>
                 </div>
 
                 <!-- Autorizada que aparece en listas -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-yellow-300/70 hover:bg-yellow-50/70 hover:shadow-lg hover:shadow-yellow-300/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-yellow-400/80 hover:bg-white hover:shadow-2xl hover:shadow-yellow-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-yellow-300 transition-all duration-200 group-hover:border-yellow-100/80 dark:border-neutral-700"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-yellow-300 shadow-sm shadow-yellow-300/30 transition-all duration-300"></span>
                     <div>
-                        <p class="text-xs font-semibold text-yellow-700 dark:text-yellow-200">Autorizada que aparece en listas</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Persona / Empresa autorizada que aparece en listas.
+                        <p class="text-xs font-semibold text-yellow-700 dark:text-yellow-200">Autorizada en Listas</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Cliente autorizado que figura en listas de control.
                         </p>
                     </div>
                 </div>
 
                 <!-- Fuera de categoría Tláloc -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-purple-500/70 hover:bg-purple-50/70 hover:shadow-lg hover:shadow-purple-500/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-purple-400/80 hover:bg-white hover:shadow-2xl hover:shadow-purple-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-purple-500 transition-all duration-200 group-hover:border-purple-200/80 dark:border-neutral-700"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-purple-500 shadow-sm shadow-purple-500/30 transition-all duration-300"></span>
                     <div>
-                        <p class="text-xs font-semibold text-purple-700 dark:text-purple-200">Fuera de categoría Tláloc</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Persona / Empresa detectada fuera de categoría Tláloc, necesita revisión
+                        <p class="text-xs font-semibold text-purple-700 dark:text-purple-200">Fuera de Categoría</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Detectado fuera de categoría Tláloc, necesita revisión.
                         </p>
                     </div>
                 </div>
 
                 <!-- Listas internas (oficios CNSF) -->
                 <div
-                    class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-rose-400/70 hover:bg-rose-50/70 hover:shadow-lg hover:shadow-rose-400/20 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-white dark:hover:bg-neutral-900/80">
+                    class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-rose-400/80 hover:bg-white hover:shadow-2xl hover:shadow-rose-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
                     <span
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-slate-200 bg-rose-400 transition-all duration-200 group-hover:border-rose-200/80 dark:border-neutral-700"></span>
+                        class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-rose-400 shadow-sm shadow-rose-400/30 transition-all duration-300"></span>
                     <div>
-                        <p class="text-xs font-semibold text-rose-700 dark:text-rose-200">Listas internas (oficios CNSF)</p>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-neutral-400">
-                            Identificado en listas internas o comunicados de la CNSF.
+                        <p class="text-xs font-semibold text-rose-700 dark:text-rose-200">Listas Internas (CNSF)</p>
+                        <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+                            Identificado en comunicados internos de la CNSF.
                         </p>
                     </div>
                 </div>
@@ -431,70 +447,88 @@ function handleDocumentClick(event: MouseEvent) {
 
         <!-- Zona de búsqueda y filtros -->
         <div
-            class="mt-6 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
+            class="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-neutral-800/80 dark:bg-neutral-950/60 dark:focus-within:border-blue-500/80 dark:focus-within:ring-blue-400/10">
             <!-- Informational Block -->
-            <div class="mb-4 pb-4 border-b border-slate-200 dark:border-neutral-700 md:mb-0 md:pb-0 md:border-b-0">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-neutral-500">
+            <div class="mb-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-500">
                     Explorador de clientes
                 </p>
-                <p class="mt-1 text-sm text-slate-700 dark:text-neutral-300 ">
+                <p class="mt-1 text-sm text-gray-700 dark:text-neutral-300 ">
                     {{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados' }}
                 </p>
-                <p v-if="busqueda || filtroTipoPersona !== 'todos' || displayCategoryFilters" class="mt-1 text-xs text-slate-500 dark:text-neutral-400 mb-2">
-                    Refinando por
-                    <span v-if="busqueda" class="font-medium text-slate-800 dark:text-neutral-200">“{{ busqueda }}”</span>
+                <p v-if="busqueda || filtroTipoPersona !== 'todos' || displayCategoryFilters"
+                    class="mt-1.5 text-xs text-gray-500 dark:text-neutral-400 mb-2">
+                    Filtrando por:
+                    <span v-if="busqueda" class="font-semibold text-gray-800 dark:text-neutral-200">“{{ busqueda }}”</span>
                     <span v-if="busqueda && (filtroTipoPersona !== 'todos' || displayCategoryFilters)"> · </span>
-                    <span v-if="filtroTipoPersona === 'fisica'" class="font-medium text-slate-800 dark:text-neutral-200">Personas físicas</span>
-                    <span v-else-if="filtroTipoPersona === 'moral'" class="font-medium text-slate-800 dark:text-neutral-200">Personas morales</span>
-                    <span v-if="(busqueda || filtroTipoPersona !== 'todos') && displayCategoryFilters" class="font-medium text-slate-800 dark:text-neutral-200"> · </span>
-                    <span v-if="displayCategoryFilters" class="font-medium text-slate-800 dark:text-neutral-200">{{ displayCategoryFilters }}</span>
+                    <span v-if="filtroTipoPersona === 'fisica'" class="font-semibold text-gray-800 dark:text-neutral-200">Personas
+                        Físicas</span>
+                    <span v-else-if="filtroTipoPersona === 'moral'"
+                        class="font-semibold text-gray-800 dark:text-neutral-200">Personas Morales</span>
+                    <span v-if="(busqueda || filtroTipoPersona !== 'todos') && displayCategoryFilters"
+                        class="font-semibold text-gray-800 dark:text-neutral-200"> · </span>
+                    <span v-if="displayCategoryFilters" class="font-semibold text-gray-800 dark:text-neutral-200">{{
+                        displayCategoryFilters }}</span>
                 </p>
             </div>
 
-            <div style="height:0.5rem;"></div>
 
             <!-- Interactive Controls Block -->
             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
                 <!-- Search Input -->
                 <div class="relative w-full md:col-span-2 lg:col-span-2">
-                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400 dark:text-neutral-500">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                    <span
+                        class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-gray-400 dark:text-neutral-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M15.5 15.5 20 20m-3-9a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
                         </svg>
                     </span>
                     <input v-model="busqueda" type="text"
-                        class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-inner outline-none ring-0 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_1px_rgba(59,130,246,0.35)] dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900"
-                        placeholder="Busca por nombre, RFC, CURP o razón social" />
+                        class="w-full rounded-lg border border-gray-300/80 bg-gray-50/50 py-2.5 pl-10 pr-3 text-sm text-gray-900 placeholder-gray-400 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70"
+                        placeholder="Buscar por nombre, RFC, CURP..." />
                 </div>
 
                 <!-- Tipo de persona select -->
                 <div class="flex flex-col gap-2">
                     <select id="filtro-tipo-persona" v-model="filtroTipoPersona"
-                        class="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
-                        <option value="todos">Todos</option>
-                        <option value="fisica">Física</option>
-                        <option value="moral">Moral</option>
+                        class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                        <option value="todos">Todas las personas</option>
+                        <option value="fisica">Personas Físicas</option>
+                        <option value="moral">Personas Morales</option>
                     </select>
                 </div>
 
                 <!-- Categoría PLD checkboxes grouped -->
-                <div class="relative md:col-span-3 lg:col-span-1" ref="categoryDropdownRef">
+                <div class="relative md:col-span-2 lg:col-span-1" ref="categoryDropdownRef">
                     <!-- Dropdown Button -->
-                    <button
-                        id="pld-category-dropdown-button"
-                        ref="dropdownButtonRef"
-                        @click="toggleCategoryDropdown"
+                    <button id="pld-category-dropdown-button" ref="dropdownButtonRef" @click="toggleCategoryDropdown"
                         type="button"
-                        class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    >
+                        class="flex w-full items-center justify-between rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
                         <span>Categoría PLD</span>
-                        <span v-if="selectedCategoryCount > 0" class="ml-2 px-2 py-0.5 bg-blue-500 text-white rounded-full text-[10px]">
+                        <span v-if="selectedCategoryCount > 0"
+                            class="ml-2 flex h-5 w-5 items-center justify-center bg-blue-500 text-white rounded-full text-[10px] font-bold">
                             {{ selectedCategoryCount }}
                         </span>
-                        <svg class="h-4 w-4 text-slate-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        <svg class="h-4 w-4 text-gray-400 dark:text-neutral-500 transition-transform duration-200"
+                            :class="{ 'rotate-180': showCategoryDropdown }" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
                         </svg>
+                    </button>
+                </div>
+
+                <!-- Botón Descargar CSV -->
+                <div class="flex items-start">
+                    <button @click="descargarCSV" type="button"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-600">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Descargar CSV
                     </button>
                 </div>
             </div>
@@ -502,30 +536,27 @@ function handleDocumentClick(event: MouseEvent) {
 
         <!-- Dropdown Panel (fixed positioning to escape overflow containers) -->
         <Teleport to="body">
-            <div
-                v-if="showCategoryDropdown"
-                ref="dropdownPanelRef"
-                class="fixed z-[9999] w-72 origin-top-right rounded-md border border-slate-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800"
+            <div v-if="showCategoryDropdown" ref="dropdownPanelRef"
+                class="fixed z-[9999] w-72 origin-top-right rounded-xl border border-gray-200/80 bg-white/80 shadow-2xl shadow-gray-500/20 backdrop-blur-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-neutral-700/80 dark:bg-neutral-900/80 dark:shadow-black/50"
                 :style="{
                     top: dropdownPosition.top + 'px',
                     left: dropdownPosition.left + 'px'
-                }"
-                role="menu"
-                aria-orientation="vertical"
-                aria-labelledby="pld-category-dropdown-button"
-            >
+                }" role="menu" aria-orientation="vertical" aria-labelledby="pld-category-dropdown-button">
                 <div class="p-4">
-                    <div class="mb-2">
-                        <label class="inline-flex items-center text-xs text-slate-900 dark:text-white">
+                    <div class="mb-3 border-b border-gray-200 pb-3 dark:border-neutral-700">
+                        <label
+                            class="inline-flex w-full items-center rounded-md p-1 transition-colors hover:bg-gray-100 dark:hover:bg-neutral-800">
                             <input type="checkbox" v-model="selectAllCategoriesComputed"
-                                class="form-checkbox rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:checked:bg-blue-600 dark:focus:ring-offset-neutral-900">
-                            <span class="ml-2 font-semibold">Seleccionar todas</span>
+                                class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:checked:bg-blue-600">
+                            <span class="ml-2 text-xs font-semibold text-gray-800 dark:text-white">Seleccionar
+                                todas</span>
                         </label>
                     </div>
-                    <div class="grid grid-cols-1 gap-2 border-t border-slate-200 pt-2 dark:border-neutral-700">
-                        <label v-for="option in pldCategoryOptions" :key="option.value" class="inline-flex items-center text-xs text-slate-900 dark:text-white">
+                    <div class="grid grid-cols-1 gap-1">
+                        <label v-for="option in pldCategoryOptions" :key="option.value"
+                            class="inline-flex items-center rounded-md p-1 text-xs text-gray-900 transition-colors hover:bg-gray-100 dark:text-white dark:hover:bg-neutral-800">
                             <input type="checkbox" :value="option.value" v-model="filtroCategoriaPLD"
-                                class="form-checkbox rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:checked:bg-blue-600 dark:focus:ring-offset-neutral-900">
+                                class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:checked:bg-blue-600">
                             <span class="ml-2">{{ option.label }}</span>
                         </label>
                     </div>
@@ -535,217 +566,218 @@ function handleDocumentClick(event: MouseEvent) {
 
         <!-- Listado de clientes -->
         <div
-            class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)]">
-            <div class="max-h-[28rem] overflow-y-auto" ref="listaScrollRef">
-                <table class="min-w-full border-collapse text-sm text-slate-900 dark:text-white">
-                    <thead>
+            class="mt-8 overflow-hidden rounded-2xl border border-gray-200/70 bg-white/60 shadow-xl shadow-gray-200/50 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20">
+            <div class="max-h-[32rem] overflow-y-auto" ref="listaScrollRef">
+                <table class="min-w-full border-collapse text-sm text-gray-800 dark:text-neutral-200">
+                    <thead class="sticky top-0 z-10">
                         <tr
-                            class="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 text-xs font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-gradient-to-r dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95 dark:text-neutral-200">
+                            class="bg-gray-50/80 text-xs font-semibold uppercase tracking-wider text-gray-600 backdrop-blur-md dark:bg-neutral-900/80 dark:text-neutral-300">
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
                                 Nombre
                             </th>
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
                                 RFC
                             </th>
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
                                 CURP
                             </th>
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
                                 Tipo
                             </th>
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
-                                Categorias
+                                class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
+                                Categorías
                             </th>
                             <th
-                                class="border-b border-slate-200 px-3 py-2 text-center align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                class="border-b border-gray-200/80 px-4 py-3 text-center align-middle font-semibold dark:border-neutral-800">
                                 Acciones
                             </th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr v-if="!clientesFiltrados.length">
+                    <TransitionGroup tag="tbody" name="list" appear>
+                        <tr v-if="!clientesFiltrados.length" key="no-results">
                             <td colspan="6"
-                                class="border-t border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500 dark:border-neutral-800 dark:text-neutral-400">
+                                class="border-t border-dashed border-gray-200/80 px-4 py-16 text-center text-sm text-gray-500 dark:border-neutral-800 dark:text-neutral-400">
                                 No se encontraron clientes con los filtros actuales.
                             </td>
                         </tr>
-                        <tr v-for="cliente in clientesFiltrados" :key="cliente.IDCliente"
-                            class="group cursor-pointer border-b border-l-2 border-slate-100 border-l-transparent bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-l-blue-400 hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-neutral-800/60 dark:border-l-transparent dark:bg-neutral-950/40 dark:hover:border-l-blue-500 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)]">
-                            <td class="px-3 py-2 align-middle">
+                        <tr v-for="(cliente, index) in clientesFiltrados" :key="cliente.IDCliente"
+                            :data-index="index"
+                            class="group cursor-pointer border-b border-gray-100 bg-white/80 transition-all duration-300 ease-out will-change-transform hover:!opacity-100 hover:bg-gray-50/80 hover:shadow-lg hover:shadow-gray-300/30 motion-safe:hover:!scale-[1.01] dark:border-neutral-800/60 dark:bg-neutral-900/50 dark:hover:bg-neutral-800/60 dark:hover:shadow-black/20">
+                            <td class="px-4 py-3 align-middle">
                                 <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-slate-900 dark:text-neutral-50">
+                                    <span class="text-sm font-semibold text-gray-800 dark:text-neutral-50">
                                         {{ cliente.Nombre }} {{ cliente.ApellidoPaterno }} {{ cliente.ApellidoMaterno }}
                                     </span>
                                     <span v-if="cliente.RazonSocial"
-                                        class="mt-0.5 text-[11px] text-slate-500 dark:text-neutral-400">{{ cliente.RazonSocial }}</span>
+                                        class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">{{
+                                            cliente.RazonSocial }}</span>
                                 </div>
                             </td>
-                            <td class="px-3 py-2 align-middle">
-                                <span class="text-xs font-mono text-slate-700 dark:text-neutral-200">{{ cliente.RFC }}</span>
+                            <td class="px-4 py-3 align-middle">
+                                <span class="text-xs font-mono text-gray-600 dark:text-neutral-300">{{ cliente.RFC
+                                    }}</span>
                             </td>
-                            <td class="px-3 py-2 align-middle">
-                                <span class="text-xs font-mono text-slate-700 dark:text-neutral-200">{{ cliente.CURP }}</span>
+                            <td class="px-4 py-3 align-middle">
+                                <span class="text-xs font-mono text-gray-600 dark:text-neutral-300">{{ cliente.CURP
+                                    }}</span>
                             </td>
-                            <td class="px-3 py-2 align-middle">
+                            <td class="px-4 py-3 align-middle">
                                 <span
-                                    class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium dark:bg-neutral-800/80"
-                                    :class="cliente.IDTipoPersona === 1 ? 'text-blue-700 dark:text-blue-200' : 'text-emerald-700 dark:text-emerald-200'">
+                                    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                                    :class="cliente.IDTipoPersona === 1 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'">
                                     {{ cliente.IDTipoPersona === 1 ? 'Física' : 'Moral' }}
                                 </span>
                             </td>
-                            <td class="px-3 py-2 align-middle">
-                                <div class="flex flex-wrap gap-1">
-                                    <template v-for="(tag, index) in getCategoryTags(cliente)" :key="index">
-                                        <span v-if="tag.type === 'text'" class="text-sm text-slate-500 dark:text-neutral-400">
+                            <td class="px-4 py-3 align-middle">
+                                <div class="flex items-center gap-1.5">
+                                    <template v-for="(tag, i) in getCategoryTags(cliente)" :key="i">
+                                        <span v-if="tag.type === 'text'"
+                                            class="text-xs italic text-gray-500 dark:text-neutral-400">
                                             {{ tag.tooltip }}
                                         </span>
-                                        <span v-else
-                                            :class="[tag.color]"
-                                            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium leading-4 text-white shadow-sm"
+                                        <div v-else :class="tag.color"
+                                            class="h-3 w-5 rounded-sm border border-black/5 shadow-sm"
                                             v-tooltip="tag.tooltip">
-                                            {{ tag.tooltip }}
-                                        </span>
+                                        </div>
                                     </template>
                                 </div>
                             </td>
-                            <td class="px-3 py-2 text-center align-middle">
+                            <td class="px-4 py-3 text-center align-middle">
                                 <button
-                                    class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 transition-all duration-200 ease-out hover:text-blue-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-400 dark:hover:text-blue-300 dark:focus-visible:ring-offset-neutral-950"
-                                    @click="abrirModal(cliente)">
+                                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-blue-600 transition-all duration-200 ease-out hover:bg-blue-100/60 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-300 dark:focus-visible:ring-offset-neutral-950"
+                                    @click="irADetalleCliente(cliente)">
                                     Ver detalle
                                     <span
-                                        class="inline-block text-[10px] text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:scale-110 dark:text-blue-300">›</span>
+                                        class="text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-blue-400">→</span>
                                 </button>
                             </td>
                         </tr>
-                    </tbody>
+                    </TransitionGroup>
                 </table>
             </div>
         </div>
 
         <!-- Controles de paginación -->
         <div
-            class="mt-4 flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-100 bg-gradient-to-r from-white via-slate-50/70 to-white p-3 text-slate-900 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4 dark:border-neutral-800 dark:bg-gradient-to-r dark:from-neutral-950/95 dark:via-neutral-900/90 dark:to-neutral-950/95 dark:text-white">
+            class="mt-4 flex flex-col items-start justify-between gap-4 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-lg shadow-gray-200/40 backdrop-blur-lg sm:flex-row sm:items-center dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20">
             <!-- Items per page dropdown -->
-            <div class="flex flex-col items-start space-y-1 sm:space-y-2">
+            <div class="flex flex-col items-start">
                 <div class="flex items-center space-x-2">
-                    <label for="items-per-page" class="text-xs text-slate-600 dark:text-neutral-300">Registros por página</label>
+                    <label for="items-per-page" class="text-xs text-gray-600 dark:text-neutral-300">Mostrar:</label>
                     <select id="items-per-page" v-model="itemsPerPage"
-                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
+                        class="rounded-lg border border-gray-300/80 bg-gray-50/50 py-2 pl-3 pr-8 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
                         <option v-for="option in itemsPerPageOptions" :key="option" :value="option">{{ option }}</option>
                     </select>
                 </div>
-                <p class="text-xs text-slate-500 dark:text-neutral-400">
+                <p class="mt-2 text-xs text-gray-500 dark:text-neutral-400">
                     Mostrando
-                    <span class="font-medium text-slate-800 dark:text-neutral-200">{{ rangoInicio }}</span> –
-                    <span class="font-medium text-slate-800 dark:text-neutral-200">{{ rangoFin }}</span>
+                    <span class="font-semibold text-gray-800 dark:text-neutral-200">{{ rangoInicio }}</span>–<span
+                        class="font-semibold text-gray-800 dark:text-neutral-200">{{ rangoFin }}</span>
                     de
-                    <span class="font-medium text-slate-800 dark:text-neutral-200">{{ totalResultados }}</span>
-                    clientes
+                    <span class="font-semibold text-gray-800 dark:text-neutral-200">{{ totalResultados }}</span>
                 </p>
             </div>
 
             <!-- Page navigation controls -->
             <div class="flex items-center space-x-2">
                 <button @click="prevPage" :disabled="currentPage === 1"
-                    class="rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:bg-neutral-800/90">
+                    class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
                     Anterior
                 </button>
-                <span class="text-xs text-slate-600 dark:text-neutral-300">Página</span>
-                <input type="number" v-model.number="currentPage" min="1"
-                    :max="totalPages"
-                    class="w-16 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs text-slate-900 outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900" />
-                <span class="text-xs text-slate-600 dark:text-neutral-300">de {{ totalPages }}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-600 dark:text-neutral-300">Página</span>
+                    <input type="number" v-model.number="currentPage" min="1" :max="totalPages"
+                        class="w-16 rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2 text-center text-xs text-gray-900 outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                    <span class="text-xs text-gray-600 dark:text-neutral-300">de {{ totalPages }}</span>
+                </div>
                 <button @click="nextPage" :disabled="currentPage === totalPages"
-                    class="rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:bg-neutral-800/90">
+                    class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
                     Siguiente
                 </button>
             </div>
         </div>
 
-        <!-- Modal -->
-        <Transition name="modal-fade">
-            <div v-if="showModal"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity">
-                <div
-                    class="modal-fade-card relative w-full max-w-xl rounded-2xl border border-slate-200 bg-gradient-to-b from-white via-slate-50 to-white p-6 text-slate-900 shadow-2xl shadow-slate-300/70 transition-transform duration-200 ease-out dark:border-neutral-700 dark:bg-gradient-to-b dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950 dark:text-white dark:shadow-black/70">
-                    <button
-                        class="absolute right-3 top-3 rounded-full bg-white/0 px-2 py-1 text-slate-400 shadow-none transition-all duration-150 hover:bg-slate-100/80 hover:text-slate-600 hover:shadow-sm dark:bg-transparent dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200"
-                        @click="cerrarModal">
-                        ✕
-                    </button>
-                    <h3 class="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
-                        <span class="h-6 w-1 rounded-full bg-gradient-to-b from-blue-400 to-blue-600"></span>
-                        Datos registrados del cliente
-                    </h3>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-neutral-400">
-                        Información clave para el análisis de listas y monitoreo de PLD.
-                    </p>
-                    <div v-if="clienteSeleccionado" class="mt-4 max-h-[60vh] space-y-3 overflow-y-auto pr-1 text-sm">
-                        <p>
-                            <strong class="text-slate-700 dark:text-neutral-300">Nombre:</strong>
-                            <span class="text-slate-900 dark:text-neutral-100">
-                                {{ clienteSeleccionado.Nombre }} {{ clienteSeleccionado.ApellidoPaterno }}
-                                {{ clienteSeleccionado.ApellidoMaterno }}
-                            </span>
-                        </p>
-                        <p>
-                            <strong class="text-slate-700 dark:text-neutral-300">RFC:</strong>
-                            <span class="font-mono text-slate-900 dark:text-neutral-100">{{ clienteSeleccionado.RFC }}</span>
-                        </p>
-                        <p>
-                            <strong class="text-slate-700 dark:text-neutral-300">CURP:</strong>
-                            <span class="font-mono text-slate-900 dark:text-neutral-100">{{ clienteSeleccionado.CURP }}</span>
-                        </p>
-                        <p v-if="clienteSeleccionado.RazonSocial">
-                            <strong class="text-slate-700 dark:text-neutral-300">Razón Social:</strong>
-                            <span class="text-slate-900 dark:text-neutral-100">{{ clienteSeleccionado.RazonSocial }}</span>
-                        </p>
-                        <p>
-                            <strong class="text-slate-700 dark:text-neutral-300">Tipo de persona:</strong>
-                            <span
-                                class="ml-1 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium dark:bg-neutral-800/80"
-                                :class="clienteSeleccionado.IDTipoPersona === 1 ? 'text-blue-700 dark:text-blue-200' : 'text-emerald-700 dark:text-emerald-200'">
-                                {{ clienteSeleccionado.IDTipoPersona === 1 ? 'Física' : 'Moral' }}
-                            </span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-
         <Toast v-model:modelValue="showToast" :type="toastType" :message="toastMessage" />
     </AppLayout>
 </template>
 
-<style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.22s ease-out;
+<style>
+/* Staggered list animation */
+.list-enter-active,
+.list-leave-active {
+    transition: all 0.5s ease;
 }
 
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
+.list-enter-from,
+.list-leave-to {
+    opacity: 0;
+    transform: translateY(20px);
 }
 
-.modal-fade-enter-active .modal-fade-card,
-.modal-fade-leave-active .modal-fade-card {
-  transition: transform 0.22s ease-out, opacity 0.22s ease-out, box-shadow 0.22s ease-out;
+.list-enter-active {
+    transition-delay: calc(0.02s * var(--stagger-index));
 }
 
-.modal-fade-enter-from .modal-fade-card {
-  transform: translateY(12px) scale(0.96);
-  opacity: 0;
+/* Modal animation */
+.modal-enter-active,
+.modal-leave-active {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-fade-leave-to .modal-fade-card {
-  transform: translateY(8px) scale(0.97);
-  opacity: 0;
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+.modal-enter-active .modal-card,
+.modal-leave-active .modal-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-enter-from .modal-card {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+}
+
+.modal-leave-to .modal-card {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.4);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.6);
+}
+
+/* Keyframe for subtle background animation if needed */
+@keyframes subtle-pan {
+    0% {
+        background-position: 0% 0%;
+    }
+
+    100% {
+        background-position: 10% 10%;
+    }
 }
 </style>

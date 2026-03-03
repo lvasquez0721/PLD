@@ -211,6 +211,12 @@
     Oficio: string;
   }
 
+  function exportarCSV() {
+    const params = new URLSearchParams();
+    if (search.value) params.append('buscar', search.value);
+    window.location.href = `/lista-negra/exportar?${params.toString()}`;
+  }
+
   const listas = computed(() => (page.props.listas as ListaNegra[]) ?? []);
   const isLoading = ref(true)
   onMounted(() => { setTimeout(() => { isLoading.value = false }, 800) })
@@ -354,12 +360,20 @@
       <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)]">
             <div class="p-4 flex items-center justify-between">
               <div v-if="showingMessage" class="text-xs text-slate-500 dark:text-neutral-400">{{ showingMessage }}</div>
-              <button @click="openAddModal" :disabled="isLoading" class="inline-flex items-center rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-blue-600 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-blue-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-blue-400 dark:hover:bg-blue-900/90">
-                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Agregar Registro
-              </button>
+              <div class="flex gap-2">
+                <button @click="exportarCSV" :disabled="isLoading" class="inline-flex items-center rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-emerald-600 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-emerald-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-emerald-400 dark:hover:bg-emerald-900/90">
+                  <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  Descargar CSV
+                </button>
+                <button @click="openAddModal" :disabled="isLoading" class="inline-flex items-center rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-blue-600 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-blue-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-blue-400 dark:hover:bg-blue-900/90">
+                  <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Agregar Registro
+                </button>
+              </div>
             </div>
             <div class="max-h-[28rem] overflow-y-auto">
               <table id="table-lista-negra-cnsf" class="min-w-full border-collapse text-sm text-slate-900 dark:text-white">

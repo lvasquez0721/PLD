@@ -59,7 +59,7 @@ onBeforeUnmount(() => {
                     <span class="sr-only">{{ title }}</span>
                     </Link>
                     <div class="space-y-2 text-center pointer-events-auto">
-                        <h1 class="text-xl font-medium tracking-tight text-foreground drop-shadow-sm">{{ title }}</h1>
+                        <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">{{ title }}</h1>
                         <p class="text-center text-sm text-muted-foreground/90 italic select-none">
                             {{ description }}
                         </p>

@@ -46,6 +46,74 @@ class ListaNegraController extends Controller
         ]);
     }
 
+    public function exportCsv(Request $request)
+    {
+        try {
+            $buscar = $request->input('buscar');
+
+            $query = TbListasNegraCNSF::select(
+                'IDRegistroListaCNSF',
+                'Nombre',
+                'RFC',
+                'CURP',
+                'FechaNacimiento',
+                'Pais'
+            )
+            ->when($buscar, function ($query, $buscar) {
+                $query->where('Nombre', 'LIKE', "%{$buscar}%")
+                    ->orWhere('RFC', 'LIKE', "%{$buscar}%");
+            })
+            ->orderBy('IDRegistroListaCNSF', 'DESC');
+
+            $listas = $query->get();
+
+            if ($listas->isEmpty()) {
+                return redirect()->back()->with('error', 'No hay datos para exportar.');
+            }
+
+            $fileName = 'lista_negra_cnsf_' . date('Ymd_His') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            ];
+
+            $callback = function () use ($listas) {
+                $file = fopen('php://output', 'w');
+                // Añadir BOM para que Excel reconozca UTF-8
+                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+                // Definir encabezados personalizados
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'RFC',
+                    'CURP',
+                    'Fecha Nacimiento',
+                    'País'
+                ]);
+
+                foreach ($listas as $item) {
+                    fputcsv($file, [
+                        $item->IDRegistroListaCNSF,
+                        $item->Nombre,
+                        $item->RFC,
+                        $item->CURP,
+                        $item->FechaNacimiento,
+                        $item->Pais
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+
+        } catch (\Exception $e) {
+            Log::error('Error Export CSV: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocurrió un error al exportar el CSV.');
+        }
+    }
+
     public function insert(Request $request)
     {
         // dd($request->all()); // Muestra todos los datos del request

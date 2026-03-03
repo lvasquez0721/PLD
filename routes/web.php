@@ -1,15 +1,26 @@
 <?php
 
+use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\BuzonPreocupantesController;
+use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ConsultaInusualidadController;
+use App\Http\Controllers\ListaNegraController;
+use App\Http\Controllers\ListasUIFController;
+use App\Http\Controllers\ParametriaPLDController;
+use App\Http\Controllers\PerfilTransaccionalController;
+use App\Http\Controllers\ReporteOperacionesController;
 use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia; // <-- Agregar importación de Artisan
+use Inertia\Inertia;
 
-// Route::get('/', function () {
-//     return Inertia::render('Welcome');
-// })->name('home');
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
 
+// Home & Dashboard
 Route::get('/', function () {
     return redirect()->route('dashboard');
 })->middleware(['auth', 'verified'])->name('home');
@@ -18,183 +29,132 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/usuarios', [UsuariosController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('usuarios.index');
+// Usuarios
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/usuarios', [UsuariosController::class, 'index'])->name('usuarios.index');
+    Route::post('/usuarios', [UsuariosController::class, 'store'])->name('usuarios.store');
+    Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->name('usuarios.update');
+    Route::delete('/usuarios/{id}', [UsuariosController::class, 'destroy'])->name('usuarios.destroy');
+});
 
-Route::post('/usuarios', [UsuariosController::class, 'store'])
-    ->middleware(['auth', 'verified'])
-    ->name('usuarios.store');
+// Perfil Transaccional
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil-transaccional.index');
+    Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil-transaccional.insert');
+    Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil-transaccional.buscar');
+    Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil-transaccional.ejecutar');
+});
 
-Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])
-    ->middleware(['auth', 'verified'])
-    ->name('usuarios.update');
+// Alertas
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/alertas', [AlertasController::class, 'index'])->name('alertas.index');
+    Route::post('/alertas/emitir-reporte', [AlertasController::class, 'emitirReporteAlerta'])->name('alertas.emitir-reporte');
+    Route::get('/alertas/date-range', [AlertasController::class, 'getAlertasByDateRange'])->name('alertas.date-range');
+    Route::get('/alertas/download-csv', [AlertasController::class, 'downloadAlertasCsvByDateRange'])->name('alertas.download-csv');
+    Route::get('/clientes/{id}/polizas', [AlertasController::class, 'getPolizasPorCliente'])->name('clientes.polizas');
+});
 
-Route::delete('/usuarios/{id}', [UsuariosController::class, 'destroy'])
-    ->middleware(['auth', 'verified'])
-    ->name('usuarios.destroy');
+// Buzón Preocupantes
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/buzon-preocupantes', [BuzonPreocupantesController::class, 'index'])->name('buzon-preocupantes.index');
+    Route::post('/buzon-preocupantes/pasar-alertas', [BuzonPreocupantesController::class, 'pasarAlertas'])->name('buzon.pasarAlertas');
+    Route::post('/buzon-preocupantes/guardar', [BuzonPreocupantesController::class, 'store'])->name('buzon.store');
+});
 
-// nuevas rutas
-Route::get('/perfil-transaccional', [App\Http\Controllers\PerfilTransaccionalController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('perfil-transaccional.index');
+// Listas Negra CNSF
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/lista-negra', [ListaNegraController::class, 'index'])->name('lista-negra.index');
+    Route::get('/lista-negra/exportar', [ListaNegraController::class, 'exportCsv'])->name('lista-negra.exportar');
+    Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->name('lista-negra.insert');
+    Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
+    Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
+});
 
-// ALERTAS
-Route::get('/alertas', [App\Http\Controllers\AlertasController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('alertas.index');
+// Reporte de Operaciones
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/reporte-operaciones', [ReporteOperacionesController::class, 'index'])->name('reporte-operaciones.index');
+    Route::get('/reporte-operaciones/obtener', [ReporteOperacionesController::class, 'obtenerReporte'])->name('reporte-operaciones.obtener');
+    Route::get('/reporte-operaciones/exportar', [ReporteOperacionesController::class, 'exportarCSV'])->name('reporte-operaciones.exportar');
+});
 
-Route::post('/alertas/emitir-reporte', [App\Http\Controllers\AlertasController::class, 'emitirReporteAlerta'])
-    ->middleware(['auth', 'verified'])
-    ->name('alertas.emitir-reporte');
+// Parametria PLD
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/parametria-pld', [ParametriaPLDController::class, 'index'])->name('parametria-pld.index');
+    Route::post('/parametria-pld/actualizar', [ParametriaPLDController::class, 'actualizar'])->name('parametria-pld.actualizar');
+});
 
-// Ruta para obtener alertas por rango de fechas
-Route::get('/alertas/date-range', [App\Http\Controllers\AlertasController::class, 'getAlertasByDateRange'])
-    ->name('alertas.date-range');
+// Listas UIF
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/listas-uif', [ListasUIFController::class, 'index'])->name('listas-uif.index');
+    Route::get('/listas-uif/exportar', [ListasUIFController::class, 'exportarCSV'])->name('listas-uif.exportar');
+    Route::post('/listas-uif/altaListas', [ListasUIFController::class, 'altaListasUIF'])->name('listas-uif.altaListas');
+    Route::post('/listas-uif/bajaListas', [ListasUIFController::class, 'bajaListas'])->name('listas-uif.bajaListas');
+    Route::post('/listas-uif/actualizaListas', [ListasUIFController::class, 'actualizaListas'])->name('listas-uif.actualizaListas');
+    Route::get('/listas-uif/consultaListas', [ListasUIFController::class, 'getConsultaListas'])->name('listas-uif.consultaListas');
+});
 
-// Ruta para descargar alertas por rango de fechas en CSV
-Route::get('/alertas/download-csv', [App\Http\Controllers\AlertasController::class, 'downloadAlertasCsvByDateRange'])
-    ->name('alertas.download-csv');
-
-// Folios de póliza por cliente
-Route::get('/clientes/{id}/polizas', [App\Http\Controllers\AlertasController::class, 'getPolizasPorCliente'])
-    ->middleware(['auth', 'verified'])
-    ->name('clientes.polizas');
-
-// JFG ruta buzón preocupantes
-Route::get('/buzon-preocupantes', [App\Http\Controllers\BuzonPreocupantesController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('buzon-preocupantes.index');
-
-Route::post('/buzon-preocupantes/pasar-alertas', [BuzonPreocupantesController::class, 'pasarAlertas'])
-    ->middleware(['auth', 'verified'])
-    ->name('buzon.pasarAlertas');
-
-Route::post('/buzon-preocupantes/guardar', [BuzonPreocupantesController::class, 'store'])
-    ->middleware(['auth', 'verified'])
-    ->name('buzon.store');
-
-Route::get('/lista-negra', [App\Http\Controllers\ListaNegraController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('lista-negra.index');
-
-Route::get('/reporte-operaciones', [App\Http\Controllers\ReporteOperacionesController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('reporte-operaciones.index');
-
-Route::get('/reporte-operaciones/obtener', [App\Http\Controllers\ReporteOperacionesController::class, 'obtenerReporte']);
-
-// Rutas para Parametria PLD
-Route::get('/parametria-pld', [App\Http\Controllers\ParametriaPLDController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('parametria-pld.index');
-
-Route::post('/parametria-pld/actualizar', [App\Http\Controllers\ParametriaPLDController::class, 'actualizar'])
-    ->middleware(['auth', 'verified'])
-    ->name('parametria-pld.actualizar');
-
-Route::get('/listas-uif', [App\Http\Controllers\ListasUIFController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('listas-uif.index');
-
-Route::post('/listas-uif/altaListas', [App\Http\Controllers\ListasUIFController::class, 'altaListas'])
-    ->middleware(['auth', 'verified'])
-    ->name('listas-uif.altaListas');
-
-Route::post('/listas-uif/bajaListas', [App\Http\Controllers\ListasUIFController::class, 'bajaListas'])
-    ->middleware(['auth', 'verified'])
-    ->name('listas-uif.bajaListas');
-
-Route::post('/listas-uif/actualizaListas', [App\Http\Controllers\ListasUIFController::class, 'actualizaListas'])
-    ->middleware(['auth', 'verified'])
-    ->name('listas-uif.actualizaListas');
-
-Route::get('/listas-uif/consultaListas', [App\Http\Controllers\ListasUIFController::class, 'getConsultaListas'])
-    ->middleware(['auth', 'verified'])
-    ->name('listas-uif.consultaListas');
-
-Route::get('/consulta-inusualidad', [App\Http\Controllers\ConsultaInusualidadController::class, 'index'])
+// Consulta Inusualidad
+Route::get('/consulta-inusualidad', [ConsultaInusualidadController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
 
-// Rutas para Clientes
-Route::get('/clientes', [App\Http\Controllers\ClientesController::class, 'index'])
+// Clientes
+Route::get('/clientes', [ClientesController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('clientes.index');
+Route::get('/clientes/exportar', [ClientesController::class, 'exportCsv'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.exportar');
+Route::get('/clientes/ver-detalles/{id_cliente}', [ClientesController::class, 'verDetallesCliente'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.ver-detalles');
 
-// Rutas de Listas Negra CNSF---------------------------------------------------------------------------------------------------------
-use App\Http\Controllers\ListaNegraController;
 
-Route::get('/lista-negra', [ListaNegraController::class, 'index'])->name('lista-negra.index');
-Route::post('/lista-negra/insert', [ListaNegraController::class, 'insert'])->name('lista-negra.insert');
-Route::post('/lista-negra/update/{id}', [ListaNegraController::class, 'update'])->name('lista-negra.update');
-Route::post('/lista-negra/delete/{id}', [ListaNegraController::class, 'delete'])->name('lista-negra.delete');
+// Utilidades del Sistema
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/migraciones/ejecutar', function () {
+        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            return response()->json(['success' => true, 'output' => Artisan::output()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    });
 
-// Rutas de Perfil Transaccional------------------------------------------------------------------------------------------------------
-use App\Http\Controllers\PerfilTransaccionalController;
+    Route::post('/storage-link', function () {
+        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        try {
+            Artisan::call('storage:link');
+            return response()->json(['success' => true, 'output' => Artisan::output()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    })->name('storage.link');
 
-Route::get('/perfil-transaccional', [PerfilTransaccionalController::class, 'index'])->name('perfil.index');
-Route::post('/perfil-transaccional/insert', [PerfilTransaccionalController::class, 'insert'])->name('perfil.insert');
-Route::post('/perfil-transaccional/buscar', [PerfilTransaccionalController::class, 'buscar'])->name('perfil.buscar');
-Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil.ejecutar');
-// ----------------------------------------------------------------------------------------------------------------------------------------------
+    Route::post('/limpiar-cache', function () {
+        try {
+            Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+            return response()->json(['success' => true, 'output' => Artisan::output()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    })->name('limpiar.cache');
 
-Route::post('/migraciones/ejecutar', function () {
-    // Solo permitir en entorno local o administrador
-    if (! app()->environment('local')) {
-        abort(403, 'Acceso denegado');
-    }
-
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-
-        return response()->json(['success' => true, 'output' => Artisan::output()]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    }
+    Route::post('/key-generate', function () {
+        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        try {
+            Artisan::call('key:generate');
+            return response()->json(['success' => true, 'output' => Artisan::output()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    })->name('key.generate');
 });
 
-Route::post('/storage-link', function () {
-    // Solo permitir en entorno local o administrador
-    if (!app()->environment('local')) {
-        abort(403, 'Acceso denegado');
-    }
-
-    try {
-        Artisan::call('storage:link');
-        return response()->json(['success' => true, 'output' => Artisan::output()]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    }
-})->middleware(['auth', 'verified'])->name('storage.link');
-
-Route::post('/limpiar-cache', function () {
-    try {
-        Artisan::call('cache:clear');
-        Artisan::call('config:clear');
-        Artisan::call('route:clear');
-        Artisan::call('view:clear');
-        return response()->json(['success' => true, 'output' => Artisan::output()]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    }
-})->middleware(['auth', 'verified'])->name('limpiar.cache');
-
-Route::post('/key-generate', function () {
-    // Solo permitir en entorno local o administrador
-    if (!app()->environment('local')) {
-        abort(403, 'Acceso denegado');
-    }
-
-    try {
-        Artisan::call('key:generate');
-        return response()->json(['success' => true, 'output' => Artisan::output()]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    }
-})->middleware(['auth', 'verified'])->name('key.generate');
-
-
-// ----------------------------------------------------------------------------------------------------------------------------------
+// Auth & Settings
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

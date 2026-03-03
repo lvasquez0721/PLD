@@ -3,7 +3,7 @@ import { defineProps, defineEmits, useSlots } from 'vue';
 
 const props = defineProps<{
   modelValue: string
-  label?: strings
+  label?: string
   placeholder?: string
   id?: string
   name?: string

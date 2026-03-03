@@ -50,11 +50,7 @@ const hoveredItem = ref<string | null>(null);
                                     {{ item.title }}
                                 </span>
 
-                                <!-- Descripción sutil (solo en hover) -->
-                                <div v-if="item.description && hoveredItem === item.title"
-                                    class="text-xs text-sidebar-foreground/50 mt-0.5 leading-tight">
-                                    {{ item.description }}
-                                </div>
+
                             </div>
 
                             <!-- Badge de notificación -->

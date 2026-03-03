@@ -50,71 +50,61 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
-        badge: null,
-        description: 'Vista general del sistema'
+        badge: null
     },
     {
         title: 'Usuarios',
         href: usuariosHref,
         icon: Users,
-        badge: null,
-        description: 'Gestión de usuarios'
+        badge: null
     },
     {
         title: 'Clientes',
         href: '/clientes',
         icon: UserRound,
-        badge: null,
-        description: 'Consulta de clientes'
+        badge: null
     },
     {
         title: 'Perfil Transaccional',
         href: '/perfil-transaccional',
         icon: BookOpen,
-        badge: null,
-        description: 'Gestión de perfiles transaccionales'
+        badge: null
     },
     {
         title: 'Módulo de Alertas',
         href: '/alertas',
         icon: Bell,
-        badge: null,
-        description: 'Gestión de alertas'
+        badge: null
     },
     {
         title: 'Buzón de Preocupantes',
         href: '/buzon-preocupantes',
         icon: MailWarning,
-        badge: null,
-        description: 'Buzón de personas preocupantes'
+        badge: null
     },
     {
         title: 'Lista Negra',
         href: '/lista-negra',
         icon: ListX,
-        badge: null,
-        description: 'Gestión de listas negras'
+        badge: null
     },
     {
         title: 'Reporte de Operaciones',
         href: '/reporte-operaciones',
         icon: FileText,
-        badge: null,
-        description: 'Reportes de operaciones'
+        badge: null
     },
     {
         title: 'Parametría PLD',
         href: '/parametria-pld',
         icon: Settings,
-        badge: null,
-        description: 'Configuración de parametría PLD'
+        badge: null
     },
     {
         title: 'Listas UIF',
         href: '/listas-uif',
         icon: Gavel,
-        badge: null,
-        description: 'Gestión de listas UIF'
+        badge: null
     },
     //{
     //    title: 'Consulta Inusualidad',
@@ -130,14 +120,12 @@ const footerNavItems: NavItem[] = [
     //     title: 'Configuración',
     //     href: '/configuracion',
     //     icon: Settings,
-    //     description: 'Ajustes del sistema'
     // },
     // {
     //     title: 'Notificaciones',
     //     href: '/notificaciones',
     //     icon: Bell,
     //     badge: '3',
-    //     description: 'Centro de notificaciones'
     // },
 ];
 </script>

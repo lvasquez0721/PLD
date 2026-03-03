@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
 import FadeIn from '@/components/ui/animation/fadeIn.vue'
 import Toast from '@/components/ui/alert/Toast.vue'
+import Input from '@/components/forms/Input.vue'
 import { type BreadcrumbItem } from '@/types'
 import { Settings } from 'lucide-vue-next'
 
@@ -128,58 +129,46 @@ const actualizarParametros = () => {
     <FadeIn>
       <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-0">
 
-
         <form @submit.prevent="actualizarParametros" class="space-y-6">
           <!-- Sección: Parámetros Alertas -->
           <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
             <section class="space-y-4">
               <h3 class="text-2xl font-semibold text-slate-800 dark:text-neutral-200 mb-4">Parámetros Alertas</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Operaciones Relevantes (USD):</label>
-                  <input
-                    type="number"
-                    v-model="form.operacionesRelevantes"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Desviación Estándar Alerta Monto Inusual:</label>
-                  <input
-                    type="number"
-                    v-model="form.desviacionEstandarInusualidad"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Años considerados Alerta Monto Inusual:</label>
-                  <input
-                    type="number"
-                    v-model="form.aniosConsideradosInusualidad"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="1"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Monto Mínimo Alertas (USD):</label>
-                  <input
-                    type="number"
-                    v-model="form.montoMinimoAlerta"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Porcentaje Tolerancia +/- Pagos Fraccionados (%):</label>
-                  <input
-                    type="number"
-                    v-model="form.toleranciaPagosFraccionados"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4">
+                <Input
+                  label="Operaciones Relevantes"
+                  v-model="form.operacionesRelevantes"
+                  type="float"
+                  icon="dollar"
+                  suffix="USD"
+                />
+                <Input
+                  label="Desviación Estándar Alerta Monto Inusual"
+                  v-model="form.desviacionEstandarInusualidad"
+                  type="float"
+                  icon="chart"
+                />
+                <Input
+                  label="Años Considerados Alerta Monto Inusual"
+                  v-model="form.aniosConsideradosInusualidad"
+                  type="int"
+                  icon="calendar"
+                  suffix="años"
+                />
+                <Input
+                  label="Monto Mínimo Alertas"
+                  v-model="form.montoMinimoAlerta"
+                  type="float"
+                  icon="alert"
+                  suffix="USD"
+                />
+                <Input
+                  label="Porcentaje Tolerancia +/- Pagos Fraccionados"
+                  v-model="form.toleranciaPagosFraccionados"
+                  type="float"
+                  icon="percent"
+                  suffix="%"
+                />
               </div>
             </section>
           </div>
@@ -188,16 +177,13 @@ const actualizarParametros = () => {
           <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
             <section class="space-y-4">
               <h3 class="text-2xl font-semibold text-slate-800 dark:text-neutral-200 mb-4">Parámetros Perfil Transaccional</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Riesgo Alto Perfil:</label>
-                  <input
-                    type="number"
-                    v-model="form.riesgoAltoPerfil"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4">
+                <Input
+                  label="Riesgo Alto Perfil"
+                  v-model="form.riesgoAltoPerfil"
+                  type="float"
+                  icon="alert"
+                />
               </div>
             </section>
           </div>
@@ -206,16 +192,14 @@ const actualizarParametros = () => {
           <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
             <section class="space-y-4">
               <h3 class="text-2xl font-semibold text-slate-800 dark:text-neutral-200 mb-4">Parámetros Reporteador PLD</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Reporteador Monto Acumulado (USD):</label>
-                  <input
-                    type="number"
-                    v-model="form.reporteadorMontoAcumulado"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4">
+                <Input
+                  label="Reporteador Monto Acumulado"
+                  v-model="form.reporteadorMontoAcumulado"
+                  type="float"
+                  icon="dollar"
+                  suffix="USD"
+                />
               </div>
             </section>
           </div>
@@ -224,25 +208,21 @@ const actualizarParametros = () => {
           <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
             <section class="space-y-4">
               <h3 class="text-2xl font-semibold text-slate-800 dark:text-neutral-200 mb-4">Parámetros Buscadores Listas Negras</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Umbral mínimo Buscador UIF (%):</label>
-                  <input
-                    type="number"
-                    v-model="form.umbralBuscadorUIF"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">Umbral mínimo Buscador CNSF (%):</label>
-                  <input
-                    type="number"
-                    v-model="form.umbralBuscadorCNSF"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4">
+                <Input
+                  label="Umbral mínimo Buscador UIF"
+                  v-model="form.umbralBuscadorUIF"
+                  type="float"
+                  icon="search"
+                  suffix="%"
+                />
+                <Input
+                  label="Umbral mínimo Buscador CNSF"
+                  v-model="form.umbralBuscadorCNSF"
+                  type="float"
+                  icon="search"
+                  suffix="%"
+                />
               </div>
             </section>
           </div>
@@ -253,30 +233,22 @@ const actualizarParametros = () => {
               <h3 class="text-2xl font-semibold text-slate-800 dark:text-neutral-200 mb-4">
                 Parámetros Autorización Aplicación de Pagos en Efectivo
               </h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">
-                    Monto Autorización Pagos Efectivo Persona Física <span>(MXN):</span>
-                  </label>
-                  <input
-                    type="number"
-                    v-model="form.montoAutorizaPagoEfectivoPF"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                <Input
+                  label="Monto Autorización Pagos Efectivo Persona Física"
+                  v-model="form.montoAutorizaPagoEfectivoPF"
+                  type="float"
+                  icon="users"
+                  suffix="MXN"
+                />
 
-                <div>
-                  <label class="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1 block">
-                    Monto Autorización Pagos Efectivo Persona Moral (MXN):
-                  </label>
-                  <input
-                    type="number"
-                    v-model="form.montoAutorizaPagoEfectivoPM"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900"
-                    step="0.01"
-                  />
-                </div>
+                <Input
+                  label="Monto Autorización Pagos Efectivo Persona Moral"
+                  v-model="form.montoAutorizaPagoEfectivoPM"
+                  type="float"
+                  icon="building"
+                  suffix="MXN"
+                />
               </div>
             </section>
           </div>

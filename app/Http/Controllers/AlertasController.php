@@ -225,7 +225,7 @@ class AlertasController extends Controller
 
             $alerta->update([
                 'Folio' => $folio,
-                'Patron' => 'Inusual',
+                'Patron' => 'Preocupante',
                 'IDCliente' => $request->input('noCliente'),
                 'Cliente' => $request->input('nombre'),
                 'Poliza' => $request->input('poliza'),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSlots, ref } from 'vue';
+import { useSlots, ref, computed } from 'vue';
 
 // Flowbite icons mapping (use short names like icon="mail")
 const flowbiteIcons: Record<string, string> = {
@@ -32,7 +32,7 @@ const svgIcons: Record<string, string> = {
 
 // defineProps no se puede renombrar ni envolver, así que usamos directamente
 const props = withDefaults(defineProps<{
-  modelValue: string
+  modelValue: string | number
   label?: string
   placeholder?: string
   id?: string
@@ -41,39 +41,40 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   classInput?: string
   classLabel?: string
-  value?: string
+  value?: string | number
   icon?: string
   prefix?: string | undefined
   suffix?: string | undefined
+  startYear?: number
+  endYear?: number
 }>(), {
-  icon: 'calendar'
+  icon: 'calendar',
+  startYear: new Date().getFullYear() - 100,
+  endYear: new Date().getFullYear(),
 });
 
 const emit = defineEmits(['update:modelValue']);
 const slots = useSlots();
-const dateInput = ref<HTMLInputElement | null>(null);
+const selectInput = ref<HTMLSelectElement | null>(null);
+
+const years = computed(() => {
+  const years = [];
+  for (let year = props.endYear; year >= props.startYear; year--) {
+    years.push(year);
+  }
+  return years;
+});
 
 function onInput(event: Event) {
-  const input = event.target as HTMLInputElement;
+  const input = event.target as HTMLSelectElement;
   emit('update:modelValue', input.value);
 }
 
 function handleWrapperClick() {
   if (props.disabled) return;
 
-  if (dateInput.value) {
-    // Intentar usar showPicker() si está disponible (navegadores modernos)
-    if ('showPicker' in HTMLInputElement.prototype) {
-      try {
-        dateInput.value.showPicker();
-      } catch (e) {
-        dateInput.value.focus();
-        dateInput.value.click();
-      }
-    } else {
-      dateInput.value.focus();
-      dateInput.value.click();
-    }
+  if (selectInput.value) {
+    selectInput.value.focus();
   }
 }
 </script>
@@ -143,17 +144,14 @@ function handleWrapperClick() {
         </span>
 
         <!-- Input -->
-        <input
+        <select
           :id="id"
           :name="name"
-          type="date"
-          ref="dateInput"
+          ref="selectInput"
           :value="value !== undefined ? value : modelValue"
-          @input="onInput"
-          :placeholder="placeholder"
+          @change="onInput"
           :required="required"
           :disabled="disabled"
-          :readonly="disabled"
           :class="[
             (prefix || slots.prefix)
               ? 'rounded-none rounded-r-xl border-l-0'
@@ -169,7 +167,7 @@ function handleWrapperClick() {
                 : 'pl-4',
             (suffix || slots.suffix)
               ? 'pr-4'
-              : 'pr-4',
+              : 'pr-10', // space for the dropdown arrow
             'bg-transparent',
             'border-0',
             'text-neutral-900 dark:text-neutral-100',
@@ -180,7 +178,8 @@ function handleWrapperClick() {
             'block w-full py-3',
             'disabled:bg-transparent dark:disabled:bg-transparent disabled:opacity-60',
             'select-auto',
-            'custom-date-input cursor-pointer',
+            'cursor-pointer',
+            'appearance-none', // remove default arrow
             classInput
           ]"
           :aria-describedby="suffix || slots.suffix ? id + '-suffix' : undefined"
@@ -188,7 +187,12 @@ function handleWrapperClick() {
             ...(prefix || slots.prefix ? { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeftWidth: '0px' } : {}),
             ...(suffix || slots.suffix ? { borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRightWidth: '0px' } : {})
           }"
-        />
+        >
+          <option v-if="placeholder" value="" disabled selected>{{ placeholder }}</option>
+          <option v-for="year in years" :key="year" :value="year">
+            {{ year }}
+          </option>
+        </select>
 
         <!-- Suffix -->
         <span
@@ -212,34 +216,15 @@ function handleWrapperClick() {
           aria-hidden="true"
           class="pointer-events-none absolute inset-0 rounded-xl group-hover:shadow-[0_4px_18px_0_rgba(15,23,42,0.04)] group-hover:bg-neutral-800/2 dark:group-hover:bg-neutral-800/4 transition-all duration-200 group-focus-within:shadow-[0_5px_20px_0_rgba(0,0,0,0.10)]"
         />
+        <!-- Custom dropdown arrow -->
+        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-neutral-700 dark:text-neutral-300">
+            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+        </span>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Specific styling for the date picker indicator to ensure visibility in dark mode */
-.custom-date-input::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  filter: invert(0);
-  opacity: 0.5;
-  transition: opacity 0.2s;
-}
-
-.custom-date-input:hover::-webkit-calendar-picker-indicator {
-  opacity: 1;
-}
-
-:deep(.dark) .custom-date-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
-
-/* Fallback for other browsers if needed */
-.custom-date-input::-moz-calendar-picker-indicator {
-  filter: invert(0);
-}
-
-:deep(.dark) .custom-date-input::-moz-calendar-picker-indicator {
-  filter: invert(1);
-}
+/* Add any specific styles for YearPicker here if needed */
 </style>

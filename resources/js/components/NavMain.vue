@@ -33,7 +33,7 @@ const isItemActive = (href: string) => {
             <SidebarMenuItem v-for="(item, index) in items" :key="item.title" class="relative"
                 :style="{ '--animation-delay': `${index * 0.1}s` }">
                 <SidebarMenuButton as-child :is-active="isItemActive(item.href)"
-                    :tooltip="item.description || item.title"
+                    :tooltip="item.title"
                     class="group relative overflow-hidden transition-all duration-200 ease-out hover:bg-sidebar-accent/80 focus:bg-sidebar-accent/80"
                     :class="{
                         'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm': isItemActive(item.href),
@@ -68,11 +68,7 @@ const isItemActive = (href: string) => {
                             {{ item.title }}
                         </span>
 
-                        <!-- Descripción sutil (solo en hover) -->
-                        <div v-if="item.description && hoveredItem === item.title"
-                            class="text-xs text-sidebar-foreground/60 mt-0.5 leading-tight">
-                            {{ item.description }}
-                        </div>
+
                     </div>
 
                     <!-- Badge de notificación -->

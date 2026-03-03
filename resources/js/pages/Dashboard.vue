@@ -2,190 +2,192 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '../components/PlaceholderPattern.vue';
+import { Head, Link } from '@inertiajs/vue3';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
+import {
+    AlertTriangle,
+    Users,
+    FileSearch,
+    FileText,
+    BarChart2,
+    ShieldCheck,
+    ArrowRight,
+    Search,
+    FilePlus
+} from 'lucide-vue-next';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Dashboard PLD',
         href: dashboard().url,
     },
 ];
+
+// --- Placeholder Data ---
+// In a real application, this would come from props or an API call.
+const stats = {
+    alertasCriticas: { value: 12, trend: 5 },
+    clientesRevision: { value: 8 },
+    operacionesInusuales: { value: 43, trend: -10 },
+    reportesPendientes: { value: 3 },
+};
+
+const alertasRecientes = [
+    { id: 1, cliente: 'Juan Carlos Schmid', riesgo: 'Alto', patron: 'Operación fraccionada', fecha: 'Hace 2 horas', url: '#' },
+    { id: 2, cliente: 'Constructora del Sureste SA de CV', riesgo: 'Alto', patron: 'Movimientos sin justificación económica', fecha: 'Hace 1 día', url: '#' },
+    { id: 3, cliente: 'Marco Antonio Regil', riesgo: 'Medio', patron: 'Actividad atípica para el perfil', fecha: 'Hace 2 días', url: '#' },
+];
+
+const clientesAltoRiesgo = [
+    { id: 1, nombre: 'Empresaria Hotelera del Caribe', tipo: 'Nuevo PPE Identificado', fecha: 'Ayer', url: '#' },
+    { id: 2, nombre: 'José Pérez López', tipo: 'Coincidencia en Listas de Observación', fecha: 'Hace 3 días', url: '#' },
+];
+
 </script>
 
 <template>
 
-    <Head title="Dashboard" />
+    <Head title="Dashboard PLD" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <FadeIn>
-            <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <!-- Sección de tarjetas principales -->
-                <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div
-                        class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern />
+        <FadeIn class="space-y-6">
+            <!-- Sección de Tarjetas de Estadísticas Principales -->
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                <!-- Alertas Críticas -->
+                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-orange-500/30">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                            <AlertTriangle class="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Alertas Críticas</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.alertasCriticas.value }}</p>
+                        </div>
                     </div>
-                    <div
-                        class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern />
+                </div>
+                <!-- Clientes en Revisión -->
+                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-yellow-500/30">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/40">
+                            <Users class="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Clientes en Revisión</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.clientesRevision.value }}</p>
+                        </div>
                     </div>
-                    <div
-                        class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern />
+                </div>
+                <!-- Operaciones Inusuales -->
+                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-blue-500/30">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                            <FileSearch class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Op. Inusuales</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.operacionesInusuales.value }}</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Reportes Pendientes -->
+                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-purple-500/30">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/40">
+                            <FileText class="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Reportes Pendientes</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.reportesPendientes.value }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Gráfico Principal y Acciones Rápidas -->
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <!-- Gráfico de Alertas -->
+                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg lg:col-span-2 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
+                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Alertas en los Últimos 30 Días</h2>
+                    <div class="mt-4 flex h-64 items-center justify-center rounded-lg bg-gray-100/80 dark:bg-neutral-900/50">
+                        <div class="text-center">
+                             <BarChart2 class="mx-auto h-12 w-12 text-gray-400 dark:text-neutral-600" />
+                             <p class="mt-2 text-sm text-gray-500 dark:text-neutral-400">Placeholder para gráfico de alertas</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Acciones Rápidas -->
+                <div class="space-y-4">
+                     <h2 class="text-base font-semibold text-gray-800 dark:text-white">Acciones Rápidas</h2>
+                     <div class="space-y-3">
+                         <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-blue-400/80 hover:bg-white hover:shadow-xl hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-blue-500/60 dark:hover:bg-neutral-800/80">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Analizar Cliente</h3>
+                                <p class="text-xs text-gray-500 dark:text-neutral-400">Buscar perfiles, operaciones y alertas.</p>
+                            </div>
+                            <Search class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                         </Link>
+                          <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-purple-400/80 hover:bg-white hover:shadow-xl hover:shadow-purple-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-purple-500/60 dark:hover:bg-neutral-800/80">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Generar Reporte Regulatorio</h3>
+                                <p class="text-xs text-gray-500 dark:text-neutral-400">Crear reportes para la autoridad.</p>
+                            </div>
+                            <FilePlus class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110 group-hover:text-purple-500 dark:group-hover:text-purple-400" />
+                         </Link>
+                         <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-gray-400/80 hover:bg-white hover:shadow-xl hover:shadow-gray-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-gray-500/60 dark:hover:bg-neutral-800/80">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Consultar Listas</h3>
+                                <p class="text-xs text-gray-500 dark:text-neutral-400">Ver listas de PPL, CNSF, UIF, etc.</p>
+                            </div>
+                            <FileSearch class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110" />
+                         </Link>
+                     </div>
+                </div>
+            </div>
+
+            <!-- Sección de Listas de Actividad -->
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <!-- Alertas Críticas Recientes -->
+                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
+                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Alertas Críticas Recientes</h2>
+                    <div class="mt-4 flow-root">
+                        <ul role="list" class="-my-3 divide-y divide-gray-200/80 dark:divide-neutral-800">
+                             <li v-for="alerta in alertasRecientes" :key="alerta.id" class="py-3">
+                                 <Link :href="alerta.url" class="group flex items-center justify-between gap-4">
+                                     <div class="min-w-0 flex-1">
+                                         <p class="truncate text-sm font-semibold text-gray-800 dark:text-neutral-100">{{ alerta.cliente }}</p>
+                                         <p class="mt-0.5 flex items-center gap-1.5 truncate text-xs text-gray-500 dark:text-neutral-400">
+                                             <span class="inline-block h-2 w-2 rounded-full" :class="alerta.riesgo === 'Alto' ? 'bg-red-500' : 'bg-yellow-500'"></span>
+                                             <span>{{ alerta.patron }}</span>
+                                         </p>
+                                     </div>
+                                     <div class="flex-shrink-0 text-right">
+                                         <p class="text-xs text-gray-500 dark:text-neutral-400">{{ alerta.fecha }}</p>
+                                         <p class="mt-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">Revisar &rarr;</p>
+                                     </div>
+                                 </Link>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
-                <!-- Contenido principal con scroll -->
-                <div class="space-y-6">
-                    <!-- Sección de estadísticas -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Estadísticas Generales</h2>
-                        <div class="grid gap-4 md:grid-cols-4">
-                            <div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                                <h3 class="text-lg font-semibold text-blue-700 dark:text-blue-300">Usuarios Activos</h3>
-                                <p class="text-3xl font-bold text-blue-900 dark:text-blue-100">1,234</p>
-                            </div>
-                            <div class="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
-                                <h3 class="text-lg font-semibold text-green-700 dark:text-green-300">Ventas Hoy</h3>
-                                <p class="text-3xl font-bold text-green-900 dark:text-green-100">$5,678</p>
-                            </div>
-                            <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
-                                <h3 class="text-lg font-semibold text-purple-700 dark:text-purple-300">Órdenes</h3>
-                                <p class="text-3xl font-bold text-purple-900 dark:text-purple-100">89</p>
-                            </div>
-                            <div class="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
-                                <h3 class="text-lg font-semibold text-orange-700 dark:text-orange-300">Conversión</h3>
-                                <p class="text-3xl font-bold text-orange-900 dark:text-orange-100">12.5%</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sección de gráficos -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Análisis de Rendimiento</h2>
-                        <div class="h-64 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                            <p class="text-gray-500 dark:text-gray-400">Gráfico de rendimiento aquí</p>
-                        </div>
-                    </div>
-
-                    <!-- Tabla de datos recientes -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Actividad Reciente</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full">
-                                <thead>
-                                    <tr class="border-b border-sidebar-border/70">
-                                        <th class="p-3 text-left font-semibold">Usuario</th>
-                                        <th class="p-3 text-left font-semibold">Acción</th>
-                                        <th class="p-3 text-left font-semibold">Fecha</th>
-                                        <th class="p-3 text-left font-semibold">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="i in 20" :key="i" class="border-b border-sidebar-border/30">
-                                        <td class="p-3">Usuario {{ i }}</td>
-                                        <td class="p-3">Acción {{ i }}</td>
-                                        <td class="p-3">{{ new Date().toLocaleDateString() }}</td>
-                                        <td class="p-3">
-                                            <span class="rounded-full px-2 py-1 text-xs font-medium"
-                                                :class="i % 3 === 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
-                                                    i % 3 === 1 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300' :
-                                                        'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'">
-                                                {{ i % 3 === 0 ? 'Completado' : i % 3 === 1 ? 'En Proceso' : 'Pendiente'
-                                                }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Sección de notificaciones -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Notificaciones</h2>
-                        <div class="space-y-3">
-                            <div v-for="i in 15" :key="i"
-                                class="flex items-center space-x-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                                <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-                                <div class="flex-1">
-                                    <p class="font-medium">Notificación {{ i }}</p>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">Descripción de la notificación
-                                        {{ i }}</p>
-                                </div>
-                                <span class="text-xs text-gray-400">{{ i }}m</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sección de configuración rápida -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Configuración Rápida</h2>
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div class="space-y-3">
-                                <h3 class="font-semibold">Preferencias</h3>
-                                <div class="space-y-2">
-                                    <label class="flex items-center space-x-2">
-                                        <input type="checkbox" class="rounded" checked>
-                                        <span>Notificaciones por email</span>
-                                    </label>
-                                    <label class="flex items-center space-x-2">
-                                        <input type="checkbox" class="rounded">
-                                        <span>Modo oscuro</span>
-                                    </label>
-                                    <label class="flex items-center space-x-2">
-                                        <input type="checkbox" class="rounded" checked>
-                                        <span>Actualizaciones automáticas</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="space-y-3">
-                                <h3 class="font-semibold">Configuración del Sistema</h3>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between">
-                                        <span>Límite de usuarios</span>
-                                        <span class="font-medium">1,000</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span>Almacenamiento usado</span>
-                                        <span class="font-medium">2.5 GB</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span>Última actualización</span>
-                                        <span class="font-medium">Hace 2 horas</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Contenido adicional para asegurar scroll -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <h2 class="mb-4 text-2xl font-bold">Contenido Adicional</h2>
-                        <div class="space-y-4">
-                            <div v-for="i in 10" :key="i"
-                                class="rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-4 dark:from-blue-900/20 dark:to-purple-900/20">
-                                <h3 class="font-semibold text-lg">Sección {{ i }}</h3>
-                                <p class="text-gray-600 dark:text-gray-300">
-                                    Este es el contenido de la sección {{ i }}. Aquí puedes agregar cualquier
-                                    información relevante
-                                    para tu aplicación. El contenido se extiende lo suficiente para probar el scroll
-                                    vertical
-                                    mientras el sidebar permanece fijo.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Footer del contenido -->
-                    <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
-                        <div class="text-center text-gray-500 dark:text-gray-400">
-                            <p>Fin del contenido - Scroll funcionando correctamente</p>
-                            <p class="text-sm mt-2">El sidebar debe permanecer fijo mientras este contenido hace scroll
-                            </p>
-                        </div>
+                <!-- Nuevos Clientes de Alto Riesgo -->
+                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
+                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Nuevos Clientes de Alto Riesgo</h2>
+                    <div class="mt-4 flow-root">
+                        <ul role="list" class="-my-3 divide-y divide-gray-200/80 dark:divide-neutral-800">
+                             <li v-for="cliente in clientesAltoRiesgo" :key="cliente.id" class="py-3">
+                                 <Link :href="cliente.url" class="group flex items-center justify-between gap-4">
+                                     <div class="min-w-0 flex-1">
+                                         <p class="truncate text-sm font-semibold text-gray-800 dark:text-neutral-100">{{ cliente.nombre }}</p>
+                                         <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-neutral-400">{{ cliente.tipo }}</p>
+                                     </div>
+                                     <div class="flex-shrink-0 text-right">
+                                         <p class="text-xs text-gray-500 dark:text-neutral-400">{{ cliente.fecha }}</p>
+                                         <p class="mt-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">Ver perfil &rarr;</p>
+                                     </div>
+                                 </Link>
+                             </li>
+                        </ul>
                     </div>
                 </div>
             </div>

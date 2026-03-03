@@ -200,6 +200,16 @@ const buscar = async () => {
   }
 };
 
+const descargarCSV = () => {
+  const params = new URLSearchParams({
+    tipo: tipoOperacion.value || '',
+    estatus: estatusOperacion.value || '',
+    fecha_ini: fechaInicialStr.value || '',
+    fecha_fin: fechaFinalStr.value || '',
+  });
+  window.location.href = `/reporte-operaciones/exportar?${params.toString()}`;
+};
+
 </script>
 
 <template>
@@ -207,7 +217,6 @@ const buscar = async () => {
         <div class="flex items-center justify-between">
     </div>
 
-    <h1 class="mb-4 text-lg font-semibold text-slate-800 dark:text-neutral-200">Reporte de Operación Relevante, Inusual y Preocupante</h1>
 
     <div class="mt-6 flex flex-col gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
       <form @submit.prevent="buscar" class="space-y-4">
@@ -253,8 +262,18 @@ const buscar = async () => {
           </div>
         </div>
 
-        <!-- Botón a la derecha -->
-        <div class="mt-4 flex justify-end">
+        <!-- Botones a la derecha -->
+        <div class="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            @click="descargarCSV"
+            class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800"
+          >
+            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Descargar CSV
+          </button>
           <button type="submit" class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
             <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>

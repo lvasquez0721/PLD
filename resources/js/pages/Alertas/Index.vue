@@ -9,9 +9,6 @@ import Input from '@/components/forms/Input.vue';
 import Select from '@/components/forms/Select.vue';
 import Textarea from '@/components/forms/Textarea.vue';
 import SelectFile from '@/components/forms/SelectFile.vue';
-import FormLabelIcon from '@/components/forms/FormLabelIcon.vue';
-import DateInput from '@/components/forms/DateInput.vue';
-import PrimaryButton from '@/components/forms/PrimaryButton.vue';
 import { usePage } from '@inertiajs/vue3';
 import Toast from '@/components/ui/alert/Toast.vue';
 import InputError from '@/components/InputError.vue';
@@ -41,6 +38,17 @@ function colorFromString(str: string) {
     return `${colors[idx][0]} ${colors[idx][1]} border ${colors[idx][2]}`;
 }
 
+// Detect theme for custom date input styling
+const isDark = ref(false);
+onMounted(() => {
+    // Function to check and set theme
+    const checkTheme = () => {
+        isDark.value = document.documentElement.classList.contains('dark');
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+});
 const page = usePage();
 interface EvidenciasFormateadas {
     totalPagado: string | null;
@@ -83,6 +91,7 @@ const fechaInicio = ref('');
 const fechaFin = ref('');
 const alertas = ref<Alerta[]>([]);
 const isLoading = ref(false);
+const focusedInput = ref<string | null>(null);
 
 // Modal "Nuevo" para agregar alerta
 const showNuevoAlertaModal = ref(false);
@@ -403,22 +412,69 @@ const breadcrumbs: BreadcrumbItem[] = [
                     class="bg-[#f8fafc]/70 dark:bg-neutral-900/90 backdrop-blur-xl rounded-[20px] shadow-[0_3px_20px_rgba(15,23,42,0.035)] dark:shadow-[0_3px_20px_rgba(0,0,0,0.24)] border border-slate-100/50 dark:border-neutral-800/70 p-8 mb-10 transition-all duration-700 hover:shadow-[0_7px_28px_rgba(15,23,42,0.05)] hover:bg-[#f8fafc]/80 dark:hover:bg-black">
                     <div class="flex items-end gap-6">
                         <div class="flex-1 relative group">
-                            <FormLabelIcon :for-id="'fechaInicio'" :icon="Calendar" label="Fecha inicio" />
-                            <DateInput id="fechaInicio" v-model="fechaInicio" />
+                            <label for="fechaInicio"
+                                class="block text-[11px] font-medium text-slate-600/85 dark:text-neutral-300/85 mb-3 tracking-[0.05em] uppercase flex items-center gap-2 transition-colors duration-500">
+                                <Calendar :size="13"
+                                    class="opacity-55 transition-opacity duration-500 dark:text-neutral-300/80" />
+                                <span class="leading-none">Fecha inicio</span>
+                            </label>
+                            <div class="relative">
+                                <input type="date" id="fechaInicio" v-model="fechaInicio"
+                                    @focus="focusedInput = 'inicio'" @blur="focusedInput = null" :class="[
+                                        'w-full px-4 py-3.5 border rounded-[14px] text-[14px] font-light tracking-[0.003em] transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
+                                        isDark
+                                            ? (focusedInput === 'inicio'
+                                                ? 'custom-dark-date-focused'
+                                                : 'custom-dark-date')
+                                            : (focusedInput === 'inicio'
+                                                ? 'custom-light-date-focused'
+                                                : 'custom-light-date')
+                                    ]" />
+                            </div>
                         </div>
 
                         <div class="flex-1 relative group">
-                            <FormLabelIcon :for-id="'fechaFin'" :icon="Calendar" label="Fecha fin" />
-                            <DateInput id="fechaFin" v-model="fechaFin" />
+                            <label for="fechaFin"
+                                class="block text-[11px] font-medium text-slate-600/85 dark:text-neutral-300/85 mb-3 tracking-[0.05em] uppercase flex items-center gap-2 transition-colors duration-500">
+                                <Calendar :size="13"
+                                    class="opacity-55 transition-opacity duration-500 dark:text-neutral-300/80" />
+                                <span class="leading-none">Fecha fin</span>
+                            </label>
+                            <div class="relative">
+                                <input type="date" id="fechaFin" v-model="fechaFin" @focus="focusedInput = 'fin'"
+                                    @blur="focusedInput = null" :class="[
+                                        'w-full px-4 py-3.5 border rounded-[14px] text-[14px] font-light tracking-[0.003em] transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1)',
+                                        isDark
+                                            ? (focusedInput === 'fin'
+                                                ? 'custom-dark-date-focused'
+                                                : 'custom-dark-date')
+                                            : (focusedInput === 'fin'
+                                                ? 'custom-light-date-focused'
+                                                : 'custom-light-date')
+                                    ]" />
+                            </div>
                         </div>
 
-                        <PrimaryButton
-                          :icon="Search"
-                          :loading="isLoading"
-                          loading-label="Buscando..."
-                          label="Buscar"
-                          @click="buscarAlertas"
-                        />
+                        <button @click="buscarAlertas" :disabled="isLoading"
+                            class="px-7 py-3.5 bg-gradient-to-br from-blue-400/90 to-blue-500/90 text-white/95 text-[14px] font-medium tracking-[0.008em] rounded-[14px]
+                shadow-[0_3px_12px_rgba(59,130,246,0.13)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.18)]
+                hover:from-blue-500/90 hover:to-blue-600/90
+                disabled:from-slate-300/80 disabled:to-slate-400/80 dark:disabled:from-neutral-800/80 dark:disabled:to-neutral-800/70 disabled:shadow-none disabled:cursor-not-allowed
+                transition-all duration-700 cubic-bezier(0.25,0.1,0.25,1) transform hover:scale-[1.015] hover:-translate-y-[0.5px] active:translate-y-0 active:scale-100
+                focus:outline-none focus:ring-2 focus:ring-blue-400/25 dark:focus:ring-neutral-600/50 focus:ring-offset-2 focus:ring-offset-[#f8fafc]/50 dark:focus:ring-offset-black/30">
+                            <div class="flex items-center gap-2.5">
+                                <template v-if="isLoading">
+                                    <div
+                                        class="w-4 h-4 border-[2px] border-white/25 border-t-white/95 rounded-full animate-spin">
+                                    </div>
+                                    <span>Buscando...</span>
+                                </template>
+                                <template v-else>
+                                    <Search :size="15" :stroke-width="2" transition-all duration-500 />
+                                    <span>Buscar</span>
+                                </template>
+                            </div>
+                        </button>
 
                         <button v-if="alertas.length > 0" @click="downloadCsv"
                             class="px-6 py-3.5 bg-[#f8fafc]/90 dark:bg-neutral-900/90 border border-slate-100/60 dark:border-neutral-800/70 text-slate-700/85 dark:text-neutral-200/90 text-[14px] font-medium tracking-[0.008em] rounded-[14px]
@@ -900,6 +956,64 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 .animate-spin {
     animation: spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+input[type="date"]:focus-visible {
+    outline: 2px solid rgb(59 130 246 / 0.3);
+    outline-offset: 2px;
+}
+
+.custom-light-date {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    color: #1e293b !important;
+    border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.custom-light-date:hover {
+    border-color: rgba(226, 232, 240, 0.85);
+    background-color: #fff;
+}
+
+.custom-light-date-focused {
+    background-color: #fff !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(147, 197, 253, 0.5);
+    box-shadow: 0 3px 12px rgba(59, 130, 246, 0.07);
+    transform: scale(1.005);
+}
+
+.custom-dark-date {
+    background-color: rgba(31, 31, 31, 0.60) !important;
+    color: #fafbfc !important;
+    border: 1px solid rgba(38, 38, 38, 0.65);
+}
+
+.custom-dark-date:hover {
+    border-color: rgba(163, 163, 163, 0.32);
+    background-color: rgba(31, 31, 31, 0.85);
+}
+
+.custom-dark-date-focused {
+    background-color: rgba(23, 23, 23, 0.95) !important;
+    color: #fafbfc !important;
+    border: 1px solid rgba(147, 197, 253, 0.5);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.005);
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0);
+}
+
+.custom-dark-date::-webkit-calendar-picker-indicator,
+.custom-dark-date-focused::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+.custom-dark-date::-moz-calendar-picker-indicator,
+.custom-dark-date-focused::-moz-calendar-picker-indicator {
+    filter: invert(1);
 }
 
 tbody tr {
