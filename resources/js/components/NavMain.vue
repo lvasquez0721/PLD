@@ -5,17 +5,20 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 defineProps<{
     items: NavItem[];
 }>();
 
 const page = usePage();
+const { state } = useSidebar();
+const isCollapsed = computed(() => state.value === 'collapsed');
 const hoveredItem = ref<string | null>(null);
 
 // Computed para determinar si un item está activo
@@ -84,9 +87,9 @@ const isItemActive = (href: string) => {
                         </span>
                     </div>
 
-                    <!-- Indicador de carga sutil -->
-                    <div v-if="isItemActive(item.href)"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-sidebar-accent-foreground rounded-full animate-pulse" />
+                    <!-- Indicador de carga sutil (solo visible cuando la sidebar está expandida) -->
+                    <div v-if="isItemActive(item.href) && !isCollapsed"
+                        class="sidebar-active-dot absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-sidebar-accent-foreground rounded-full animate-pulse" />
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

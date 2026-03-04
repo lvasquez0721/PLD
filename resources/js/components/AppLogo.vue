@@ -5,7 +5,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 <template>
     <div class="flex items-center min-w-0">
         <AppLogoIcon class="size-5 flex-shrink-0 fill-current text-white dark:text-black" />
-        <div class="ml-1 flex-1 min-w-0">
+        <div class="ml-1 flex-1 min-w-0 app-logo-text">
             <span
                 class="block leading-tight font-semibold tracking-tight tabular-nums text-sm truncate sm:whitespace-normal"
                 style="font-variant-ligatures: discretionary-ligatures; letter-spacing: -0.01em;">

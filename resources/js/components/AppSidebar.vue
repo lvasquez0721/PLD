@@ -10,13 +10,14 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import { BookOpen, Folder, LayoutGrid, Users, UserRound, Shield, BarChart3, Settings, Bell, MailWarning, ListX, FileText, Gavel, SearchCheck, User } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 
 // Añade ruta y nav item para Usuarios
 const usuariosHref = '/usuarios';
@@ -24,6 +25,9 @@ const usuariosHref = '/usuarios';
 // Estado para micro-interacciones
 const isHovered = ref(false);
 const currentTime = ref(new Date());
+
+const { state } = useSidebar();
+const isCollapsed = computed(() => state.value === 'collapsed');
 
 // Actualizar tiempo cada minuto para efectos sutiles
 let timeInterval: number | null = null;
@@ -148,15 +152,20 @@ const footerNavItems: NavItem[] = [
                     <SidebarMenuButton size="lg" as-child
                         class="group relative overflow-hidden transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98]">
                         <Link :href="dashboard()"
-                            class="flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/50 focus:outline-none focus:ring-2 focus:ring-sidebar-accent/20">
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/50 focus:outline-none focus:ring-2 focus:ring-sidebar-accent/20 sidebar-logo-link"
+                            :class="{
+                                'justify-center': isCollapsed,
+                                'justify-between': !isCollapsed
+                            }">
                         <!-- Efecto de brillo sutil en hover -->
                         <div
                             class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%]" />
 
                         <AppLogo />
 
-                        <!-- Indicador de tiempo sutil -->
-                        <div class="ml-auto text-xs text-sidebar-foreground/60 font-mono tabular-nums">
+                        <!-- Indicador de tiempo sutil (solo en modo expandido) -->
+                        <div v-if="!isCollapsed"
+                            class="ml-auto text-xs text-sidebar-foreground/60 font-mono tabular-nums sidebar-time-indicator">
                             {{ currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) }}
                         </div>
                         </Link>
@@ -219,6 +228,40 @@ body {
 .sidebar-enhanced {
     /* Transiciones suaves y naturales */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Header sensorial: logo y hora */
+.sidebar-logo-link {
+    position: relative;
+}
+
+.sidebar-time-indicator {
+    opacity: 0.85;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-time-indicator:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+/* En modo contraído centramos el logo y limpiamos el header
+   para que el ícono sea el protagonista y no se deforme el layout.
+   El estado de la sidebar se expone en el contenedor con data-slot="sidebar" y data-state="collapsed". */
+.sidebar-enhanced :deep([data-slot="sidebar"][data-state="collapsed"] [data-sidebar="sidebar"] .sidebar-logo-link) {
+    justify-content: center;
+}
+
+/* En modo contraído, oculta el texto del logo para dejar solo el ícono */
+.sidebar-enhanced :deep([data-slot="sidebar"][data-state="collapsed"] [data-sidebar="sidebar"] .app-logo-text) {
+    display: none;
+}
+
+/* Sutil pulso del logo al hacer hover sobre la sidebar,
+   refuerza la sensación de producto vivo sin distraer */
+.sidebar-enhanced:hover .sidebar-logo-link {
+    filter: drop-shadow(0 0 12px rgba(129, 140, 248, 0.55));
+    transition: filter 0.3s ease;
 }
 
 /* Asegurar que la sidebar mantenga su posición */
@@ -359,11 +402,11 @@ body {
 }
 
 /* Mejoras en el estado colapsado */
-.sidebar-enhanced[data-state="collapsed"] :deep(.sidebar-menu-button) {
+.sidebar-enhanced :deep([data-sidebar="sidebar"][data-state="collapsed"] .sidebar-menu-button) {
     justify-content: center;
 }
 
-.sidebar-enhanced[data-state="collapsed"] :deep(.sidebar-menu-button:hover) {
+.sidebar-enhanced :deep([data-sidebar="sidebar"][data-state="collapsed"] .sidebar-menu-button:hover) {
     transform: scale(1.1);
 }
 
