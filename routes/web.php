@@ -4,6 +4,7 @@ use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ConsultaInusualidadController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ListaNegraController;
 use App\Http\Controllers\ListasUIFController;
 use App\Http\Controllers\ParametriaPLDController;
@@ -25,9 +26,9 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 })->middleware(['auth', 'verified'])->name('home');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'dashboard'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 // Usuarios
 Route::middleware(['auth', 'verified'])->group(function () {

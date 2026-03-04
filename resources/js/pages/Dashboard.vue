@@ -1,193 +1,326 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
-import {
-    AlertTriangle,
-    Users,
-    FileSearch,
-    FileText,
-    BarChart2,
-    ShieldCheck,
-    ArrowRight,
-    Search,
-    FilePlus
-} from 'lucide-vue-next';
+
+type UltimaAlerta = {
+    IDRegistroAlerta: number;
+    Cliente: string;
+    Descripcion: string;
+    created_at: string;
+    Estatus: string;
+};
+
+type DashboardProps = {
+    totalAlertas: number;
+    alertasHoy: number;
+    alertasPorEstatus: Record<string, number>;
+    alertasAbiertas: number;
+    ultimasAlertas: UltimaAlerta[];
+    cantClientes: number;
+    cantClientesActivos: number;
+    cantClientesNacionalidadMX: number;
+    cantClientesExtranjeros: number;
+    cantClientesPPE: number;
+};
+
+const props = defineProps<DashboardProps>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard PLD',
+        title: 'Dashboard',
         href: dashboard().url,
     },
 ];
 
-// --- Placeholder Data ---
-// In a real application, this would come from props or an API call.
-const stats = {
-    alertasCriticas: { value: 12, trend: 5 },
-    clientesRevision: { value: 8 },
-    operacionesInusuales: { value: 43, trend: -10 },
-    reportesPendientes: { value: 3 },
-};
+const estatusData = computed(() =>
+    Object.entries(props.alertasPorEstatus ?? {}).map(([estatus, total]) => ({
+        estatus,
+        total,
+    })),
+);
 
-const alertasRecientes = [
-    { id: 1, cliente: 'Juan Carlos Schmid', riesgo: 'Alto', patron: 'Operación fraccionada', fecha: 'Hace 2 horas', url: '#' },
-    { id: 2, cliente: 'Constructora del Sureste SA de CV', riesgo: 'Alto', patron: 'Movimientos sin justificación económica', fecha: 'Hace 1 día', url: '#' },
-    { id: 3, cliente: 'Marco Antonio Regil', riesgo: 'Medio', patron: 'Actividad atípica para el perfil', fecha: 'Hace 2 días', url: '#' },
-];
+const totalAlertasEstatus = computed(() =>
+    estatusData.value.reduce((acc, item) => acc + item.total, 0),
+);
 
-const clientesAltoRiesgo = [
-    { id: 1, nombre: 'Empresaria Hotelera del Caribe', tipo: 'Nuevo PPE Identificado', fecha: 'Ayer', url: '#' },
-    { id: 2, nombre: 'José Pérez López', tipo: 'Coincidencia en Listas de Observación', fecha: 'Hace 3 días', url: '#' },
-];
-
+function getEstatusColor(estatus: string) {
+    switch (estatus) {
+        case 'Generado':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200';
+        case 'Analizado':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200';
+        case 'Cerrado':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200';
+        case 'Reportado':
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200';
+        case 'Enviado':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+}
 </script>
 
 <template>
-
-    <Head title="Dashboard PLD" />
+    <Head title="Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <FadeIn class="space-y-6">
-            <!-- Sección de Tarjetas de Estadísticas Principales -->
-            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <!-- Alertas Críticas -->
-                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-orange-500/30">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
-                            <AlertTriangle class="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Alertas Críticas</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.alertasCriticas.value }}</p>
-                        </div>
+        <FadeIn>
+            <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <!-- Tarjetas resumen principales -->
+                <div class="grid gap-4 md:grid-cols-4">
+                    <div
+                        class="rounded-xl border border-sidebar-border/70 bg-gradient-to-br from-sky-50 to-sky-100 p-4 dark:from-sky-900/40 dark:to-sky-800/40 dark:border-sidebar-border">
+                        <p class="text-sm font-medium text-sky-700 dark:text-sky-200">Total de alertas</p>
+                        <p class="mt-2 text-3xl font-bold text-sky-900 dark:text-sky-50">
+                            {{ props.totalAlertas.toLocaleString() }}
+                        </p>
+                        <p class="mt-1 text-xs text-sky-700/80 dark:text-sky-200/80">
+                            Incluye todos los estatus registrados
+                        </p>
                     </div>
-                </div>
-                <!-- Clientes en Revisión -->
-                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-yellow-500/30">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/40">
-                            <Users class="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Clientes en Revisión</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.clientesRevision.value }}</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Operaciones Inusuales -->
-                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-blue-500/30">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                            <FileSearch class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Op. Inusuales</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.operacionesInusuales.value }}</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Reportes Pendientes -->
-                <div class="overflow-hidden rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20 dark:hover:border-purple-500/30">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/40">
-                            <FileText class="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500 dark:text-neutral-400">Reportes Pendientes</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.reportesPendientes.value }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Sección de Gráfico Principal y Acciones Rápidas -->
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <!-- Gráfico de Alertas -->
-                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg lg:col-span-2 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
-                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Alertas en los Últimos 30 Días</h2>
-                    <div class="mt-4 flex h-64 items-center justify-center rounded-lg bg-gray-100/80 dark:bg-neutral-900/50">
-                        <div class="text-center">
-                             <BarChart2 class="mx-auto h-12 w-12 text-gray-400 dark:text-neutral-600" />
-                             <p class="mt-2 text-sm text-gray-500 dark:text-neutral-400">Placeholder para gráfico de alertas</p>
-                        </div>
+                    <div
+                        class="rounded-xl border border-sidebar-border/70 bg-gradient-to-br from-amber-50 to-amber-100 p-4 dark:from-amber-900/40 dark:to-amber-800/40 dark:border-sidebar-border">
+                        <p class="text-sm font-medium text-amber-700 dark:text-amber-200">Alertas generadas hoy</p>
+                        <p class="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-50">
+                            {{ props.alertasHoy.toLocaleString() }}
+                        </p>
+                        <p class="mt-1 text-xs text-amber-700/80 dark:text-amber-200/80">
+                            Comparado con el total histórico
+                        </p>
                     </div>
-                </div>
-                <!-- Acciones Rápidas -->
-                <div class="space-y-4">
-                     <h2 class="text-base font-semibold text-gray-800 dark:text-white">Acciones Rápidas</h2>
-                     <div class="space-y-3">
-                         <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-blue-400/80 hover:bg-white hover:shadow-xl hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-blue-500/60 dark:hover:bg-neutral-800/80">
-                            <div>
-                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Analizar Cliente</h3>
-                                <p class="text-xs text-gray-500 dark:text-neutral-400">Buscar perfiles, operaciones y alertas.</p>
-                            </div>
-                            <Search class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
-                         </Link>
-                          <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-purple-400/80 hover:bg-white hover:shadow-xl hover:shadow-purple-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-purple-500/60 dark:hover:bg-neutral-800/80">
-                            <div>
-                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Generar Reporte Regulatorio</h3>
-                                <p class="text-xs text-gray-500 dark:text-neutral-400">Crear reportes para la autoridad.</p>
-                            </div>
-                            <FilePlus class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110 group-hover:text-purple-500 dark:group-hover:text-purple-400" />
-                         </Link>
-                         <Link href="#" class="group flex w-full items-center justify-between rounded-lg border border-gray-200/80 bg-white/80 p-4 text-left transition-all duration-200 ease-out hover:border-gray-400/80 hover:bg-white hover:shadow-xl hover:shadow-gray-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-gray-500/60 dark:hover:bg-neutral-800/80">
-                            <div>
-                                <h3 class="font-semibold text-gray-800 dark:text-neutral-100">Consultar Listas</h3>
-                                <p class="text-xs text-gray-500 dark:text-neutral-400">Ver listas de PPL, CNSF, UIF, etc.</p>
-                            </div>
-                            <FileSearch class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:scale-110" />
-                         </Link>
-                     </div>
-                </div>
-            </div>
 
-            <!-- Sección de Listas de Actividad -->
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <!-- Alertas Críticas Recientes -->
-                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
-                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Alertas Críticas Recientes</h2>
-                    <div class="mt-4 flow-root">
-                        <ul role="list" class="-my-3 divide-y divide-gray-200/80 dark:divide-neutral-800">
-                             <li v-for="alerta in alertasRecientes" :key="alerta.id" class="py-3">
-                                 <Link :href="alerta.url" class="group flex items-center justify-between gap-4">
-                                     <div class="min-w-0 flex-1">
-                                         <p class="truncate text-sm font-semibold text-gray-800 dark:text-neutral-100">{{ alerta.cliente }}</p>
-                                         <p class="mt-0.5 flex items-center gap-1.5 truncate text-xs text-gray-500 dark:text-neutral-400">
-                                             <span class="inline-block h-2 w-2 rounded-full" :class="alerta.riesgo === 'Alto' ? 'bg-red-500' : 'bg-yellow-500'"></span>
-                                             <span>{{ alerta.patron }}</span>
-                                         </p>
-                                     </div>
-                                     <div class="flex-shrink-0 text-right">
-                                         <p class="text-xs text-gray-500 dark:text-neutral-400">{{ alerta.fecha }}</p>
-                                         <p class="mt-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">Revisar &rarr;</p>
-                                     </div>
-                                 </Link>
-                            </li>
-                        </ul>
+                    <div
+                        class="rounded-xl border border-sidebar-border/70 bg-gradient-to-br from-rose-50 to-rose-100 p-4 dark:from-rose-900/40 dark:to-rose-800/40 dark:border-sidebar-border">
+                        <p class="text-sm font-medium text-rose-700 dark:text-rose-200">Alertas abiertas</p>
+                        <p class="mt-2 text-3xl font-bold text-rose-900 dark:text-rose-50">
+                            {{ props.alertasAbiertas.toLocaleString() }}
+                        </p>
+                        <p class="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">
+                            No incluyen alertas con estatus "Cerrado"
+                        </p>
+                    </div>
+
+                    <div
+                        class="rounded-xl border border-sidebar-border/70 bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 dark:from-emerald-900/40 dark:to-emerald-800/40 dark:border-sidebar-border">
+                        <p class="text-sm font-medium text-emerald-700 dark:text-emerald-200">Total de clientes</p>
+                        <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-50">
+                            {{ props.cantClientes.toLocaleString() }}
+                        </p>
+                        <p class="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">
+                            Incluye activos e inactivos
+                        </p>
                     </div>
                 </div>
 
-                <!-- Nuevos Clientes de Alto Riesgo -->
-                <div class="rounded-xl border border-gray-200/80 bg-white/60 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-black/20">
-                    <h2 class="text-base font-semibold text-gray-800 dark:text-white">Nuevos Clientes de Alto Riesgo</h2>
-                    <div class="mt-4 flow-root">
-                        <ul role="list" class="-my-3 divide-y divide-gray-200/80 dark:divide-neutral-800">
-                             <li v-for="cliente in clientesAltoRiesgo" :key="cliente.id" class="py-3">
-                                 <Link :href="cliente.url" class="group flex items-center justify-between gap-4">
-                                     <div class="min-w-0 flex-1">
-                                         <p class="truncate text-sm font-semibold text-gray-800 dark:text-neutral-100">{{ cliente.nombre }}</p>
-                                         <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-neutral-400">{{ cliente.tipo }}</p>
-                                     </div>
-                                     <div class="flex-shrink-0 text-right">
-                                         <p class="text-xs text-gray-500 dark:text-neutral-400">{{ cliente.fecha }}</p>
-                                         <p class="mt-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">Ver perfil &rarr;</p>
-                                     </div>
-                                 </Link>
-                             </li>
-                        </ul>
+                <!-- Información de clientes -->
+                <div class="grid gap-4 md:grid-cols-3">
+                    <div class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <h2 class="mb-2 text-sm font-semibold text-muted-foreground">Situación de clientes</h2>
+                        <div class="space-y-3">
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-sm text-foreground">Clientes activos</span>
+                                <span class="text-lg font-semibold">
+                                    {{ props.cantClientesActivos.toLocaleString() }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm text-muted-foreground">
+                                <span>Clientes mexicanos</span>
+                                <span class="font-medium text-foreground">
+                                    {{ props.cantClientesNacionalidadMX.toLocaleString() }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm text-muted-foreground">
+                                <span>Clientes extranjeros</span>
+                                <span class="font-medium text-foreground">
+                                    {{ props.cantClientesExtranjeros.toLocaleString() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <h2 class="mb-2 text-sm font-semibold text-muted-foreground">Clientes PPE</h2>
+                        <div class="space-y-2">
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-sm text-foreground">Clientes con PPE activa</span>
+                                <span class="text-lg font-semibold">
+                                    {{ props.cantClientesPPE.toLocaleString() }}
+                                </span>
+                            </div>
+                            <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                    class="h-full rounded-full bg-emerald-500"
+                                    :style="{
+                                        width:
+                                            props.cantClientes > 0
+                                                ? `${(props.cantClientesPPE / props.cantClientes) * 100}%`
+                                                : '0%',
+                                    }" />
+                            </div>
+                            <p class="text-xs text-muted-foreground">
+                                {{ props.cantClientes > 0
+                                    ? ((props.cantClientesPPE / props.cantClientes) * 100).toFixed(2)
+                                    : '0.00' }}% de la base de clientes
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <h2 class="mb-2 text-sm font-semibold text-muted-foreground">Distribución de nacionalidad</h2>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-foreground">Mexicanos</span>
+                                <span class="font-medium">
+                                    {{ props.cantClientesNacionalidadMX.toLocaleString() }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-foreground">Extranjeros</span>
+                                <span class="font-medium">
+                                    {{ props.cantClientesExtranjeros.toLocaleString() }}
+                                </span>
+                            </div>
+                            <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                    class="flex h-full w-full"
+                                    v-if="props.cantClientes > 0">
+                                    <div
+                                        class="h-full bg-sky-500"
+                                        :style="{
+                                            width: `${(props.cantClientesNacionalidadMX / props.cantClientes) * 100}%`,
+                                        }" />
+                                    <div
+                                        class="h-full bg-amber-500"
+                                        :style="{
+                                            width: `${(props.cantClientesExtranjeros / props.cantClientes) * 100}%`,
+                                        }" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas por estatus y últimas alertas -->
+                <div class="grid gap-4 lg:grid-cols-3">
+                    <!-- Alertas por estatus -->
+                    <div class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <div class="mb-4 flex items-center justify-between gap-2">
+                            <h2 class="text-base font-semibold text-foreground">Alertas por estatus</h2>
+                            <span class="text-xs text-muted-foreground">
+                                Total en estatus: {{ totalAlertasEstatus.toLocaleString() }}
+                            </span>
+                        </div>
+
+                        <div
+                            v-if="estatusData.length"
+                            class="space-y-3">
+                            <div
+                                v-for="item in estatusData"
+                                :key="item.estatus"
+                                class="space-y-1">
+                                <div class="flex items-center justify-between text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                            :class="getEstatusColor(item.estatus)">
+                                            {{ item.estatus }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-sm font-semibold text-foreground">
+                                            {{ item.total.toLocaleString() }}
+                                        </span>
+                                        <span class="text-xs text-muted-foreground">
+                                            {{
+                                                totalAlertasEstatus > 0
+                                                    ? `${((item.total / totalAlertasEstatus) * 100).toFixed(1)}%`
+                                                    : '0.0%'
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                    <div
+                                        class="h-full rounded-full bg-primary"
+                                        :style="{
+                                            width:
+                                                totalAlertasEstatus > 0
+                                                    ? `${(item.total / totalAlertasEstatus) * 100}%`
+                                                    : '0%',
+                                        }" />
+                                </div>
+                            </div>
+                        </div>
+                        <p
+                            v-else
+                            class="text-sm text-muted-foreground">
+                            No hay información de estatus de alertas.
+                        </p>
+                    </div>
+
+                    <!-- Últimas alertas -->
+                    <div
+                        class="lg:col-span-2 rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <div class="mb-4 flex items-center justify-between gap-2">
+                            <h2 class="text-base font-semibold text-foreground">Últimas alertas generadas</h2>
+                            <span class="text-xs text-muted-foreground">
+                                Mostrando {{ props.ultimasAlertas.length }} registros recientes
+                            </span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-sm">
+                                <thead class="border-b border-sidebar-border/70 text-xs uppercase text-muted-foreground">
+                                    <tr>
+                                        <th class="px-3 py-2">ID</th>
+                                        <th class="px-3 py-2">Cliente</th>
+                                        <th class="px-3 py-2">Descripción</th>
+                                        <th class="px-3 py-2">Fecha creación</th>
+                                        <th class="px-3 py-2">Estatus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="alerta in props.ultimasAlertas"
+                                        :key="alerta.IDRegistroAlerta"
+                                        class="border-b border-sidebar-border/40 text-xs last:border-0 hover:bg-muted/40">
+                                        <td class="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                                            {{ alerta.IDRegistroAlerta }}
+                                        </td>
+                                        <td class="px-3 py-2 text-foreground">
+                                            {{ alerta.Cliente }}
+                                        </td>
+                                        <td class="px-3 py-2 text-muted-foreground">
+                                            {{ alerta.Descripcion }}
+                                        </td>
+                                        <td class="px-3 py-2 text-muted-foreground">
+                                            {{ new Date(alerta.created_at).toLocaleString() }}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span
+                                                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                                :class="getEstatusColor(alerta.Estatus)">
+                                                {{ alerta.Estatus }}
+                                            </span>
+                                        </td>
+                                    </tr>
+
+                                    <tr v-if="!props.ultimasAlertas.length">
+                                        <td
+                                            colspan="5"
+                                            class="px-3 py-4 text-center text-xs text-muted-foreground">
+                                            No hay alertas recientes para mostrar.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
