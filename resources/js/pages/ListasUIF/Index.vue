@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Titulo from '@/components/ui/Titulo.vue';
 import { FileText, Settings, Search, Pencil, Trash2, X, Download } from 'lucide-vue-next';
+import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import { activeTab, setTab } from "../../../scripts/setTab.js";
 import { type BreadcrumbItem } from '@/types'
 import Input from '@/components/forms/Input.vue';
@@ -272,7 +273,8 @@ const showingMessage = computed(() => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-
+        <FadeIn>
+        <div class="relative">
 
         <!-- Tabs -->
         <div
@@ -573,5 +575,7 @@ const showingMessage = computed(() => {
                 {{ form.processing ? 'Eliminando...' : 'Eliminar' }}
             </template>
         </ModalConfirm>
+        </div>
+        </FadeIn>
     </AppLayout>
 </template>

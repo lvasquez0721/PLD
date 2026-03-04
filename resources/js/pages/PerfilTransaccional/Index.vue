@@ -6,6 +6,7 @@ import axios from 'axios'
 // Componentes
 import AppLayout from '@/layouts/AppLayout.vue'
 import Titulo from '@/components/ui/Titulo.vue'
+import FadeIn from '@/components/ui/animation/fadeIn.vue'
 import { Users, FileSpreadsheet, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { type BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes/index.js';
@@ -296,6 +297,8 @@ const getTituloSeccion = (index: number) => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <FadeIn>
+            <div class="relative">
         <!-- Header Section -->
         <!-- <div class="mb-8">
       <Titulo :icon="Users" title="Perfil Transaccional" size="md" weight="bold" />
@@ -719,6 +722,8 @@ const getTituloSeccion = (index: number) => {
                 </div>
             </div>
         </transition>
+            </div>
+        </FadeIn>
     </AppLayout>
 </template>
 

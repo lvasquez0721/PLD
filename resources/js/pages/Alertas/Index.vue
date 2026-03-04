@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import { Bell, Search, Calendar, Download } from 'lucide-vue-next';
 import axios from 'axios';
 import { type BreadcrumbItem } from '@/types';
@@ -403,6 +404,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     <Head title="Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <FadeIn>
+            <div class="relative">
         <!-- Toast global -->
         <Toast v-model="toastVisible" :message="toastMessage" :type="toastType" :duration="4000" />
 
@@ -879,6 +882,8 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </div>
             </div>
         </Transition>
+            </div>
+        </FadeIn>
     </AppLayout>
 </template>
 

@@ -10,6 +10,7 @@ import { router } from '@inertiajs/vue3'
 import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes/index.js';
+import FadeIn from '@/components/ui/animation/fadeIn.vue';
 
 
 // Tipado del buzon
@@ -215,7 +216,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Buzón de operaciones preocupantes" />
 
-        <div class="max-w-[1800px] mx-auto px-6 sm:px-8 py-6 space-y-6">
+        <FadeIn>
+            <div class="relative max-w-[1800px] mx-auto px-6 sm:px-8 py-6 space-y-6">
             <!-- Tabs -->
             <div
                 class="flex gap-1 w-fit p-1 mb-4 bg-slate-100/60 dark:bg-neutral-900/80 backdrop-blur-sm rounded-[14px] border border-slate-100/50 dark:border-neutral-800/70 shadow-[0_2px_8px_rgba(15,23,42,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-all duration-700">
@@ -373,5 +375,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </div>
             </Transition>
         </div>
+        </FadeIn>
     </AppLayout>
 </template>

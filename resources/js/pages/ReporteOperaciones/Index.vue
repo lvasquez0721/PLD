@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Select from '@/components/forms/Select.vue';
 import DateInput from '@/components/forms/DateInput.vue';
+import FadeIn from '@/components/ui/animation/fadeIn.vue';
 
 const tipoOperacion = ref('');
 const estatusOperacion = ref('');
@@ -214,6 +215,8 @@ const descargarCSV = () => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <FadeIn>
+        <div class="relative">
         <div class="flex items-center justify-between">
     </div>
 
@@ -459,5 +462,7 @@ const descargarCSV = () => {
         </div>
       </div>
     </div>
+        </div>
+        </FadeIn>
   </AppLayout>
 </template>

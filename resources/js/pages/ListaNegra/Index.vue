@@ -4,6 +4,7 @@
   import AppLayout from '@/layouts/AppLayout.vue';
   import Titulo from '@/components/ui/Titulo.vue';
   import { ListX } from 'lucide-vue-next';
+  import FadeIn from '@/components/ui/animation/fadeIn.vue';
 
   const page = usePage();
   const isSubmitting = ref(false)
@@ -304,7 +305,8 @@
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-
+      <FadeIn>
+        <div class="relative">
 
     <!-- ALERTA SIMPLE DEL SERVIDOR -->
     <transition name="fade-in">
@@ -530,5 +532,7 @@
       </div>
     </transition>
 
+        </div>
+      </FadeIn>
   </AppLayout>
 </template>
