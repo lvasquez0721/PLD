@@ -151,8 +151,13 @@ class ClientesController extends Controller
                             });
                             break;
                         case 'coincidencia-revision':
+                            // Coincidencias en listas que aún NO están autorizadas
                             $q->orWhere(function ($subQuery) {
-                                $subQuery->where('CoincideEnListasNegras', '>', 0);
+                                $subQuery->where('CoincideEnListasNegras', '>', 0)
+                                    ->where(function ($q2) {
+                                        $q2->whereNull('Activo')
+                                            ->orWhere('Activo', '!=', 1);
+                                    });
                             });
                             break;
                         case 'ppe-revision':
@@ -211,6 +216,17 @@ class ClientesController extends Controller
         $idNacionalidad = isset($cliente->IDNacionalidad) ? (string) $cliente->IDNacionalidad : '';
         $cliente->fueraDeCategoria = $rfcVacio || ($idNacionalidad !== 'MX');
 
+        // Si autorizadoApareceEnListas es true, entonces seteamos CNSF y coincidencias como false.
+        if ($cliente->autorizadoApareceEnListas === true) {
+            $cliente->CNSF = false;
+            $cliente->coincidencias = false;
+        }
+
+        // Si coincidencias ha sido seteado a false, entonces también hay que setear countCoincidencias = 0
+        if ($cliente->coincidencias === false) {
+            $cliente->countCoincidencias = 0;
+        }
+
         return $cliente;
     }
 
@@ -226,14 +242,20 @@ class ClientesController extends Controller
         // Buscar en CNSF por RFC O CURP del cliente (algunos registros podrían carecer de uno u otro)
         $clienteRFC = strtoupper(trim($cliente->RFC ?? ''));
         $clienteCURP = strtoupper(trim($cliente->CURP ?? ''));
-        $listasNegras = TbListasNegraCNSF::where(function($q) use ($clienteRFC, $clienteCURP) {
-            if ($clienteRFC !== '') {
-                $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
-            }
-            if ($clienteCURP !== '') {
-                $q->orWhere(DB::raw('UPPER(TRIM(CURP))'), $clienteCURP);
-            }
-        })->get();
+
+        // Solo buscar si hay RFC o CURP válidos, evita buscar por cadenas vacías
+        if ($clienteRFC !== '' || $clienteCURP !== '') {
+            $listasNegras = TbListasNegraCNSF::where(function($q) use ($clienteRFC, $clienteCURP) {
+                if ($clienteRFC !== '') {
+                    $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
+                }
+                if ($clienteCURP !== '') {
+                    $q->orWhere(DB::raw('UPPER(TRIM(CURP))'), $clienteCURP);
+                }
+            })->get();
+        } else {
+            $listasNegras = collect(); // colección vacía si no hay datos con qué buscar
+        }
 
         $perfilTransaccional = TbPerfilTransaccional::where('IDCliente', $cliente->IDCliente)
             ->orderByDesc('IDRegistroPerfil')
@@ -244,15 +266,19 @@ class ClientesController extends Controller
             $perfilTransaccional = TbPerfilTransaccional::orderByDesc('IDRegistroPerfil')->first();
         }
 
-        // Buscar en listas UIF por RFC O CURP del cliente
-        $listasUIF = TbListasNegrasUIF::where(function($q) use ($clienteRFC, $clienteCURP) {
-            if ($clienteRFC !== '') {
-                $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
-            }
-            if ($clienteCURP !== '') {
-                $q->orWhere(DB::raw('UPPER(TRIM(CURP))'), $clienteCURP);
-            }
-        })->get();
+        // Solo buscar en listas UIF si hay RFC o CURP válidos, evita buscar por cadenas vacías
+        if ($clienteRFC !== '' || $clienteCURP !== '') {
+            $listasUIF = TbListasNegrasUIF::where(function($q) use ($clienteRFC, $clienteCURP) {
+                if ($clienteRFC !== '') {
+                    $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
+                }
+                if ($clienteCURP !== '') {
+                    $q->orWhere(DB::raw('UPPER(TRIM(CURP))'), $clienteCURP);
+                }
+            })->get();
+        } else {
+            $listasUIF = collect(); // colección vacía si no hay datos con qué buscar
+        }
 
         return inertia('Clientes/Detalles', [
             'cliente' => $cliente,

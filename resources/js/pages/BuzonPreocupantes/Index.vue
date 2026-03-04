@@ -213,83 +213,92 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <Head title="Buzón de operaciones preocupantes" />
 
-        <Head title="Dashboard" />
+        <div class="max-w-[1800px] mx-auto px-6 sm:px-8 py-6 space-y-6">
+            <!-- Tabs -->
+            <div
+                class="flex gap-1 w-fit p-1 mb-4 bg-slate-100/60 dark:bg-neutral-900/80 backdrop-blur-sm rounded-[14px] border border-slate-100/50 dark:border-neutral-800/70 shadow-[0_2px_8px_rgba(15,23,42,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-all duration-700">
+                <button @click="setTab('altaListas')" :class="[
+                    'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
+                    activeTab === 'altaListas'
+                        ? 'tab-active'
+                        : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
+                ]">
+                    Buzón
+                </button>
+                <button @click="setTab('consulta')" :class="[
+                    'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
+                    activeTab === 'consulta'
+                        ? 'tab-active'
+                        : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
+                ]">
+                    Registrar Reporte
+                </button>
+            </div>
 
-        <div
-            class="min-h-[calc(100vh-6rem)] bg-gradient-to-br from-slate-50/40 via-slate-50/60 to-blue-50/25 dark:from-neutral-950 dark:via-neutral-900/95 dark:to-neutral-900/90 transition-colors duration-700">
-            <div class="max-w-[1800px] mx-auto px-6 sm:px-8 py-6">
-
-                <!-- Tabs -->
-                <div
-                    class="flex gap-1 mb-8 p-1 bg-slate-100/60 dark:bg-neutral-900/80 backdrop-blur-sm rounded-[14px] border border-slate-100/50 dark:border-neutral-800/70 shadow-[0_2px_8px_rgba(15,23,42,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] w-fit transition-all duration-700">
-                    <button @click="setTab('altaListas')" :class="[
-                        'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
-                        activeTab === 'altaListas'
-                            ? 'tab-active'
-                            : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
-                    ]">
-                        Buzón
-                    </button>
-                    <button @click="setTab('consulta')" :class="[
-                        'py-2.5 px-6 font-medium text-[13px] tracking-[0.02em] rounded-[10px] transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) cursor-pointer',
-                        activeTab === 'consulta'
-                            ? 'tab-active'
-                            : 'text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-neutral-800/50'
-                    ]">
-                        Registrar Reporte
-                    </button>
-                </div>
-
-                <!-- Contenido: Tabla Buzón -->
-                <Transition name="tab" mode="out-in">
-                    <form v-if="activeTab === 'altaListas'" @submit.prevent="pasarAlertas" class="space-y-6">
+            <!-- Contenido -->
+            <Transition name="tab" mode="out-in">
+                <!-- Lista de buzón -->
+                <form v-if="activeTab === 'altaListas'" @submit.prevent="pasarAlertas" class="space-y-4">
+                    <div
+                        class="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-xl shadow-gray-200/50 dark:border-neutral-800/80 dark:bg-neutral-950 dark:shadow-neutral-900/50">
+                        <!-- Header -->
                         <div
-                            class="bg-[#f8fafc]/70 dark:bg-neutral-900/90 backdrop-blur-xl rounded-[20px] shadow-[0_3px_20px_rgba(15,23,42,0.035)] dark:shadow-[0_3px_20px_rgba(0,0,0,0.24)] border border-slate-100/50 dark:border-neutral-800/70 overflow-hidden transition-all duration-700 hover:shadow-[0_7px_28px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_7px_28px_rgba(0,0,0,0.28)]">
-                            <div class="overflow-x-auto">
-                                <table class="w-full">
-                                    <thead>
-                                        <tr
-                                            class="bg-gradient-to-r from-slate-50/50 via-slate-50/40 to-slate-50/50 dark:from-neutral-800/80 dark:via-neutral-900/50 dark:to-neutral-800/80 border-b border-slate-100/50 dark:border-neutral-800/70">
-                                            <th
-                                                class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
+                            class="border-b border-gray-200/60 bg-gradient-to-r from-gray-50/95 to-gray-50/80 px-6 py-4.5 backdrop-blur-sm dark:border-neutral-800/60 dark:from-neutral-900/95 dark:to-neutral-900/80">
+                            <h2 class="text-base font-semibold tracking-tight text-gray-900 dark:text-neutral-100">
+                                Buzón de operaciones preocupantes
+                            </h2>
+                        </div>
+
+                        <!-- Tabla -->
+                        <div class="p-6">
+                            <div class="overflow-x-auto rounded-xl">
+                                <table class="min-w-full divide-y divide-gray-200/60 dark:divide-neutral-800/60">
+                                    <thead
+                                        class="bg-gradient-to-r from-gray-50/95 to-gray-50/80 backdrop-blur-sm dark:from-neutral-900/95 dark:to-neutral-900/80">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Seleccionar
                                             </th>
-                                            <th
-                                                class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
+                                            <th scope="col"
+                                                class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 whitespace-nowrap">
                                                 ID
                                             </th>
-                                            <th
-                                                class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
+                                            <th scope="col"
+                                                class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Fecha
                                             </th>
-                                            <th
-                                                class="px-6 py-4 text-left text-[11px] font-semibold text-slate-600/85 dark:text-neutral-200/95 uppercase tracking-[0.07em] whitespace-nowrap">
+                                            <th scope="col"
+                                                class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Descripción
                                             </th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100/60 dark:divide-neutral-800/70">
+                                    <tbody
+                                        class="divide-y divide-gray-200/60 bg-white dark:divide-neutral-800/60 dark:bg-neutral-950">
                                         <tr v-for="item in buzon" :key="item.idBuzonPreocupantes"
-                                            class="hover:bg-blue-50/20 dark:hover:bg-neutral-800/60 transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) group">
-                                            <td class="px-6 py-4">
+                                            class="transition-all duration-150 hover:bg-gradient-to-r hover:from-gray-50/80 hover:to-gray-50/50 hover:shadow-sm dark:hover:from-neutral-900/50 dark:hover:to-neutral-900/30">
+                                            <td class="px-5 py-4">
                                                 <input type="checkbox" :value="item.IDReporteOP"
                                                     @change="toggleSeleccion(item.IDReporteOP)"
                                                     :checked="seleccionados.includes(item.IDReporteOP)"
                                                     class="checkbox-custom focus:ring-2 focus:ring-blue-400/30 dark:focus:ring-blue-500/40 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 rounded" />
                                             </td>
                                             <td
-                                                class="px-6 py-4 text-[13px] text-slate-700/85 dark:text-neutral-100/90 font-medium tracking-[0.003em]">
+                                                class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-neutral-100 whitespace-nowrap">
                                                 {{ item.idBuzonPreocupantes }}
                                             </td>
                                             <td
-                                                class="px-6 py-4 text-[13px] text-slate-600/85 dark:text-neutral-300/90 font-light tracking-[0.003em]">
+                                                class="px-5 py-4 text-sm font-medium text-gray-700 dark:text-neutral-300 whitespace-nowrap">
                                                 {{ new Intl.DateTimeFormat('es-MX', {
                                                     day: '2-digit', month: '2-digit',
-                                                    year: 'numeric' }).format(new Date(item.Fecha)) }}
+                                                    year: 'numeric'
+                                                }).format(new Date(item.Fecha)) }}
                                             </td>
                                             <td
-                                                class="px-6 py-4 text-[13px] text-slate-600/85 dark:text-neutral-300/90 font-light tracking-[0.003em]">
+                                                class="px-5 py-4 text-sm font-normal text-gray-700 dark:text-neutral-300">
                                                 {{ item.Descripcion }}
                                             </td>
                                         </tr>
@@ -297,61 +306,72 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 </table>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="flex justify-end">
-                            <button type="submit" :disabled="seleccionados.length === 0"
-                                class="px-7 py-3.5 bg-gradient-to-br from-blue-400/90 to-blue-500/90 text-white/95 text-[14px] font-medium tracking-[0.008em] rounded-[14px]
-                  shadow-[0_3px_12px_rgba(59,130,246,0.13)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.18)]
-                  hover:from-blue-500/90 hover:to-blue-600/90
-                  disabled:from-slate-300/80 disabled:to-slate-400/80 dark:disabled:from-neutral-800/80 dark:disabled:to-neutral-700/70 disabled:shadow-none disabled:cursor-not-allowed
-                  transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) transform hover:scale-[1.015] hover:-translate-y-0.5 active:translate-y-0 active:scale-100
-                  focus:outline-none focus:ring-2 focus:ring-blue-400/25 dark:focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-[#f8fafc]/50 dark:focus:ring-offset-neutral-900/50">
-                                Pasar alerta
-                            </button>
-                        </div>
-                    </form>
+                    <div class="flex justify-end">
+                        <button type="submit" :disabled="seleccionados.length === 0"
+                            class="px-7 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[14px] font-semibold tracking-[0.01em] rounded-[14px]
+                                shadow-[0_3px_12px_rgba(59,130,246,0.18)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.26)]
+                                hover:from-blue-700 hover:to-blue-800
+                                disabled:from-slate-300/80 disabled:to-slate-400/80 dark:disabled:from-neutral-800/80 dark:disabled:to-neutral-700/70 disabled:shadow-none disabled:cursor-not-allowed
+                                transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) transform hover:scale-[1.015] hover:-translate-y-0.5 active:translate-y-0 active:scale-100
+                                focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-950">
+                            Pasar alerta
+                        </button>
+                    </div>
+                </form>
 
-                    <!-- Formulario Registrar Reporte -->
-                    <form v-else-if="activeTab === 'consulta'" @submit.prevent="guardar" class="space-y-6">
+                <!-- Formulario Registrar Reporte -->
+                <form v-else-if="activeTab === 'consulta'" @submit.prevent="guardar" class="space-y-4">
+                    <div
+                        class="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-xl shadow-gray-200/50 dark:border-neutral-800/80 dark:bg-neutral-950 dark:shadow-neutral-900/50">
+                        <!-- Header -->
                         <div
-                            class="bg-[#f8fafc]/70 dark:bg-neutral-900/90 backdrop-blur-xl rounded-[20px] shadow-[0_3px_20px_rgba(15,23,42,0.035)] dark:shadow-[0_3px_20px_rgba(0,0,0,0.24)] border border-slate-100/50 dark:border-neutral-800/70 p-8 transition-all duration-700 hover:shadow-[0_7px_28px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_7px_28px_rgba(0,0,0,0.28)]">
+                            class="border-b border-gray-200/60 bg-gradient-to-r from-gray-50/95 to-gray-50/80 px-6 py-4.5 backdrop-blur-sm dark:border-neutral-800/60 dark:from-neutral-900/95 dark:to-neutral-900/80">
+                            <h2 class="text-base font-semibold tracking-tight text-gray-900 dark:text-neutral-100">
+                                Registrar reporte preocupante
+                            </h2>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="px-6 py-6">
                             <div class="space-y-4">
                                 <Label for="buscar"
                                     class="block text-[11px] font-medium text-slate-600/85 dark:text-neutral-300/85 uppercase tracking-[0.05em] mb-3">
                                     Reporte
                                 </Label>
-                                <input v-model="buscar" id="buscar" type="text" placeholder="Ingrese su reporte" class="w-full px-4 py-3.5 rounded-[14px] text-[14px] font-light tracking-[0.003em] transition-all duration-300
-                    border border-slate-200/80 dark:border-neutral-700/80
-                    bg-white/80 dark:bg-neutral-800/80
-                    text-slate-800 dark:text-slate-100
-                    placeholder:text-slate-400 dark:placeholder:text-neutral-500
-                    focus:outline-none focus:ring-2 focus:ring-blue-400/25 dark:focus:ring-blue-500/30 focus:border-blue-300/50 dark:focus:border-blue-500/50
-                    shadow-[0_1px_3px_rgba(15,23,42,0.04)]" />
+                                <input v-model="buscar" id="buscar" type="text" placeholder="Ingrese su reporte"
+                                    class="w-full rounded-xl border border-gray-300/80 bg-white px-4 py-3.5 text-[14px] font-light tracking-[0.003em] text-slate-800 shadow-sm transition-all duration-200 placeholder:text-slate-400 hover:border-gray-400/80 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:border-neutral-700/80 dark:bg-neutral-900 dark:text-slate-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600 dark:focus:border-blue-400 dark:focus:ring-blue-400/50" />
                             </div>
-                            <div class="mt-6 flex justify-end">
+                        </div>
+
+                        <!-- Footer -->
+                        <div
+                            class="border-t border-gray-200/60 bg-gradient-to-r from-gray-50/95 to-gray-50/80 px-6 py-4 backdrop-blur-sm dark:border-neutral-800/60 dark:from-neutral-900/95 dark:to-neutral-900/80">
+                            <div class="flex justify-end">
                                 <button type="submit" :disabled="loading || !buscar.trim()"
-                                    class="px-7 py-3.5 bg-gradient-to-br from-blue-400/90 to-blue-500/90 text-white/95 text-[14px] font-medium tracking-[0.008em] rounded-[14px]
-                    shadow-[0_3px_12px_rgba(59,130,246,0.13)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.18)]
-                    hover:from-blue-500/90 hover:to-blue-600/90
-                    disabled:from-slate-300/80 disabled:to-slate-400/80 dark:disabled:from-neutral-800/80 dark:disabled:to-neutral-700/70 disabled:shadow-none disabled:cursor-not-allowed
-                    transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) transform hover:scale-[1.015] hover:-translate-y-0.5 active:translate-y-0 active:scale-100
-                    focus:outline-none focus:ring-2 focus:ring-blue-400/25 dark:focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-[#f8fafc]/50 dark:focus:ring-offset-neutral-900/50">
+                                    class="px-7 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[14px] font-semibold tracking-[0.01em] rounded-[14px]
+                                        shadow-[0_3px_12px_rgba(59,130,246,0.18)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.26)]
+                                        hover:from-blue-700 hover:to-blue-800
+                                        disabled:from-slate-300/80 disabled:to-slate-400/80 dark:disabled:from-neutral-800/80 dark:disabled:to-neutral-700/70 disabled:shadow-none disabled:cursor-not-allowed
+                                        transition-all duration-300 cubic-bezier(0.25,0.1,0.25,1) transform hover:scale-[1.015] hover:-translate-y-0.5 active:translate-y-0 active:scale-100
+                                        focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-950">
                                     <span v-if="loading">Guardando...</span>
                                     <span v-else>Guardar</span>
                                 </button>
                             </div>
                         </div>
-                    </form>
-                </Transition>
-            </div>
+                    </div>
+                </form>
+            </Transition>
+
+            <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="3000" />
+
+            <Transition name="fade">
+                <div v-if="loading" class="loader-overlay">
+                    <div class="spinner"></div>
+                </div>
+            </Transition>
         </div>
-
-        <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="3000" />
-
-        <Transition name="fade">
-            <div v-if="loading" class="loader-overlay">
-                <div class="spinner"></div>
-            </div>
-        </Transition>
     </AppLayout>
 </template>

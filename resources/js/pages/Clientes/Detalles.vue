@@ -219,15 +219,7 @@ function riesgoNombre(n: number): string {
                         <div>
                             <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ fullName }}</h1>
                             <p class="text-xs text-gray-500 dark:text-neutral-400">{{ personaTipo }}</p>
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                <span
-                                  v-if="!hasRFC"
-                                  class="inline-flex items-center gap-1.5 rounded-full bg-yellow-100 text-yellow-800 px-2.5 py-1 font-medium text-xs dark:bg-yellow-900/40 dark:text-yellow-200"
-                                >
-                                  <XCircle class="h-3.5 w-3.5" />
-                                  No cuenta con RFC
-                                </span>
-                            </div>
+
                         </div>
                     </div>
                     <div class="mt-4 space-y-1 text-xs">
