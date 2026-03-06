@@ -22,13 +22,13 @@ class ClientesControllerApi extends Controller
     public function guardarCliente(Request $request)
     {
         $validator = Validator::make($request->all(), [
-           'RFC' => 'nullable|string|max:18',
-            'nombre' => 'nullable|string|max:255',
-            'apellidoPaterno' => 'nullable|string|max:255',
-            'apellidoMaterno' => 'nullable|string|max:255',
+            'RFC' => 'nullable|string|max:18',
+            'nombre' => 'sometimes|nullable|string|max:255',
+            'apellidoPaterno' => 'sometimes|nullable|string|max:255',
+            'apellidoMaterno' => 'sometimes|nullable|string|max:255',
             'razonSocial' => 'nullable|string|max:255',
             'IDTipoPersona' => 'required|integer',
-            'CURP' => 'nullable|string|max:18',
+            'CURP' => 'sometimes|nullable|string|max:18',
             'IDOcupacionGiro' => 'nullable|integer',
             'fechaNacimiento' => 'nullable|date',
             'fechaConstitucion' => 'nullable|date',
@@ -48,7 +48,6 @@ class ClientesControllerApi extends Controller
             'domicilios.*.municipio' => 'required|string|max:255',
             'domicilios.*.localidad' => 'nullable|string|max:255',
             'domicilios.*.telefono' => 'nullable|string|max:20',
-            // 'domicilios.*.principal' => 'nullable|boolean',
 
             'IDSistemaOrigen' => 'nullable|integer',
             'NoClienteSistema' => 'nullable|string|max:255',
@@ -77,9 +76,10 @@ class ClientesControllerApi extends Controller
                     ], 200);
                 }
             } else {
-                $nombre = strtoupper(trim($data['nombre']));
-                $apellidoP = strtoupper(trim($data['apellidoPaterno'] ?? ''));
-                $apellidoM = strtoupper(trim($data['apellidoMaterno'] ?? ''));
+                // Tener cuidado: nombre, apellidoPaterno, apellidoMaterno pueden no estar en $data
+                $nombre = isset($data['nombre']) ? strtoupper(trim($data['nombre'])) : '';
+                $apellidoP = isset($data['apellidoPaterno']) ? strtoupper(trim($data['apellidoPaterno'])) : '';
+                $apellidoM = isset($data['apellidoMaterno']) ? strtoupper(trim($data['apellidoMaterno'])) : '';
 
                 $existeGenerico = TbClientes::whereRaw('UPPER(RFC) = ?', ['XAXX010101000'])
                     ->whereRaw('UPPER(Nombre) = ?', [$nombre])
@@ -104,7 +104,7 @@ class ClientesControllerApi extends Controller
         try {
             $cliente = TbClientes::create([
                 'RFC' => $data['RFC'],
-                'Nombre' => $data['nombre'],
+                'Nombre' => $data['nombre'] ?? null,
                 'ApellidoPaterno' => $data['apellidoPaterno'] ?? null,
                 'ApellidoMaterno' => $data['apellidoMaterno'] ?? null,
                 'RazonSocial' => $data['razonSocial'] ?? null,
@@ -168,7 +168,7 @@ class ClientesControllerApi extends Controller
                 nuevoIDCliente: $cliente->IDCliente,
                 IDTipoPersona: $data['IDTipoPersona'],
                 RFC: $data['RFC'] ?? '',
-                nombre: $data['nombre'],
+                nombre: $data['nombre'] ?? '',
                 apellidoPaterno: $data['apellidoPaterno'] ?? '',
                 apellidoMaterno: $data['apellidoMaterno'] ?? '',
                 razonSocial: $data['razonSocial'] ?? '',
@@ -295,7 +295,7 @@ class ClientesControllerApi extends Controller
         foreach ($domiciliosOriginales as $domicilio) {
             // Obtener el siguiente valor IDLogDomicilio manualmente
             $maxIdLog = LogClientesDomicilio::max('IDLogDomicilio');
-            $nextIdLog = $maxIdLog ? $maxIdLog + 1 : 1; // Siguiente autoincremental
+            $nextIdLog = $maxIdLog ? $maxIdLog + 1 : 1;
 
             LogClientesDomicilio::create([
                 'IDLogDomicilio' => $nextIdLog,
@@ -310,7 +310,7 @@ class ClientesControllerApi extends Controller
                 'Municipio' => $domicilio->Municipio,
                 'Localidad' => $domicilio->Localidad,
                 'Telefono' => $domicilio->Telefono,
-                'created_at' => now(), // Usar created_at para TimeStampLog
+                'created_at' => now(),
                 'updated_at' => now(),
             ]);
         }
@@ -340,10 +340,18 @@ class ClientesControllerApi extends Controller
             }
         }
 
+        // Si el json body no incluye 'nombre', 'apellidoPaterno', 'apellidoMaterno', o 'CURP',
+        // usamos los valores actuales del cliente de la BD en vez de null
+        $nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
+        $apellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
+        $apellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
+        $curp = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
+
+        // Para PPE, armar nombre completo lo mejor posible
         $nombreC = trim(
-            $validated['nombre']
-            .' '.($validated['apellidoPaterno'] ?? '')
-            .' '.($validated['apellidoMaterno'] ?? '')
+            ($nombre ? $nombre : '')
+            .' '.($apellidoPaterno ? $apellidoPaterno : '')
+            .' '.($apellidoMaterno ? $apellidoMaterno : '')
         );
 
         $tokenPPE = ClienteHelper::getTokenPPE();
@@ -358,37 +366,35 @@ class ClientesControllerApi extends Controller
             $esPPE = true;
         }
 
-        // Actualizar datos principales
-        $cliente->RFC = $validated['RFC'];
-        $cliente->Nombre = $validated['nombre'];
-        $cliente->ApellidoPaterno = $validated['apellidoPaterno'] ?? null;
-        $cliente->ApellidoMaterno = $validated['apellidoMaterno'] ?? null;
-        $cliente->RazonSocial = $validated['razonSocial'] ?? null;
+        // Actualizar datos principales, si llegaron campos nuevos, si no dejar lo original
+        $cliente->RFC = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
+        $cliente->Nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
+        $cliente->ApellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
+        $cliente->ApellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
+        $cliente->RazonSocial = array_key_exists('razonSocial', $validated) ? $validated['razonSocial'] : $cliente->RazonSocial;
         $cliente->IDTipoPersona = $validated['IDTipoPersona'];
-        $cliente->CURP = $validated['CURP'] ?? null;
-        $cliente->IDOcupacionGiro = $validated['IDOcupacionGiro'] ?? null;
-        $cliente->FechaNacimiento = $validated['fechaNacimiento'] ?? null;
-        $cliente->FechaConstitucion = $validated['fechaConstitucion'] ?? null;
-        $cliente->FolioMercantil = $validated['folioMercantil'] ?? null;
-        $cliente->IDNacionalidad = $validated['IDNacionalidad'] ?? null;
-        $cliente->IDEstadoNacimiento = $validated['IDEstadoNacimiento'] ?? null;
-        $cliente->Preguntas = $validated['Preguntas'] ?? null;
+        $cliente->CURP = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
+        $cliente->IDOcupacionGiro = array_key_exists('IDOcupacionGiro', $validated) ? $validated['IDOcupacionGiro'] : $cliente->IDOcupacionGiro;
+        $cliente->FechaNacimiento = array_key_exists('fechaNacimiento', $validated) ? $validated['fechaNacimiento'] : $cliente->FechaNacimiento;
+        $cliente->FechaConstitucion = array_key_exists('fechaConstitucion', $validated) ? $validated['fechaConstitucion'] : $cliente->FechaConstitucion;
+        $cliente->FolioMercantil = array_key_exists('folioMercantil', $validated) ? $validated['folioMercantil'] : $cliente->FolioMercantil;
+        $cliente->IDNacionalidad = array_key_exists('IDNacionalidad', $validated) ? $validated['IDNacionalidad'] : $cliente->IDNacionalidad;
+        $cliente->IDEstadoNacimiento = array_key_exists('IDEstadoNacimiento', $validated) ? $validated['IDEstadoNacimiento'] : $cliente->IDEstadoNacimiento;
+        $cliente->Preguntas = array_key_exists('Preguntas', $validated) ? $validated['Preguntas'] : $cliente->Preguntas;
         $cliente->EsPPEActivo = $esPPE;
+
         // CoincideEnListasNegras y Activo se actualizan más abajo según lógica
 
         // Actualizar/crear CatIdClientesSistema relacionado si vienen los datos de sistema origen
         if (! empty($validated['IDSistemaOrigen']) && ! empty($validated['NoClienteSistema'])) {
-            // Buscar si ya existe un registro para este cliente con el IDSistema dado
             $catIdSistema = CatIdClientesSistema::where('IDCliente', $cliente->IDCliente)
                 ->where('IDSistema', $validated['IDSistemaOrigen'])
                 ->first();
 
             if ($catIdSistema) {
-                // Actualizar el número de cliente si cambió
                 $catIdSistema->NCliente = $validated['NoClienteSistema'];
                 $catIdSistema->save();
             } else {
-                // Crear uno nuevo (IDOrigenSistema autoincrement o moldear igual a crear)
                 $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
                 CatIdClientesSistema::create([
                     'IDOrigenSistema' => $nuevoIDOrigen,
@@ -400,12 +406,11 @@ class ClientesControllerApi extends Controller
         }
 
         // Buscar en listas bloqueadas por RFC actualizado
-        $rfc = $validated['RFC'] ?? null;
+        $rfc = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
         $coincideEnListasNegras = false;
         $detalleListaBloqueadas = [];
         $listasDetectadas = [];
 
-        // Por nombre en lugar de rfc
         if ($rfc) {
             $CNSFrfc = TbListasNegraCNSF::where('RFC', $rfc)->first();
             if ($CNSFrfc) {

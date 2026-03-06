@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import { Bell, Search, Calendar, Download } from 'lucide-vue-next';
@@ -10,7 +10,7 @@ import Input from '@/components/forms/Input.vue';
 import Select from '@/components/forms/Select.vue';
 import Textarea from '@/components/forms/Textarea.vue';
 import SelectFile from '@/components/forms/SelectFile.vue';
-import { usePage } from '@inertiajs/vue3';
+import { usePage, router as inertiaRouter } from '@inertiajs/vue3';
 import Toast from '@/components/ui/alert/Toast.vue';
 import InputError from '@/components/InputError.vue';
 
@@ -73,6 +73,7 @@ interface Alerta {
     HoraOperacion: string;
     MontoOperacion: number;
     InstrumentoMonetario: string;
+    IDMoneda: number;
     RFCAgente: string;
     Agente: string;
     Estatus: string;
@@ -94,7 +95,7 @@ const alertas = ref<Alerta[]>([]);
 const isLoading = ref(false);
 const focusedInput = ref<string | null>(null);
 
-// Modal "Nuevo" para agregar alerta
+// Modal para agregar/editar alerta
 const showNuevoAlertaModal = ref(false);
 const selectedAlertaId = ref<number | null>(null);
 
@@ -131,14 +132,54 @@ const opcionesEstatus = ref<{ value: string; label: string }[]>([
     { value: 'Enviado', label: 'Enviado' }
 ]);
 
-const openNuevoAlertaModal = (id?: number) => {
+const openNuevoAlertaModal = async (alerta?: Alerta) => {
+    if (alerta) {
+        selectedAlertaId.value = alerta.IDRegistroAlerta;
+        patron.value = alerta.Patron ?? '';
+        const estatusEncontrado = opcionesEstatus.value.find(opt => opt.value === alerta.Estatus);
+        estatus.value = estatusEncontrado ? estatusEncontrado.value : '';
+        nombre.value = String(alerta.IDCliente ?? '');
+        noCliente.value = String(alerta.IDCliente ?? '');
+        poliza.value = alerta.Poliza ?? '';
+        const agenteEncontrado = opcionesAgente.value.find(opt => opt.label === alerta.Agente);
+        agente.value = agenteEncontrado ? agenteEncontrado.value : '';
+        const instrumentoEncontrado = opcionesInstrumento.value.find(opt => opt.label === alerta.InstrumentoMonetario);
+        instrumento.value = instrumentoEncontrado ? instrumentoEncontrado.value : '';
+        moneda.value = String(alerta.IDMoneda ?? '');
+        monto.value = alerta.MontoOperacion ?? '';
+        descripcionOperacion.value = alerta.Descripcion ?? '';
+        razones.value = alerta.Razones ?? '';
+        evidencias.value = [];
+        await cargarPolizasCliente(String(alerta.IDCliente ?? ''));
+    } else {
+        selectedAlertaId.value = null;
+        patron.value = 'Nuevo';
+        estatus.value = '';
+        nombre.value = '';
+        noCliente.value = '';
+        poliza.value = '';
+        agente.value = '';
+        instrumento.value = '';
+        moneda.value = '';
+        monto.value = '';
+        descripcionOperacion.value = '';
+        razones.value = '';
+        evidencias.value = [];
+        opcionesPoliza.value = [];
+    }
+    errorGeneral.value = null;
+    erroresValidacion.value = {};
     showNuevoAlertaModal.value = true;
-    selectedAlertaId.value = typeof id === 'number' ? id : null;
+    await nextTick();
 };
+
 const closeNuevoAlertaModal = () => {
     showNuevoAlertaModal.value = false;
     selectedAlertaId.value = null;
+    errorGeneral.value = null;
+    erroresValidacion.value = {};
 };
+
 onMounted(() => {
     const clientes = (page.props as any).clientes || [];
     opcionesNombre.value = clientes.map((c: any) => {
@@ -227,7 +268,7 @@ const downloadCsv = async () => {
     }
 };
 
-const emitirReporte = async () => {
+const actualizarAlerta = async () => {
     try {
         submitLoading.value = true;
         errorGeneral.value = null;
@@ -248,32 +289,46 @@ const emitirReporte = async () => {
         formData.append('razones', String(razones.value));
         if (selectedAlertaId.value !== null) {
             formData.append('idAlerta', String(selectedAlertaId.value));
+            formData.append('_method', 'put');
         }
-        formData.append('IDMoneda', String(moneda.value ?? ''));
+        formData.append('idMoneda', String(moneda.value ?? ''));
         formData.append('IDTipoOperacion', '');
         evidencias.value.forEach((file) => {
             formData.append('evidencias[]', file);
         });
-        const { data } = await axios.post('/alertas/emitir-reporte', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+        // Actualizamos USANDO LA RUTA QUE SI EXISTE en web.php: '/alertas/actualizar'
+        // The below is the fix for "Property 'data' does not exist on type 'void'"
+        // We run the post, the message comes only from the onSuccess callback (handled via toast)
+        await inertiaRouter.post('/alertas/actualizar', formData, {
+            forceFormData: true,
+            onSuccess: (page) => {
+                // Devolver la data del backend para mantener compatibilidad
+                toastType.value = 'success';
+                toastMessage.value = page.props?.message ||
+                    'La alerta se actualizó correctamente';
+                toastVisible.value = true;
+                showNuevoAlertaModal.value = false;
+                // Limpiar campos
+                selectedAlertaId.value = null;
+                estatus.value = '';
+                nombre.value = '';
+                noCliente.value = '';
+                agente.value = '';
+                instrumento.value = '';
+                moneda.value = '';
+                poliza.value = '';
+                monto.value = '';
+                descripcionOperacion.value = '';
+                razones.value = '';
+                evidencias.value = [];
+                buscarAlertas();
+            },
+            onError: (errors) => {
+                throw { response: { status: 422, data: { errors, message: 'Validación fallida. Corrige los campos.' } } };
+            }
         });
-        showNuevoAlertaModal.value = false;
-        toastType.value = 'success';
-        toastMessage.value = data?.message || 'Reporte emitido correctamente';
-        toastVisible.value = true;
-        await buscarAlertas();
-        selectedAlertaId.value = null;
-        estatus.value = '';
-        nombre.value = '';
-        noCliente.value = '';
-        agente.value = '';
-        instrumento.value = '';
-        moneda.value = '';
-        poliza.value = '';
-        monto.value = '';
-        descripcionOperacion.value = '';
-        razones.value = '';
-        evidencias.value = [];
+
+        // La limpieza y el toast ahora está en onSuccess, no aquí
     } catch (error) {
         const anyErr: any = error;
         const status = anyErr?.response?.status;
@@ -297,13 +352,13 @@ const emitirReporte = async () => {
                 toastType.value = 'error';
                 toastMessage.value = `Error: ${dbg.message}${id}`;
             } else {
-                errorGeneral.value = 'Ocurrió un error al emitir el reporte' + id;
+                errorGeneral.value = 'Ocurrió un error al actualizar la alerta' + id;
                 toastType.value = 'error';
                 toastMessage.value = errorGeneral.value || '';
             }
             toastVisible.value = true;
         } else {
-            errorGeneral.value = 'No se pudo emitir el reporte. Intenta de nuevo.';
+            errorGeneral.value = 'No se pudo actualizar la alerta. Intenta de nuevo.';
             toastType.value = 'error';
             toastMessage.value = errorGeneral.value || '';
             toastVisible.value = true;
@@ -603,21 +658,18 @@ const breadcrumbs: BreadcrumbItem[] = [
                                             class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
                                             {{ alerta.Folio }}
                                         </td>
+                                        <!-- BOTON PARA EDITAR ALERTA, SIEMPRE -->
                                         <td class="whitespace-nowrap px-5 py-4 text-sm">
-                                            <template v-if="alerta.Patron.trim().toLowerCase() === 'nuevo'">
-                                                <button
-                                                    class="uppercase px-4 py-2 bg-gradient-to-br from-green-500 via-emerald-500 to-green-400 text-white text-xs font-extrabold tracking-[0.14em] shadow-[0_1px_4px_rgba(34,197,94,0.22)] border-none rounded-full outline-none ring-2 ring-green-200/40 dark:ring-green-700/30 hover:bg-green-700/95 hover:from-green-600 hover:to-green-400 active:scale-95 focus:ring-4 focus:ring-emerald-300/60 transition-all duration-200"
-                                                    @click="openNuevoAlertaModal(alerta.IDRegistroAlerta)">
-                                                    {{ alerta.Patron.toUpperCase() }}
-                                                </button>
-                                            </template>
-                                            <template v-else>
-                                                <span
-                                                    class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium tracking-[0.03em]"
-                                                    :class="getPatronBadgeClass(alerta.Patron)">
-                                                    {{ alerta.Patron }}
-                                                </span>
-                                            </template>
+                                            <button
+                                                class="uppercase px-4 py-2 rounded-full text-xs font-extrabold tracking-[0.14em] transition-all duration-200 focus:outline-none border"
+                                                :class="alerta.Patron.trim().toLowerCase() === 'nuevo'
+                                                    ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-green-400 text-white border-none shadow-[0_1px_4px_rgba(34,197,94,0.22)] outline-none ring-2 ring-green-200/40 dark:ring-green-700/30 hover:bg-green-700/95 hover:from-green-600 hover:to-green-400 active:scale-95 focus:ring-4 focus:ring-emerald-300/60'
+                                                    : getPatronBadgeClass(alerta.Patron) + ' bg-white dark:bg-neutral-950 hover:bg-gray-100 dark:hover:bg-neutral-900'
+                                                "
+                                                @click="openNuevoAlertaModal(alerta)"
+                                            >
+                                                {{ alerta.Patron.toUpperCase() }}
+                                            </button>
                                         </td>
                                         <td
                                             class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
@@ -861,7 +913,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     class="group inline-flex items-center justify-center rounded-xl border border-gray-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:border-gray-400/80 hover:bg-gradient-to-br hover:from-gray-50 hover:to-white hover:shadow-md hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 dark:border-neutral-700/80 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:from-neutral-900 dark:hover:to-neutral-950 dark:focus:ring-blue-400/50 dark:focus:ring-offset-neutral-950">
                                     Cancelar
                                 </button>
-                                <button @click="emitirReporte" :disabled="submitLoading"
+                                <button @click="actualizarAlerta" :disabled="submitLoading"
                                     class="group inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 dark:from-blue-500 dark:to-blue-600 dark:shadow-blue-500/20 dark:hover:from-blue-600 dark:hover:to-blue-700 dark:focus:ring-blue-400 dark:focus:ring-offset-neutral-950">
                                     <div class="flex items-center gap-2.5">
                                         <template v-if="submitLoading">
@@ -869,10 +921,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 <span
                                                     class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                                             </span>
-                                            <span>Enviando...</span>
+                                            <span>Actualizando...</span>
                                         </template>
                                         <template v-else>
-                                            <span>Emitir reporte</span>
+                                            <span>Actualizar alerta</span>
                                         </template>
                                     </div>
                                 </button>

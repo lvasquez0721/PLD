@@ -144,6 +144,7 @@ class AlertasController extends Controller
             'noCliente' => 'required|integer',
             'poliza' => 'required|string',
             'agente' => 'required|integer',
+            'idMoneda' => 'required', // Puede ser string, integer o nullable, depende de la migración
             'monto' => 'required|numeric',
             'descripcionOperacion' => 'required|string',
             'razones' => 'required|string',
@@ -184,12 +185,12 @@ class AlertasController extends Controller
             $agenteCliente = TbClientes::find($request->input('agente'));
             $agenteNombre = $agenteCliente
                 ? (($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
-                ? $agenteCliente->RazonSocial
-                : trim(implode(' ', array_filter([
-                    $agenteCliente->Nombre ?? '',
-                    $agenteCliente->ApellidoPaterno ?? '',
-                    $agenteCliente->ApellidoMaterno ?? ''
-                ]))))
+                    ? $agenteCliente->RazonSocial
+                    : trim(implode(' ', array_filter([
+                        $agenteCliente->Nombre ?? '',
+                        $agenteCliente->ApellidoPaterno ?? '',
+                        $agenteCliente->ApellidoMaterno ?? ''
+                    ]))))
                 : null;
 
             // Definir la hora y fecha actuales para los campos correspondientes
@@ -206,6 +207,7 @@ class AlertasController extends Controller
             $alerta->InstrumentoMonetario = $request->input('instrumento');
             $alerta->RFCAgente = $agenteCliente ? ($agenteCliente->RFC ?? null) : null;
             $alerta->Agente = $agenteNombre;
+            $alerta->IDMoneda = $request->input('idMoneda'); // <-- Incluir IDMoneda
             $alerta->Estatus = $request->input('estatus');
             $alerta->Descripcion = $request->input('descripcionOperacion');
             $alerta->Razones = $request->input('razones');

@@ -156,17 +156,30 @@ class OperacionesController extends Controller
             if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) {
                 return response()->json([
                     'codigoError' => 422,
-                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sea negativa.',
+                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sean negativos o positivos.',
                 ], 422);
             }
 
             $operacionesPagos = [];
             $operacion = null;
 
+            // Agrupar operaciones por poliza y endoso
+            $detalleAGrupado = [];
             foreach ($request->detalleOperaciones as $detalleOperacion) {
-                $folioPoliza = $detalleOperacion['folioPoliza'] ?? null;
-                $folioEndoso = $detalleOperacion['folioEndoso'] ?? null;
+                $key = ($detalleOperacion['folioPoliza'] ?? '') . '||' . ($detalleOperacion['folioEndoso'] ?? '');
+                if (!isset($detalleAGrupado[$key])) {
+                    $detalleAGrupado[$key] = [
+                        'folioPoliza' => $detalleOperacion['folioPoliza'] ?? null,
+                        'folioEndoso' => $detalleOperacion['folioEndoso'] ?? null,
+                        'detalles' => [],
+                    ];
+                }
+                $detalleAGrupado[$key]['detalles'][] = $detalleOperacion;
+            }
 
+            foreach ($detalleAGrupado as $grupo) {
+                $folioPoliza = $grupo['folioPoliza'];
+                $folioEndoso = $grupo['folioEndoso'];
                 $operacionQuery = TbOperaciones::query();
                 if ($folioPoliza && $folioEndoso) {
                     $operacionQuery->where('FolioPoliza', $folioPoliza)
@@ -184,66 +197,72 @@ class OperacionesController extends Controller
                 $op = $operacionQuery->first();
                 $operacion = $op;
 
-                if (! $operacion) {
+                if (!$operacion) {
                     return response()->json([
                         'codigoError' => 404,
                         'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
                     ], 404);
                 }
 
-                // --- NUEVA VALIDACIÓN POLIZA PAGADA ---
-                // Verificar si la operación ya se encuentra pagada en su totalidad
-                // (Se asume que TbOperacionesPagos guarda todos los pagos previos para la operación)
+                // Sumar todos los pagos previos para la operación
                 $montoTotalPagado = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->sum('Monto');
-                // Se suma lo que entre en esta petición
-                $nuevoPago = $detalleOperacion['detalleMontoPagado'];
+                // Sumar los pagos de esta petición para la operación
+                $nuevoPagoTotal = array_sum(array_column($grupo['detalles'], 'detalleMontoPagado'));
                 $primaTotalOperacion = $operacion->PrimaTotal;
 
-                // Si el monto total pagado + nuevo pago > prima total,
-                // o si ya está pagada,
-                // devolvemos el error 1 según catálogo solicitado:
-                if (bccomp((string)($montoTotalPagado), (string)$primaTotalOperacion, 2) >= 0) {
-                    // Ya está pagada: NO permitir
+                // Valida si la suma total (pagos anteriores + esta petición) ya cubre justo la prima (0), no sobrepasa, y admite montos negativos y positivos
+                $saldoPendiente = bcadd((string)($primaTotalOperacion - $montoTotalPagado), (string)(-$nuevoPagoTotal), 2); // saldo pendiente después del pago
+                $totalPagadoTrasEstaPeticion = bcadd((string)$montoTotalPagado, (string)$nuevoPagoTotal, 2);
+                $restante = bcsub((string)$primaTotalOperacion, (string)$totalPagadoTrasEstaPeticion, 2);
+
+                // La póliza se considera pagada si el saldo es exactamente 0 después de este pago (admite positivo y negativo en pagos)
+                if (bccomp((string)$restante, '0', 2) == 0) {
+                    // Permite este pago (pagado exacto a la prima), no bloquea.
+                } elseif (bccomp((string)$restante, '0', 2) < 0) {
+                    // Demasiado pagado, no se permite. Permite llegar a 0 exacto, admite negativos para compensar.
+                    return response()->json([
+                        "codigoError" => 1,
+                        "error" => "No se permite exceder el pago total de la póliza / endoso"
+                    ], 200);
+                }
+
+                // Si ya estaba pagada antes de este pago (restante antes del pago <= 0), no permitir más pagos
+                if (bccomp((string)($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
                     return response()->json([
                         "codigoError" => 1,
                         "error" => "La póliza / endoso ya se encuentra pagada en su totalidad"
                     ], 200);
                 }
-                // Opcional si deseas bloquear el EXCESO de pago, descomenta...
-                /*
-                if (bccomp((string)($montoTotalPagado + $nuevoPago), (string)$primaTotalOperacion, 2) > 0) {
-                    return response()->json([
-                        "codigoError" => 1,
-                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad"
-                    ], 200);
+
+                // Guarda cada uno de los pagos del grupo
+                foreach ($grupo['detalles'] as $detalleOperacion) {
+                    $pago = new TbOperacionesPagos;
+                    $pago->IDOperacion = $operacion->IDOperacion;
+                    $pago->IDCliente = $request->IDCliente;
+                    $pago->Monto = $detalleOperacion['detalleMontoPagado'];
+                    $pago->IDMoneda = $request->IDMoneda;
+                    $pago->IDFormaPago = $request->IDFormaPago;
+                    $pago->TipoCambio = $request->TipoCambio;
+                    $pago->FechaPago = $request->FechaPago;
+
+                    try {
+                        $pago->save();
+                    } catch (\Exception $e) {
+                        return response()->json([
+                            'codigoError' => 500,
+                            'error' => 'Error al guardar el pago.',
+                            'detalles' => $e->getMessage(),
+                        ], 500);
+                    }
+
+                    $operacionesPagos[] = $pago;
                 }
-                */
-
-                $pago = new TbOperacionesPagos;
-                $pago->IDOperacion = $operacion->IDOperacion;
-                $pago->IDCliente = $request->IDCliente;
-                $pago->Monto = $detalleOperacion['detalleMontoPagado'];
-                $pago->IDMoneda = $request->IDMoneda;
-                $pago->IDFormaPago = $request->IDFormaPago;
-                $pago->TipoCambio = $request->TipoCambio;
-                $pago->FechaPago = $request->FechaPago;
-
-                try {
-                    $pago->save();
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'codigoError' => 500,
-                        'error' => 'Error al guardar el pago.',
-                        'detalles' => $e->getMessage(),
-                    ], 500);
-                }
-
-                $operacionesPagos[] = $pago;
             }
 
             // ANÁLISIS DE PAGOS Y GENERACIÓN DE ALERTAS USANDO EL NUEVO SERVICIO
             $analisisService = new AnalisisPagosService;
 
+            // Usa la última operación del grupo para análisis (aplica si solo hay 1 operación involucrada)
             $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
             $monedaStr = $operacion->IDMoneda;
             $moneda = \App\Models\CatMonedas::where('IDMoneda', $monedaStr)->first();

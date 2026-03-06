@@ -37,6 +37,7 @@ class TbAlertas extends Model
         'Razones',
         'Evidencias',
         'IDReporteOP',
+        'IDMoneda',
         // 'IDPago',
     ];
 
