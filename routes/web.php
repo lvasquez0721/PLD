@@ -49,11 +49,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Alertas
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/alertas', [AlertasController::class, 'index'])->name('alertas.index');
-    Route::post('/alertas/emitir-reporte', [AlertasController::class, 'emitirReporteAlerta'])->name('alertas.emitir-reporte');
+    Route::put('/alertas/actualizar', [AlertasController::class, 'actualizarAlerta'])->name('alertas.actualizar');
     Route::get('/alertas/date-range', [AlertasController::class, 'getAlertasByDateRange'])->name('alertas.date-range');
     Route::get('/alertas/download-csv', [AlertasController::class, 'downloadAlertasCsvByDateRange'])->name('alertas.download-csv');
     Route::get('/clientes/{id}/polizas', [AlertasController::class, 'getPolizasPorCliente'])->name('clientes.polizas');
 });
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/alertas/{idAlerta}/detalle', [AlertasController::class, 'detalleAlerta'])->name('alertas.detalle');
+});
+
 
 // Buzón Preocupantes
 Route::middleware(['auth', 'verified'])->group(function () {

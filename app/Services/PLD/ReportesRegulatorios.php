@@ -30,23 +30,16 @@ class ReportesRegulatorios
      * @param $resultadoAnalisis Resultado del análisis de pagos.
      * @return TbReporteRegulatorioPLD El modelo insertado.
      */
-    public function insertarReporte($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis): TbReporteRegulatorioPLD
+    public function insertarReporte($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis): ?TbReporteRegulatorioPLD
     {
-        // dd($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
-        // tipo reporte
-        $esRelevante = $resultadoAnalisis->esMontoRelevante;
-        $esInusual = $resultadoAnalisis->esMontoInusual;
+        // Solo insertar si es por monto relevante
+        if (!$resultadoAnalisis->esMontoRelevante) {
+            return null;
+        }
 
         $fechaAAAAMM = date('Y-m');
         $folio = str_pad($alertaData['IDRegistroAlerta'], 6, "0", STR_PAD_LEFT);
-
-        if ($esRelevante) {
-            $tipoReporte = 1;
-        } elseif ($esInusual) {
-            $tipoReporte = 2;
-        } else {
-            $tipoReporte = null;
-        }
+        $tipoReporte = 1; // Solo relevante
         $nacionalidad = CatNacionalidad::where('IDNacionalidad', $cliente->IDNacionalidad)->first()?->Nacionalidad ?? null;
         $tipoPersona = CatTipoPersona::where('IDTipoPersona', $cliente->IDTipoPersona)->first()?->TipoPersona ?? null;
         $domicilio = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->first();
@@ -81,7 +74,7 @@ class ReportesRegulatorios
             $reporte->IDRegistroAlerta      = $alertaData->IDRegistroAlerta  ?? null;
             $reporte->TipoReporte           = $tipoReporteStr                   ?? null;
             $reporte->PeriodoReporte        = $fechaAAAAMM                   ?? null;
-            $reporte->Folio                 = $folio                         ?? null;
+            $reporte->Folio                 = $alertaData->Folio                         ?? null;
             $reporte->OrganoSupervisor      = '001003'                       ?? null;
             $reporte->CveSujetoObligado     = '022123'                       ?? null;
             $reporte->Localidad             = '03342009'                     ?? null;

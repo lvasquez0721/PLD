@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TbAlertas;
 use App\Models\CatFormaPagos;
+use App\Models\TbOperacionesPagos;
 use App\Models\TbReporteRegulatorioPLD;
 use App\Models\CatMonedas;
 use App\Models\Clientes\TbClientes;
@@ -129,24 +130,25 @@ class AlertasController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    public function emitirReporteAlerta(Request $request)
+    /**
+     * Actualiza los datos de una alerta existente.
+     */
+    public function actualizarAlerta(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'idAlerta' => 'required|string',
+            'idAlerta' => 'required|integer',
             'instrumento' => 'required|string',
             'patron' => 'required|string',
             'estatus' => 'required|string|in:Generado,Analizado,Cerrado,Reportado,Enviado',
             'nombre' => 'required|string',
-            'noCliente' => 'required|string',
+            'noCliente' => 'required|integer',
             'poliza' => 'required|string',
             'agente' => 'required|integer',
             'monto' => 'required|numeric',
             'descripcionOperacion' => 'required|string',
             'razones' => 'required|string',
-            'evidencias' => 'required|array',
-            'evidencias.*' => 'required|file',
-            'IDMoneda' => 'nullable|string',
-            'IDTipoOperacion' => 'nullable|integer',
+            'evidencias' => 'sometimes|array',
+            'evidencias.*' => 'sometimes|file',
         ]);
 
         if ($validator->fails()) {
@@ -157,6 +159,7 @@ class AlertasController extends Controller
         }
 
         try {
+            // Procesar evidencias si existen:
             $evidenciasData = [];
             if ($request->hasFile('evidencias')) {
                 foreach ($request->file('evidencias') as $file) {
@@ -170,52 +173,6 @@ class AlertasController extends Controller
                 }
             }
 
-            $folio = $request->input('idAlerta');
-
-            $cliente = TbClientes::find($request->input('noCliente'));
-            if (!$cliente) {
-                return response()->json([
-                    'message' => 'validación fallida',
-                    'errors' => ['noCliente' => ['Cliente no encontrado']],
-                ], 422);
-            }
-
-            $IDNacionalidad = $cliente->IDNacionalidad;
-            $nacionalidad = $IDNacionalidad ? CatNacionalidad::find($IDNacionalidad) : null;
-
-            $IDTipoPersona = $cliente->IDTipoPersona;
-            $tipoPersona = $IDTipoPersona ? CatTipoPersona::find($IDTipoPersona) : null;
-
-            $dom = $cliente->domicilios()->first();
-            $domicilio = $dom
-                ? trim(
-                    ($dom->Calle ?? '') . ' ' .
-                    ($dom->NoExterior ?? '') .
-                    (empty($dom->NoInterior) ? '' : ' Int ' . $dom->NoInterior) . ', ' .
-                    ($dom->Colonia ?? '') . ', ' .
-                    ($dom->CP ?? '') . ', ' .
-                    ($dom->Municipio ?? '') . ', ' .
-                    ($dom->Localidad ?? '')
-                )
-                : '';
-
-            $ocupacion = CatOcupacionesGiros::find($cliente->IDOcupacionGiro);
-
-            $agenteCliente = TbClientes::find($request->input('agente'));
-            if (!$agenteCliente) {
-                return response()->json([
-                    'message' => 'validación fallida',
-                    'errors' => ['agente' => ['Agente no encontrado']],
-                ], 422);
-            }
-            $agenteNombre = ($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
-                ? $agenteCliente->RazonSocial
-                : trim(($agenteCliente->Nombre ?? '') . ' ' . ($agenteCliente->ApellidoPaterno ?? '') . ' ' . ($agenteCliente->ApellidoMaterno ?? ''));
-
-            $fechaActualYM = date('Y/m');
-            $horaActual = date('H:i:s');
-            $fechaActualYMD = date('Y-m-d');
-
             $alerta = TbAlertas::find($request->input('idAlerta'));
             if (!$alerta) {
                 return response()->json([
@@ -223,90 +180,58 @@ class AlertasController extends Controller
                 ], 404);
             }
 
-            $alerta->update([
-                'Folio' => $folio,
-                'Patron' => 'Preocupante',
-                'IDCliente' => $request->input('noCliente'),
-                'Cliente' => $request->input('nombre'),
-                'Poliza' => $request->input('poliza'),
-                'MontoOperacion' => $request->input('monto'),
-                'InstrumentoMonetario' => $request->input('instrumento'),
-                'RFCAgente' => $agenteCliente->RFC ?? null,
-                'Agente' => $agenteNombre,
-                'Estatus' => $request->input('estatus'),
-                'Descripcion' => $request->input('descripcionOperacion'),
-                'Razones' => $request->input('razones'),
-                'Evidencias' => json_encode($evidenciasData),
-                'HoraDeteccion' => $horaActual,
-                'FechaOperacion' => $fechaActualYMD,
-                'HoraOperacion' => $horaActual,
-            ]);
+            // Buscar agente
+            $agenteCliente = TbClientes::find($request->input('agente'));
+            $agenteNombre = $agenteCliente
+                ? (($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
+                ? $agenteCliente->RazonSocial
+                : trim(implode(' ', array_filter([
+                    $agenteCliente->Nombre ?? '',
+                    $agenteCliente->ApellidoPaterno ?? '',
+                    $agenteCliente->ApellidoMaterno ?? ''
+                ]))))
+                : null;
 
-            $idMoneda = $request->input('IDMoneda');
-            $idMoneda = is_numeric($idMoneda) ? (int) $idMoneda : null;
-            $idTipoOperacion = $request->input('IDTipoOperacion');
-            $idTipoOperacion = is_numeric($idTipoOperacion) ? (int) $idTipoOperacion : null;
-            $montoVal = is_numeric($request->input('monto')) ? (float) $request->input('monto') : 0.0;
+            // Definir la hora y fecha actuales para los campos correspondientes
+            $horaActual = date('H:i:s');
+            $fechaActualYMD = date('Y-m-d');
 
-            $reporte = TbReporteRegulatorioPLD::create([
-                'IDRegistroAlerta' => $alerta->IDRegistroAlerta,
-                'TipoReporte' => $alerta->Patron,
-                'PeriodoReporte' => $fechaActualYM,
-                'Folio' => $folio,
-                'OrganoSupervisor' => '001003',
-                'CveSujetoObligado' => '022123',
-                'Localidad' => '03342009',
-                'Sucursal' => 0,
-                'TipoOperacion' => '',
-                'InstrumentoMonetario' => $alerta->InstrumentoMonetario,
-                'NoPoliza' => $request->input('poliza'),
-                'Monto' => $montoVal,
-                'IDMoneda' => $idMoneda,
-                'Nacionalidad' => $nacionalidad->Nacionalidad ?? null,
-                'TipoPersona' => $tipoPersona->TipoPersona ?? null,
-                'RazonSocial' => $cliente->RazonSocial,
-                'Nombre' => $cliente->Nombre,
-                'APaterno' => $cliente->ApellidoPaterno,
-                'AMaterno' => $cliente->ApellidoMaterno,
-                'RFC' => $cliente->RFC,
-                'CURP' => $cliente->CURP,
-                'FechaNacimiento' => $cliente->FechaNacimiento,
-                'Domicilio' => $domicilio,
-                'Colonia' => $dom->Colonia ?? null,
-                'Ciudad' => $dom->Ciudad ?? null,
-                'Telefono' => $dom->Telefono ?? null,
-                'Ocupacion' => $ocupacion->OcupacionGiro ?? null,
-                'NombreAgente'=> $agenteCliente->Nombre,
-                'APaternoAgente'=> $agenteCliente->ApellidoPaterno,
-                'AMaternoAgente'=> $agenteCliente->ApellidoMaterno,
-                'RFCAgente' => $agenteCliente->RFCAgente ?? null,
-                'CURPAgente' => $agenteCliente->CURPAgente ?? null,
-                'Cuenta' => '',
-                'NoPolizaCuenta' => '',
-                'CveSujetoObl' => '',
-                'NombreTitular' => '',
-                'APaternoTitular' => '',
-                'AMaternoTitular' => '',
-                'Descripcion' => $request->descripcionOperacion,
-                'Razon' => $request->razones,
-                'Estatus' => $request->estatus,
-                'IDTipoReporte' => 3,
-                'IDTipoOperacion' => $idTipoOperacion,
-            ]);
+            // Actualizar datos
+            $alerta->Folio = $request->input('idAlerta');
+            $alerta->Patron = $request->input('patron');
+            $alerta->IDCliente = $request->input('noCliente');
+            $alerta->Cliente = $request->input('nombre');
+            $alerta->Poliza = $request->input('poliza');
+            $alerta->MontoOperacion = $request->input('monto');
+            $alerta->InstrumentoMonetario = $request->input('instrumento');
+            $alerta->RFCAgente = $agenteCliente ? ($agenteCliente->RFC ?? null) : null;
+            $alerta->Agente = $agenteNombre;
+            $alerta->Estatus = $request->input('estatus');
+            $alerta->Descripcion = $request->input('descripcionOperacion');
+            $alerta->Razones = $request->input('razones');
+            if (!empty($evidenciasData)) {
+                $alerta->Evidencias = json_encode($evidenciasData);
+            }
+            $alerta->HoraDeteccion = $horaActual;
+            $alerta->FechaOperacion = $fechaActualYMD;
+            $alerta->HoraOperacion = $horaActual;
+
+            $alerta->save();
 
             return response()->json([
-                'message' => 'Reporte emitido correctamente',
+                'message' => 'Alerta modificada correctamente',
                 'alerta' => $alerta,
-            ], 201);
+            ], 200);
+
         } catch (\Throwable $e) {
-            $errorId = (string) Str::uuid();
-            Log::error('Error al emitir reporte de alerta', [
+            $errorId = (string) \Str::uuid();
+            \Log::error('Error al modificar alerta', [
                 'error_id' => $errorId,
                 'exception' => $e,
             ]);
 
             $payload = [
-                'message' => 'Ocurrió un error al emitir el reporte',
+                'message' => 'Ocurrió un error al modificar la alerta',
                 'error_id' => $errorId,
             ];
 
@@ -329,7 +254,6 @@ class AlertasController extends Controller
 
             return response()->json($payload, 500);
         }
-
     }
 
     public function getPolizasPorCliente($idCliente)
@@ -351,6 +275,44 @@ class AlertasController extends Controller
 
         return response()->json([
             'polizas' => $polizas,
+        ]);
+    }
+
+    public function detalleAlerta($idAlerta)
+    {
+        $alerta = TbAlertas::find($idAlerta);
+
+        if (!$alerta) {
+            $operacion = null;
+            $pagos = null;
+            $reportes = null;
+            $cliente = null;
+        } else {
+            $operacion = TbOperaciones::find($alerta->IDOperacion);
+            $pagos = TbOperacionesPagos::where('IDOperacion', $alerta->IDOperacion)->get();
+            if ($pagos->isEmpty()) {
+                $pagos = null;
+            }
+
+            // Revisar si tiene reporte(s) regulatorio(s) asociado(s)
+            $reportes = TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->get();
+            if ($reportes->isEmpty()) {
+                $reportes = null;
+            }
+
+            // Obtener el cliente
+            $cliente = null;
+            if (!is_null($alerta->IDCliente)) {
+                $cliente = TbClientes::find($alerta->IDCliente);
+            }
+        }
+
+        return inertia('Alertas/Detalle', [
+            'alerta' => $alerta,
+            'cliente' => $cliente,
+            'operacion' => $operacion,
+            'pagos' => $pagos,
+            'reportes' => $reportes,
         ]);
     }
 }
