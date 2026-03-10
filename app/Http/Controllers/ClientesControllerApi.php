@@ -76,7 +76,6 @@ class ClientesControllerApi extends Controller
                     ], 200);
                 }
             } else {
-                // Tener cuidado: nombre, apellidoPaterno, apellidoMaterno pueden no estar en $data
                 $nombre = isset($data['nombre']) ? strtoupper(trim($data['nombre'])) : '';
                 $apellidoP = isset($data['apellidoPaterno']) ? strtoupper(trim($data['apellidoPaterno'])) : '';
                 $apellidoM = isset($data['apellidoMaterno']) ? strtoupper(trim($data['apellidoMaterno'])) : '';
@@ -100,6 +99,43 @@ class ClientesControllerApi extends Controller
             $data['RFC'] = null;
         }
 
+        // Validar si el RFC existe en listas negras (UIF y CNSF)
+        $personaBloqueada = false;
+        $detalleListaBloqueadas = [];
+
+        if (!empty($rfc)) {
+            // Buscar en UIF
+            $registroUIF = TbListasNegrasUIF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            if ($registroUIF) {
+                $personaBloqueada = true;
+                $detalleListaBloqueadas[] = [
+                    'fuente' => 'UIF',
+                    'IDRegistroListaUIF' => $registroUIF->IDRegistroListaUIF,
+                    'Nombre' => $registroUIF->Nombre,
+                    'RFC' => $registroUIF->RFC,
+                    'CURP' => $registroUIF->CURP,
+                ];
+            }
+
+            // Buscar en CNSF
+            $registroCNSF = TbListasNegraCNSF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            if ($registroCNSF) {
+                $personaBloqueada = true;
+                $detalleListaBloqueadas[] = [
+                    'fuente' => 'CNSF',
+                    'IDRegistroListaCNSF' => $registroCNSF->IDRegistroListaCNSF,
+                    'Nombre' => $registroCNSF->Nombre,
+                    'RFC' => $registroCNSF->RFC,
+                    'CURP' => $registroCNSF->CURP,
+                ];
+            }
+        }
+
+        $esPPE = false; // No se evalúa aquí, dejar en false
+
+        // Si el cliente coincide en listas negras, se establece Activo = false; en caso contrario, Activo = true
+        $activo = !$personaBloqueada;
+
         DB::beginTransaction();
         try {
             $cliente = TbClientes::create([
@@ -114,11 +150,11 @@ class ClientesControllerApi extends Controller
                 'FechaNacimiento' => $data['fechaNacimiento'] ?? null,
                 'FechaConstitucion' => $data['fechaConstitucion'] ?? null,
                 'FolioMercantil' => $data['folioMercantil'] ?? null,
-                'CoincideEnListasNegras' => false, // Temporal, se actualizará después del análisis de listas
-                'EsPPEActivo' => false, // Temporal, se actualizará después del análisis de listas
+                'CoincideEnListasNegras' => $personaBloqueada,
+                'EsPPEActivo' => $esPPE,
                 'IDNacionalidad' => $data['IDNacionalidad'] ?? null,
                 'IDEstadoNacimiento' => $data['IDEstadoNacimiento'] ?? null,
-                'Activo' => true,
+                'Activo' => $activo,
                 'Preguntas' => $data['Preguntas'] ?? null,
                 'IngresosEstimados' => $data['ingresosEstimados'] ?? null,
             ]);
@@ -131,18 +167,16 @@ class ClientesControllerApi extends Controller
                     'NoInterior' => $dom['noInterior'] ?? null,
                     'Colonia' => $dom['colonia'],
                     'CP' => $dom['CP'],
-                    'IDEstado' => $dom['IDEstado'], // Guardar como string
+                    'IDEstado' => $dom['IDEstado'],
                     'IDMunicipio' => $dom['municipio'],
                     'IDLocalidad' => $dom['localidad'] ?? null,
                     'Telefono' => $dom['telefono'] ?? null,
                 ]);
-
                 $domiciliosInsertados[] = $domObj;
             }
 
-            if (! empty($data['IDSistemaOrigen']) && ! empty($data['NoClienteSistema'])) {
+            if (!empty($data['IDSistemaOrigen']) && !empty($data['NoClienteSistema'])) {
                 $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
-
                 CatIdClientesSistema::create([
                     'IDOrigenSistema' => $nuevoIDOrigen,
                     'IDCliente' => $cliente->IDCliente,
@@ -150,42 +184,6 @@ class ClientesControllerApi extends Controller
                     'NCliente' => $data['NoClienteSistema'],
                 ]);
             }
-
-            // --- INICIO MODIFICACIÓN ---
-            $esPPE = false;
-            $personaBloqueada = false;
-            $detalleListaBloqueadas = [];
-
-            Log::warning('La clase BuscadorListasIntegral no se encontró o no está implementada. Se omite análisis de listas negras y PPE.');
-
-            /*
-            // Si más adelante se habilita la clase, dejar como comentario de referencia:
-            $buscador = new BuscadorListasIntegral();
-            $timestamp = now()->format('Ymd_His');
-            $pathEvidencia = "storage/evidencias/Cliente_{$cliente->IDCliente}_{$timestamp}";
-
-            $resultadoQeQ = $buscador->realizaBusqueda(
-                nuevoIDCliente: $cliente->IDCliente,
-                IDTipoPersona: $data['IDTipoPersona'],
-                RFC: $data['RFC'] ?? '',
-                nombre: $data['nombre'] ?? '',
-                apellidoPaterno: $data['apellidoPaterno'] ?? '',
-                apellidoMaterno: $data['apellidoMaterno'] ?? '',
-                razonSocial: $data['razonSocial'] ?? '',
-                pathEvidencia: $pathEvidencia,
-                modo: 1
-            );
-
-            $esPPE = $resultadoQeQ['esPPE'] ?? false;
-            $personaBloqueada = $resultadoQeQ['personaBloqueada'] ?? false;
-            $detalleListaBloqueadas = $resultadoQeQ['detalleListaBloqueadas'] ?? [];
-            */
-            // --- FIN MODIFICACIÓN ---
-
-            $cliente->update([
-                'CoincideEnListasNegras' => $personaBloqueada,
-                'EsPPEActivo' => $esPPE,
-            ]);
 
             DB::commit();
 
@@ -204,7 +202,6 @@ class ClientesControllerApi extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Para errores de sistema, retornamos error genérico (no de validación de formato):
             return response()->json([
                 'codigoError' => 1,
                 'message' => 'Error al guardar los datos en BD: '.$e->getMessage(),

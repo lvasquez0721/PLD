@@ -350,39 +350,65 @@ class ListaNegraController extends Controller
     public function buscar(Request $request)
     {
         try {
-            $id = $request->input('IDCliente');
+            $idCliente = $request->input('IDCliente');
 
-            if (empty($id)) {
+            if (empty($idCliente)) {
                 return response()->json([
                     'success' => false,
-                    'mensaje' => 'Debe enviar el campo IDRegistroListaCNSF.',
+                    'mensaje' => 'Debe enviar el campo IDCliente.',
                 ], 400);
             }
 
-            // Buscar por la llave primaria correcta
-            // $registro = TbListasNegraCNSF::find($id);
-            $registro = TbListasNegraCNSF::select('nombre')
-                ->where('tbListasNegraCNSF.IDRegistroListaCNSF', $id)
-                ->first();
+            // Buscar el cliente por su ID
+            $cliente = \App\Models\Clientes\TbClientes::find($idCliente);
 
-            if (! $registro) {
-                return response()->json(['registrosEncontrados' => 0, 'detalleListaBloqueadas' => []], 200);
+            if (!$cliente) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Cliente no encontrado.',
+                ], 404);
             }
 
-            // Armado de estructura EXACTA
-            $detalle = [
-                [
-                    'lista' => 'Listas Negra CNSF',
-                    'nombreDetectado' => $registro->nombre ?? '',
+            $RFC = $cliente->RFC;
+
+            // Buscar en Lista Negra CNSF por RFC
+            $registroCNSF = \App\Models\ListasBloqueadas\TbListasNegraCNSF::where('RFC', $RFC)->first();
+
+            // Buscar en Lista Negra UIF por RFC
+            $registroUIF = \App\Models\ListasBloqueadas\TbListasNegrasUIF::where('RFC', $RFC)->first();
+
+            $detalle = [];
+            $registrosEncontrados = 0;
+
+            if ($registroCNSF) {
+                $detalle[] = [
+                    'lista' => 'Lista Negra CNSF',
+                    'nombreDetectado' => $registroCNSF->Nombre ?? '',
                     'IDListaOrigen' => 1,
                     'cargo' => '',
-                    'PPEActivo' => true,
-                ],
-            ];
+                    'PPEActivo' => false,
+                ];
+                $registrosEncontrados++;
+            }
+
+            if ($registroUIF) {
+                $detalle[] = [
+                    'lista' => 'Lista Negra UIF',
+                    'nombreDetectado' => $registroUIF->Nombre ?? '',
+                    'IDListaOrigen' => 2,
+                    'cargo' => '',
+                    'PPEActivo' => false,
+                ];
+                $registrosEncontrados++;
+            }
+
+            // Devolver también el campo "clienteAutorizado": true si "Activo"==1
+            $clienteAutorizado = $cliente->Activo == 1 ? true : false;
 
             return response()->json([
-                'registrosEncontrados' => count($detalle),
+                'registrosEncontrados' => $registrosEncontrados,
                 'detalleListaBloqueadas' => $detalle,
+                'clienteAutorizado' => $clienteAutorizado,
             ], 200);
 
         } catch (\Exception $e) {
