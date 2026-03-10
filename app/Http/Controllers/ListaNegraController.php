@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; // error log
 use Inertia\Inertia; // <-- Agregar esto
+use App\Models\Clientes\TbClientes;
 
 class ListaNegraController extends Controller
 {
@@ -359,29 +360,76 @@ class ListaNegraController extends Controller
                 ], 400);
             }
 
-            // Buscar por la llave primaria correcta
-            // $registro = TbListasNegraCNSF::find($id);
-            $registro = TbListasNegraCNSF::select('nombre')
-                ->where('tbListasNegraCNSF.IDRegistroListaCNSF', $id)
+            // 1. Obtener datos del cliente
+            $cliente = TbClientes::select( 'tbClientes.RFC','tbClientes.CURP','tbClientes.Nombre','tbClientes.ApellidoPaterno','tbClientes.ApellidoMaterno','tbClientes.Activo','tbClientes.CoincideEnListasNegras','tbClientes.EsPPEActivo','tbClientesPPE.Cargo')
+                ->leftJoin('tbClientesPPE', 'tbClientesPPE.IDCliente', '=', 'tbClientes.IDCliente')
+                ->where('tbClientes.IDCliente', $id)
                 ->first();
 
-            if (! $registro) {
-                return response()->json(['registrosEncontrados' => 0, 'detalleListaBloqueadas' => []], 200);
+            if (!$cliente) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'El cliente no existe.',
+                ], 404);
             }
 
-            // Armado de estructura EXACTA
+            $nombreCompleto = trim("{$cliente->Nombre} {$cliente->ApellidoPaterno} {$cliente->ApellidoMaterno}");
+
+            $rfcGenericos = ['XAXX010101000'];
+            $rfcValido    = !empty($cliente->RFC) && !in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
+            $curpValido   = !empty($cliente->CURP);
+            $nombreValido = !empty($nombreCompleto);
+            
+            if ($rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC',  'LIKE', '%' . $cliente->RFC  . '%')
+                ->where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
+                ->get();
+            } elseif ($rfcValido && !$curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%' . $cliente->RFC . '%')
+                ->get();
+            } elseif (!$rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
+                ->get();                                        
+            } elseif ($nombreValido) {
+                $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?',[strtolower($nombreCompleto)])
+                ->get();
+            } else {
+                return response()->json([
+                    'registrosEncontrados'   => 0,
+                    'detalleListaBloqueadas' => [],
+                ], 200);
+            }
+
+            if ($registros->isEmpty()) {
+                return response()->json([
+                    'registrosEncontrados'   => 0,
+                    'detalleListaBloqueadas' => [],
+                ], 200);
+            }
+
+            $registro = $registros->sortByDesc(function ($item) use ($nombreCompleto) {
+                $porcentaje = 0;
+                similar_text(
+                    strtolower(trim($nombreCompleto)),
+                    strtolower(trim($item->Nombre ?? '')),
+                    $porcentaje
+                );
+                return $porcentaje;
+            })->first();
+
             $detalle = [
                 [
-                    'lista' => 'Listas Negra CNSF',
-                    'nombreDetectado' => $registro->nombre ?? '',
-                    'IDListaOrigen' => 1,
-                    'cargo' => '',
-                    'PPEActivo' => true,
+                    'lista'           => 'Listas Negra CNSF',
+                    'nombreDetectado' => $registro->Nombre ?? '',
+                    'IDListaOrigen'   => $cliente->CoincideEnListasNegras,
+                    'cargo'           => $cliente->Cargo ?? '',
+                    'PPEActivo'       => (bool) $cliente->EsPPEActivo,
+                    'clienteActivo'   => (bool) $cliente->Activo,
                 ],
             ];
 
             return response()->json([
-                'registrosEncontrados' => count($detalle),
+                'registrosEncontrados'   => count($detalle),
                 'detalleListaBloqueadas' => $detalle,
             ], 200);
 
