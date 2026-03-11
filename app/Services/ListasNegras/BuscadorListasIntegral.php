@@ -57,7 +57,7 @@ class BuscadorListasIntegral
 
         $this->nuevoIDCliente = $nuevoIDCliente;
         $this->IDTipoPersona = $IDTipoPersona;
-        $this->rfc = $RFC;
+        $this->RFC = $RFC;
         $this->nombre = $nombre;
         $this->apellidoPaterno = $apellidoPaterno;
         $this->apellidoMaterno = $apellidoMaterno;
@@ -224,7 +224,7 @@ class BuscadorListasIntegral
 
         $params = [
             'tipoPersona' => $this->IDTipoPersona,
-            'rfc' => $this->rfc,
+            'rfc' => $this->RFC,
             'nombre' => $this->nombre,
             'apaterno' => $this->apellidoPaterno,
             'amaterno' => $this->apellidoMaterno,
@@ -308,7 +308,7 @@ class BuscadorListasIntegral
                 'IDCliente' => $this->nuevoIDCliente,
                 'Lista' => 'QeQ',
                 'Cargo' => $respuesta['PUESTO'] ?? null,
-                'Estado' => $respuesta['ENTIDAD'],
+                'Estado' => $respuesta['ENTIDAD'] ?? null,
                 'FechaDeteccion' => now(),
                 'Origen' => '1',
                 'TimeStampRegistro' => now(),
