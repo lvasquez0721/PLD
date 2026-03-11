@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
 use App\Models\Clientes\TbClientes;
+use App\Models\LogOperacionesPagos;
 use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
 use App\Models\TbOperacionesBeneficiarios;
@@ -411,7 +412,8 @@ class OperacionesController extends Controller
                 ], 400);
             }
 
-            $operacion = \App\Models\TbOperaciones::find($idOperacion);
+            // Buscar la operación original en tbOperaciones
+            $operacion = TbOperaciones::find($idOperacion);
             if (!$operacion) {
                 return response()->json([
                     'codigoError' => 404,
@@ -428,15 +430,47 @@ class OperacionesController extends Controller
                 ], 409);
             }
 
-            $operacion->cancelaPoliza = true;
-            $operacion->save();
+            // Iniciar transacción DB
+            \DB::beginTransaction();
+
+            // Copiar la operación a logOperaciones
+            $logOperacionData = $operacion->toArray();
+            $logOperacionData['cancelaPoliza'] = true; // Marcarla como cancelada en el log
+
+            // Si el modelo LogOperaciones no permite autoincrementar el PK, asegúrate de pasarlo (No autoincrement)
+            $logOperacion = new \App\Models\LogOperaciones();
+            $logOperacion->fill($logOperacionData);
+            $logOperacion->save();
+
+            // Obtener pagos de la operación
+            $pagos = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
+
+            foreach ($pagos as $pago) {
+                // Copiar cada pago a logOperacionesPagos
+                $logPagoData = $pago->toArray();
+                unset($logPagoData['IDOperacionPago']); // logOperacionesPagos es autoincremental, se debería omitir el PK
+                $logPagoData['IDOperacion'] = $idOperacion; // Aseguramos, aunque debería coincidir
+
+                $logPago = new LogOperacionesPagos();
+                $logPago->fill($logPagoData);
+                $logPago->save();
+            }
+
+            // Eliminar pagos originales en tbOperacionesPagos
+            TbOperacionesPagos::where('IDOperacion', $idOperacion)->delete();
+
+            // Eliminar la operación original en tbOperaciones
+            $operacion->delete();
+
+            \DB::commit();
 
             return response()->json([
                 "codigoError" => 0,
-                "mensaje" => "La operación ha sido revertida satisfactoriamente.",
-                "IDOperacion" => $operacion->IDOperacion
+                "mensaje" => "La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.",
+                "IDOperacion" => $logOperacion->IDOperacion
             ]);
         } catch (\Exception $e) {
+            \DB::rollBack();
             return response()->json([
                 'codigoError' => 500,
                 'error' => 'Ocurrió un error al intentar revertir la operación.',
