@@ -351,12 +351,12 @@ class ListaNegraController extends Controller
     public function buscar(Request $request)
     {
         try {
-            $idCliente = $request->input('IDCliente');
+            $id = $request->input('IDCliente');
 
-            if (empty($idCliente)) {
+            if (empty($id)) {
                 return response()->json([
                     'success' => false,
-                    'mensaje' => 'Debe enviar el campo IDCliente.',
+                    'mensaje' => 'Debe enviar el campo IDRegistroListaCNSF.',
                 ], 400);
             }
 
@@ -379,7 +379,7 @@ class ListaNegraController extends Controller
             $rfcValido    = !empty($cliente->RFC) && !in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
             $curpValido   = !empty($cliente->CURP);
             $nombreValido = !empty($nombreCompleto);
-            
+
             if ($rfcValido && $curpValido) {
                 $registros = TbListasNegraCNSF::where('RFC',  'LIKE', '%' . $cliente->RFC  . '%')
                 ->where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
@@ -389,7 +389,7 @@ class ListaNegraController extends Controller
                 ->get();
             } elseif (!$rfcValido && $curpValido) {
                 $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();                                        
+                ->get();
             } elseif ($nombreValido) {
                 $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?',[strtolower($nombreCompleto)])
                 ->get();
@@ -431,7 +431,6 @@ class ListaNegraController extends Controller
             return response()->json([
                 'registrosEncontrados'   => count($detalle),
                 'detalleListaBloqueadas' => $detalle,
-                'clienteAutorizado' => $clienteAutorizado,
             ], 200);
 
         } catch (\Exception $e) {

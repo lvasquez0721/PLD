@@ -567,6 +567,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     </th>
                                     <th scope="col"
                                         class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
+                                        Estatus
+                                    </th>
+                                    <th scope="col"
+                                        class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                         ID Cliente
                                     </th>
                                     <th scope="col"
@@ -608,10 +612,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     <th scope="col"
                                         class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                         Agente
-                                    </th>
-                                    <th scope="col"
-                                        class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
-                                        Estatus
                                     </th>
                                     <th scope="col"
                                         class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
@@ -671,6 +671,13 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 {{ alerta.Patron.toUpperCase() }}
                                             </button>
                                         </td>
+                                        <!-- Estatus mostrado junto a Patron -->
+                                        <td class="whitespace-nowrap px-5 py-4">
+                                            <span
+                                                class="inline-flex items-center rounded-full bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm dark:bg-amber-900/25 dark:text-amber-100 dark:shadow-none">
+                                                {{ alerta.Estatus }}
+                                            </span>
+                                        </td>
                                         <td
                                             class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
                                             {{ alerta.IDCliente }}
@@ -714,12 +721,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                         <td
                                             class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
                                             {{ alerta.Agente }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-4">
-                                            <span
-                                                class="inline-flex items-center rounded-full bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm dark:bg-amber-900/25 dark:text-amber-100 dark:shadow-none">
-                                                {{ alerta.Estatus }}
-                                            </span>
                                         </td>
                                         <td
                                             class="max-w-xs truncate whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
