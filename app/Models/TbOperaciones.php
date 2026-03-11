@@ -35,6 +35,7 @@ class TbOperaciones extends Model
         'APaternoAgente',
         'AMaternoAgente',
         'tipoDocumento',
+        'cancelaPoliza'
     ];
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
 use App\Models\Clientes\TbClientes;
+use App\Models\LogOperacionesPagos;
 use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
 use App\Models\TbOperacionesBeneficiarios;
@@ -98,7 +99,8 @@ class OperacionesController extends Controller
 
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Operación ingresada exitosamente"
+                "error" => "Operación ingresada exitosamente",
+                "IDOperacion" => $operacion->IDOperacion
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -162,6 +164,7 @@ class OperacionesController extends Controller
 
             $operacionesPagos = [];
             $operacion = null;
+            $idOperacionResult = null; // Inicializar la variable para devolverla al response
 
             // Agrupar operaciones por poliza y endoso
             $detalleAGrupado = [];
@@ -204,6 +207,9 @@ class OperacionesController extends Controller
                     ], 404);
                 }
 
+                // Guardar IDOperacion de la primera encontrada relevante (o última iteración, si son varias)
+                $idOperacionResult = $operacion->IDOperacion;
+
                 // Sumar todos los pagos previos para la operación
                 $montoTotalPagado = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->sum('Monto');
                 // Sumar los pagos de esta petición para la operación
@@ -222,7 +228,8 @@ class OperacionesController extends Controller
                     // Demasiado pagado, no se permite. Permite llegar a 0 exacto, admite negativos para compensar.
                     return response()->json([
                         "codigoError" => 1,
-                        "error" => "No se permite exceder el pago total de la póliza / endoso"
+                        "error" => "No se permite exceder el pago total de la póliza / endoso",
+                        "IDOperacion" => $idOperacionResult
                     ], 200);
                 }
 
@@ -230,7 +237,8 @@ class OperacionesController extends Controller
                 if (bccomp((string)($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
                     return response()->json([
                         "codigoError" => 1,
-                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad"
+                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad",
+                        "IDOperacion" => $idOperacionResult
                     ], 200);
                 }
 
@@ -252,6 +260,7 @@ class OperacionesController extends Controller
                             'codigoError' => 500,
                             'error' => 'Error al guardar el pago.',
                             'detalles' => $e->getMessage(),
+                            'IDOperacion' => $idOperacionResult
                         ], 500);
                     }
 
@@ -299,7 +308,8 @@ class OperacionesController extends Controller
             // Código de éxito: 0
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Operación ingresada exitosamente"
+                "error" => "Operación ingresada exitosamente",
+                "IDOperacion" => $idOperacionResult
             ], 201);
 
         } catch (\Exception $e) {
@@ -307,6 +317,7 @@ class OperacionesController extends Controller
                 'codigoError' => 500,
                 'error' => 'Error inesperado en el proceso de inserción de pagos',
                 'detalles' => $e->getMessage(),
+                'IDOperacion' => isset($idOperacionResult) ? $idOperacionResult : null
             ], 500);
         }
     }
@@ -386,7 +397,86 @@ class OperacionesController extends Controller
         return 'Generado';
     }
 
-    // Endpoint insertar monedas
+    /**
+     * Revierte una operación a partir de la ID recibida en la request.
+     * Espera en la request el campo "IDOperacion".
+     */
+    public function rollbackOperacion(Request $request)
+    {
+        try {
+            $idOperacion = $request->input('IDOperacion');
+            if (!$idOperacion) {
+                return response()->json([
+                    'codigoError' => 400,
+                    'error' => 'IDOperacion es requerido para realizar el rollback.'
+                ], 400);
+            }
 
-    // Endpoint insertar forma pagos
+            // Buscar la operación original en tbOperaciones
+            $operacion = TbOperaciones::find($idOperacion);
+            if (!$operacion) {
+                return response()->json([
+                    'codigoError' => 404,
+                    'error' => 'No se encontró la operación con el ID proporcionado.'
+                ], 404);
+            }
+
+            // Validar si ya está cancelada
+            if ($operacion->cancelaPoliza) {
+                return response()->json([
+                    'codigoError' => 409,
+                    'error' => 'La operación ya ha sido cancelada previamente.',
+                    'IDOperacion' => $operacion->IDOperacion
+                ], 409);
+            }
+
+            // Iniciar transacción DB
+            \DB::beginTransaction();
+
+            // Copiar la operación a logOperaciones
+            $logOperacionData = $operacion->toArray();
+            $logOperacionData['cancelaPoliza'] = true; // Marcarla como cancelada en el log
+
+            // Si el modelo LogOperaciones no permite autoincrementar el PK, asegúrate de pasarlo (No autoincrement)
+            $logOperacion = new \App\Models\LogOperaciones();
+            $logOperacion->fill($logOperacionData);
+            $logOperacion->save();
+
+            // Obtener pagos de la operación
+            $pagos = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
+
+            foreach ($pagos as $pago) {
+                // Copiar cada pago a logOperacionesPagos
+                $logPagoData = $pago->toArray();
+                unset($logPagoData['IDOperacionPago']); // logOperacionesPagos es autoincremental, se debería omitir el PK
+                $logPagoData['IDOperacion'] = $idOperacion; // Aseguramos, aunque debería coincidir
+
+                $logPago = new LogOperacionesPagos();
+                $logPago->fill($logPagoData);
+                $logPago->save();
+            }
+
+            // Eliminar pagos originales en tbOperacionesPagos
+            TbOperacionesPagos::where('IDOperacion', $idOperacion)->delete();
+
+            // Eliminar la operación original en tbOperaciones
+            $operacion->delete();
+
+            \DB::commit();
+
+            return response()->json([
+                "codigoError" => 0,
+                "mensaje" => "La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.",
+                "IDOperacion" => $logOperacion->IDOperacion
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'codigoError' => 500,
+                'error' => 'Ocurrió un error al intentar revertir la operación.',
+                'detalles' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }

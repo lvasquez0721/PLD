@@ -10,7 +10,7 @@ class TbListasNegraCNSF extends Model
 
     protected $primaryKey = 'IDRegistroListaCNSF';
 
-    public $incrementing = true; // El PK es autoincremental según la migración
+    public $incrementing = true; // El PK es autoincremental según la migración de 2026_03_11_183318_fix_tb_listas_negra_c_n_s_f
 
     protected $keyType = 'int';
 
@@ -37,7 +37,7 @@ class TbListasNegraCNSF extends Model
         'TimeStampModif' => 'datetime',
     ];
 
-    // RELACIÓN (opcional, útil si luego quieres obtener oficios)
+    // Relación para obtener los oficios relacionados con la lista negra CNSF
     public function oficios()
     {
         return $this->hasMany(TbControlOficios::class, 'IDListaN', 'IDRegistroListaCNSF');
