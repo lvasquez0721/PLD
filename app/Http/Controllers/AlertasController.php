@@ -286,15 +286,11 @@ class AlertasController extends Controller
 
         if (!$alerta) {
             $operacion = null;
-            $pagos = null;
             $reportes = null;
             $cliente = null;
         } else {
-            $operacion = TbOperaciones::find($alerta->IDOperacion);
-            $pagos = TbOperacionesPagos::where('IDOperacion', $alerta->IDOperacion)->get();
-            if ($pagos->isEmpty()) {
-                $pagos = null;
-            }
+            // Eager load pagos en la operación
+            $operacion = TbOperaciones::with('pagos')->find($alerta->IDOperacion);
 
             // Revisar si tiene reporte(s) regulatorio(s) asociado(s)
             $reportes = TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->get();
@@ -309,11 +305,17 @@ class AlertasController extends Controller
             }
         }
 
+        // return json_encode([
+        //     'alerta' => $alerta,
+        //     'cliente' => $cliente,
+        //     'operacion' => $operacion,
+        //     'reportes' => $reportes,
+        // ]);
+
         return inertia('Alertas/Detalle', [
             'alerta' => $alerta,
             'cliente' => $cliente,
             'operacion' => $operacion,
-            'pagos' => $pagos,
             'reportes' => $reportes,
         ]);
     }

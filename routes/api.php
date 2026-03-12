@@ -121,3 +121,16 @@ use App\Http\Controllers\ListasNegrasControllerApi;
 
 // Ruta para consultar listas negras por IDCliente (Consulta cruzada UIF y CNSF)
 Route::post('/listas-negras/consultar-por-cliente', [ListasNegrasControllerApi::class, 'getConsultaListasByIDCliente'])->middleware(['auth:sanctum']);
+
+Route::post('/migraciones/ejecutar', function () {
+    if (! app()->environment('local')) {
+        abort(403, 'Acceso denegado');
+    }
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+
+        return response()->json(['success' => true, 'output' => Artisan::output()]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+});
