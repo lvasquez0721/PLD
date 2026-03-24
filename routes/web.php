@@ -50,13 +50,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/alertas', [AlertasController::class, 'index'])->name('alertas.index');
     Route::put('/alertas/actualizar', [AlertasController::class, 'actualizarAlerta'])->name('alertas.actualizar');
-    Route::get('/alertas/date-range', [AlertasController::class, 'getAlertasByDateRange'])->name('alertas.date-range');
+    Route::post('/alertas/editar-dos', [AlertasController::class, 'editarAlertaDos'])->name('alertas.editar-dos');
+    Route::get('/alertas/get-alertas', [AlertasController::class, 'getAlertas'])->name('alertas.get-alertas');
     Route::get('/alertas/download-csv', [AlertasController::class, 'downloadAlertasCsvByDateRange'])->name('alertas.download-csv');
     Route::get('/clientes/{id}/polizas', [AlertasController::class, 'getPolizasPorCliente'])->name('clientes.polizas');
+    Route::delete('/alertas/evidencias', [AlertasController::class, 'eliminarEvidenciaDeAlerta'])->name('alertas.evidencias.eliminar');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/alertas/{idAlerta}/detalle', [AlertasController::class, 'detalleAlerta'])->name('alertas.detalle');
+    Route::get('/alertas/{idAlerta}/detalles', [AlertasController::class, 'detalleAlerta'])->name('alertas.detalles');
 });
 
 
@@ -114,6 +116,9 @@ Route::get('/clientes/exportar', [ClientesController::class, 'exportCsv'])
 Route::get('/clientes/ver-detalles/{id_cliente}', [ClientesController::class, 'verDetallesCliente'])
     ->middleware(['auth', 'verified'])
     ->name('clientes.ver-detalles');
+Route::post('/clientes/{id_cliente}/activar', [ClientesController::class, 'activarCliente'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.activar');
 
 
 // Utilidades del Sistema

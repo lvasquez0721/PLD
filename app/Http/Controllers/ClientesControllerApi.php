@@ -102,6 +102,7 @@ class ClientesControllerApi extends Controller
         // Validar si el RFC existe en listas negras (UIF y CNSF)
         $personaBloqueada = false;
         $detalleListaBloqueadas = [];
+        $listasDetectadas = [];
 
         if (!empty($rfc)) {
             // Buscar en UIF
@@ -115,6 +116,7 @@ class ClientesControllerApi extends Controller
                     'RFC' => $registroUIF->RFC,
                     'CURP' => $registroUIF->CURP,
                 ];
+                $listasDetectadas[] = 'UIF';
             }
 
             // Buscar en CNSF
@@ -128,6 +130,7 @@ class ClientesControllerApi extends Controller
                     'RFC' => $registroCNSF->RFC,
                     'CURP' => $registroCNSF->CURP,
                 ];
+                $listasDetectadas[] = 'CNSF';
             }
         }
 
@@ -182,6 +185,43 @@ class ClientesControllerApi extends Controller
                     'IDCliente' => $cliente->IDCliente,
                     'IDSistema' => $data['IDSistemaOrigen'],
                     'NCliente' => $data['NoClienteSistema'],
+                ]);
+            }
+
+            // Emitir alerta si coincide en listas negras
+            if ($personaBloqueada) {
+                $nombreCompleto = trim(
+                    ($cliente->Nombre ?? '') .
+                    ' ' .
+                    ($cliente->ApellidoPaterno ?? '') .
+                    ' ' .
+                    ($cliente->ApellidoMaterno ?? '')
+                );
+
+                $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
+                $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
+
+                TbAlertas::create([
+                    'Folio' => null,
+                    'Patron' => 'Personas Bloqueadas',
+                    'IDCliente' => $cliente->IDCliente,
+                    'Cliente' => $nombreCompleto,
+                    'Poliza' => null,
+                    'FechaDeteccion' => now()->toDateString(),
+                    'IDOperacionPago' => null,
+                    'HoraDeteccion' => now()->toTimeString(),
+                    'FechaOperacion' => null,
+                    'HoraOperacion' => null,
+                    'MontoOperacion' => null,
+                    'InstrumentoMonetario' => null,
+                    'RFCAgente' => null,
+                    'Agente' => null,
+                    'Estatus' => 'Generado',
+                    'Descripcion' => $motivo,
+                    'Razones' => $razones,
+                    'Evidencias' => '',
+                    'IDReporteOP' => null,
+                    'IDPago' => null,
                 ]);
             }
 
@@ -441,19 +481,19 @@ class ClientesControllerApi extends Controller
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
             $nombreCompleto = trim(
-                ($cliente->Nombre ?? '').
-                ' '.
-                ($cliente->ApellidoPaterno ?? '').
-                ' '.
+                ($cliente->Nombre ?? '') .
+                ' ' .
+                ($cliente->ApellidoPaterno ?? '') .
+                ' ' .
                 ($cliente->ApellidoMaterno ?? '')
             );
 
-            $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
-            $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
+            $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
+            $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
 
             TbAlertas::create([
                 'Folio' => null,
-                'Patron' => null,
+                'Patron' => 'Personas Bloqueadas',
                 'IDCliente' => $cliente->IDCliente,
                 'Cliente' => $nombreCompleto,
                 'Poliza' => null,
@@ -469,7 +509,7 @@ class ClientesControllerApi extends Controller
                 'Estatus' => 'Detectado',
                 'Descripcion' => $motivo,
                 'Razones' => $razones,
-                'Evidencias' => json_encode($detalleListaBloqueadas),
+                'Evidencias' => '',
                 'IDReporteOP' => null,
                 'IDPago' => null,
             ]);

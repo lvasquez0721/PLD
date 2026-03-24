@@ -22,6 +22,7 @@ const props = defineProps<{
     filters?: {
         search?: string,
         tipo?: string,
+        estatus?: string,
         per_page?: string | number,
         category?: string | string[]
     },
@@ -46,6 +47,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const busqueda = ref(props.filters?.search || '')
 const filtroTipoPersona = ref(props.filters?.tipo || 'todos')
+const filtroEstatus = ref(props.filters?.estatus || 'todos')
 
 const pldCategoryOptions = [
     { value: 'sin-coincidencia', label: 'Sin coincidencia en listas' },
@@ -94,6 +96,7 @@ watch(busqueda, (val) => {
         router.get('/clientes', {
             search: val,
             tipo: filtroTipoPersona.value,
+            estatus: filtroEstatus.value,
             per_page: itemsPerPage.value,
             category: categoriesToSend
         }, {
@@ -104,7 +107,7 @@ watch(busqueda, (val) => {
     }, 300)
 })
 
-watch([filtroTipoPersona, itemsPerPage, filtroCategoriaPLD], () => {
+watch([filtroTipoPersona, filtroEstatus, itemsPerPage, filtroCategoriaPLD], () => {
     let categoriesToSend: string[] | string | undefined;
 
     if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
@@ -121,6 +124,7 @@ watch([filtroTipoPersona, itemsPerPage, filtroCategoriaPLD], () => {
     router.get('/clientes', {
         search: busqueda.value,
         tipo: filtroTipoPersona.value,
+        estatus: filtroEstatus.value,
         per_page: itemsPerPage.value,
         category: categoriesToSend // Now sends 'todos', array of categories, or undefined
     }, {
@@ -194,6 +198,7 @@ function goToPage(page: number) {
     router.get('/clientes', {
         search: busqueda.value,
         tipo: filtroTipoPersona.value,
+        estatus: filtroEstatus.value,
         per_page: itemsPerPage.value,
         page: page,
         category: categoriesToSend
@@ -323,6 +328,7 @@ function descargarCSV() {
     const params = new URLSearchParams();
     if (busqueda.value) params.append('search', busqueda.value);
     if (filtroTipoPersona.value !== 'todos') params.append('tipo', filtroTipoPersona.value);
+    if (filtroEstatus.value !== 'todos') params.append('estatus', filtroEstatus.value);
     if (categoriesToSend) {
         if (Array.isArray(categoriesToSend)) {
             categoriesToSend.forEach(cat => params.append('category[]', cat));
@@ -461,18 +467,24 @@ function descargarCSV() {
                         {{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados'
                         }}
                     </p>
-                    <p v-if="busqueda || filtroTipoPersona !== 'todos' || displayCategoryFilters"
+                    <p v-if="busqueda || filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos' || displayCategoryFilters"
                         class="mt-1.5 text-xs text-gray-500 dark:text-neutral-400 mb-2">
                         Filtrando por:
                         <span v-if="busqueda" class="font-semibold text-gray-800 dark:text-neutral-200">“{{ busqueda
                             }}”</span>
-                        <span v-if="busqueda && (filtroTipoPersona !== 'todos' || displayCategoryFilters)"> · </span>
+                        <span v-if="busqueda && (filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos' || displayCategoryFilters)"> · </span>
                         <span v-if="filtroTipoPersona === 'fisica'"
                             class="font-semibold text-gray-800 dark:text-neutral-200">Personas
                             Físicas</span>
                         <span v-else-if="filtroTipoPersona === 'moral'"
                             class="font-semibold text-gray-800 dark:text-neutral-200">Personas Morales</span>
-                        <span v-if="(busqueda || filtroTipoPersona !== 'todos') && displayCategoryFilters"
+                        <span v-if="(busqueda || filtroTipoPersona !== 'todos') && filtroEstatus !== 'todos'"
+                            class="font-semibold text-gray-800 dark:text-neutral-200"> · </span>
+                        <span v-if="filtroEstatus === 'activo'"
+                            class="font-semibold text-gray-800 dark:text-neutral-200">Activos</span>
+                        <span v-else-if="filtroEstatus === 'inactivo'"
+                            class="font-semibold text-gray-800 dark:text-neutral-200">Inactivos</span>
+                        <span v-if="(busqueda || filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos') && displayCategoryFilters"
                             class="font-semibold text-gray-800 dark:text-neutral-200"> · </span>
                         <span v-if="displayCategoryFilters" class="font-semibold text-gray-800 dark:text-neutral-200">{{
                             displayCategoryFilters }}</span>
@@ -481,7 +493,7 @@ function descargarCSV() {
 
 
                 <!-- Interactive Controls Block -->
-                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+                <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-start">
                     <!-- Search Input -->
                     <div class="relative w-full md:col-span-2 lg:col-span-2">
                         <span
@@ -503,6 +515,16 @@ function descargarCSV() {
                             <option value="todos">Todas las personas</option>
                             <option value="fisica">Personas Físicas</option>
                             <option value="moral">Personas Morales</option>
+                        </select>
+                    </div>
+
+                    <!-- Estatus del cliente select -->
+                    <div class="flex flex-col gap-2">
+                        <select id="filtro-estatus-cliente" v-model="filtroEstatus"
+                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                            <option value="todos">Todos los estatus</option>
+                            <option value="activo">Activos</option>
+                            <option value="inactivo">Inactivos</option>
                         </select>
                     </div>
 
