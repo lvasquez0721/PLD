@@ -101,8 +101,13 @@ class AlertasController extends Controller
                 return $query->where('FechaDeteccion', '<=', $fechaFin);
             })
             ->when($request->filled('folio'), function ($query) use ($request) {
-                $folio = $request->input('folio');
-                return $query->where('Folio', 'like', "%{$folio}%");
+                $searchTerm = $request->input('folio');
+                return $query->where(function ($q) use ($searchTerm) {
+                    $q->where('Folio', 'like', "%{$searchTerm}%")
+                      ->orWhere('Cliente', 'like', "%{$searchTerm}%")
+                      ->orWhere('IDCliente', 'like', "%{$searchTerm}%")
+                      ->orWhere('Poliza', 'like', "%{$searchTerm}%");
+                });
             })
             ->orderBy('FechaDeteccion', 'desc')
             ->orderBy('HoraDeteccion', 'desc')
@@ -144,6 +149,15 @@ class AlertasController extends Controller
             })
             ->when(!$fechaInicio && $fechaFin, function ($query) use ($fechaFin) {
                 return $query->where('FechaDeteccion', '<=', $fechaFin);
+            })
+            ->when($request->filled('folio'), function ($query) use ($request) {
+                $searchTerm = $request->input('folio');
+                return $query->where(function ($q) use ($searchTerm) {
+                    $q->where('Folio', 'like', "%{$searchTerm}%")
+                      ->orWhere('Cliente', 'like', "%{$searchTerm}%")
+                      ->orWhere('IDCliente', 'like', "%{$searchTerm}%")
+                      ->orWhere('Poliza', 'like', "%{$searchTerm}%");
+                });
             });
 
         $alertas = $query->orderBy('FechaDeteccion', 'desc')

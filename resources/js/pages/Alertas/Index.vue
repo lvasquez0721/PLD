@@ -378,7 +378,13 @@ function cumpleFiltroFecha(fecha: string): boolean {
 
 function cumpleFiltroFolio(alerta: Alerta): boolean {
     if (!folio.value) return true;
-    return String(alerta.Folio).toLowerCase().includes(folio.value.toLowerCase());
+    const search = folio.value.toLowerCase();
+    return (
+        String(alerta.Folio ?? '').toLowerCase().includes(search) ||
+        String(alerta.Cliente ?? '').toLowerCase().includes(search) ||
+        String(alerta.IDCliente ?? '').toLowerCase().includes(search) ||
+        String(alerta.Poliza ?? '').toLowerCase().includes(search)
+    );
 }
 
 function cumpleFiltroPatron(alerta: Alerta): boolean {
@@ -687,7 +693,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                         Folio
                                     </label>
                                     <div class="relative">
-                                        <Input id="folio" v-model="folio" placeholder="Buscar por folio..." />
+                                        <Input id="folio" v-model="folio" placeholder="Buscar por folio, cliente, ID o póliza..." />
                                     </div>
                                 </div>
                                 <div class="filter-field">
