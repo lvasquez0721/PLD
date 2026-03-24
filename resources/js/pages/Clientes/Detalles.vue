@@ -750,12 +750,14 @@ import { Globe as GlobeIcon } from 'lucide-vue-next'
 
 <style>
 .fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease-out;
+.fade-leave-active,
+.fade-in-enter-active {
+  transition: opacity 0.4s ease-out;
 }
 
 .fade-enter-from,
-.fade-leave-to {
+.fade-leave-to,
+.fade-in-enter-from {
   opacity: 0;
 }
 </style>
