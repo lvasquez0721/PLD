@@ -7,6 +7,12 @@ import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types'
 import { UserRound } from 'lucide-vue-next'
 import FadeIn from '@/components/ui/animation/fadeIn.vue'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const props = defineProps<{
     clientes: {
@@ -671,10 +677,18 @@ function descargarCSV() {
                                                 class="text-xs italic text-gray-500 dark:text-neutral-400">
                                                 {{ tag.tooltip }}
                                             </span>
-                                            <div v-else :class="tag.color"
-                                                class="h-3 w-5 rounded-sm border border-black/5 shadow-sm"
-                                                v-tooltip="tag.tooltip">
-                                            </div>
+                                            <TooltipProvider v-else :delay-duration="0">
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <div :class="tag.color"
+                                                            class="h-3 w-5 cursor-help rounded-sm border border-black/5 shadow-sm">
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p class="text-xs font-medium">{{ tag.tooltip }}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </template>
                                     </div>
                                 </td>

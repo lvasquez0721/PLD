@@ -236,17 +236,19 @@ function riesgoNombre(n: number): string {
 
     <Head :title="`Detalle de ${fullName}`" />
     <AppLayout :breadcrumbs="breadcrumbs" container-size="full">
-        <!-- Botón de Back -->
-        <div class="mb-4">
-          <button
-            @click="goBack"
-            type="button"
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300"
-          >
-            <ArrowLeft class="h-4 w-4"/>
-            <span>Regresar</span>
-          </button>
-        </div>
+        <Transition appear name="fade-in">
+            <div class="w-full">
+                <!-- Botón de Back -->
+                <div class="mb-4">
+                  <button
+                    @click="goBack"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300"
+                  >
+                    <ArrowLeft class="h-4 w-4"/>
+                    <span>Regresar</span>
+                  </button>
+                </div>
         <div class="grid grid-cols-1 gap-8 lg:grid-cols-4">
             <!-- Columna Izquierda: Navegación y Resumen -->
             <aside class="lg:col-span-1 lg:sticky lg:top-24 h-fit">
@@ -694,7 +696,9 @@ function riesgoNombre(n: number): string {
                     </div>
                 </Transition>
             </main>
-        </div>
+                </div>
+            </div>
+        </Transition>
 
         <div
             v-if="showActivarClienteModal"
