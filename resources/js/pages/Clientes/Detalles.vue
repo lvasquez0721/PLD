@@ -101,7 +101,7 @@ const isClienteActivo = computed(() => {
     const activo = props.cliente?.Activo
     return activo === true || activo === 1 || activo === '1'
 })
-const clienteEstatusLabel = computed(() => (isClienteActivo.value ? 'Activo' : 'Inactivo'))
+const clienteEstatusLabel = computed(() => (isClienteActivo.value ? 'Activo' : 'Bloqueado'))
 const clienteEstatusClass = computed(() =>
     isClienteActivo.value
         ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'

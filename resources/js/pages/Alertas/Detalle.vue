@@ -4,6 +4,7 @@ import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import { computed, ref, onMounted, watch } from 'vue';
+import { ArrowLeft } from 'lucide-vue-next';
 
 // 🚩 Usar window.route (Ziggy) si está disponible
 const route = (window as any).route as (...args: any[]) => any;
@@ -438,16 +439,14 @@ function submitEditarAlerta(e: Event) {
                 </transition>
 
                 <div class="mx-auto max-w-6xl py-6 px-2 sm:px-4 md:px-6 space-y-7">
-                    <div class="flex justify-start">
+                    <div class="mb-4">
                         <button
-                            type="button"
                             @click="volverPaginaAnterior"
-                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300"
                         >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Regresar
+                            <ArrowLeft class="h-4 w-4"/>
+                            <span>Regresar</span>
                         </button>
                     </div>
                     <!-- INFORMACIÓN DEL CLIENTE (botón siempre visible si hay cliente) -->
