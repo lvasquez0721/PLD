@@ -8,6 +8,7 @@ import { type BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes/index.js';
 import Input from '@/components/forms/Input.vue';
 import Select from '@/components/forms/Select.vue';
+import DateInput from '@/components/forms/DateInput.vue';
 import Textarea from '@/components/forms/Textarea.vue';
 import SelectFile from '@/components/forms/SelectFile.vue';
 import { usePage, router as inertiaRouter } from '@inertiajs/vue3';
@@ -37,16 +38,6 @@ function colorFromString(str: string) {
     return `${colors[idx][0]} ${colors[idx][1]} border ${colors[idx][2]}`;
 }
 
-// Theme detection for date inputs
-const isDark = ref(false);
-onMounted(() => {
-    const checkTheme = () => {
-        isDark.value = document.documentElement.classList.contains('dark');
-    };
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-});
 const page = usePage();
 
 interface EvidenciasFormateadas {
@@ -109,7 +100,6 @@ const filtroEstatus = ref('');
 const alertas = ref<Alerta[]>([]);
 const paginationData = ref<PaginatedAlerts | null>(null);
 const isLoading = ref(false);
-const focusedInput = ref<string | null>(null);
 
 const showNuevoAlertaModal = ref(false);
 const selectedAlertaId = ref<number | null>(null);
@@ -688,13 +678,14 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <div class="filters-panel">
                             <div class="filters-grid">
                                 <div class="filter-field">
-                                    <label for="folio"
-                                        class="filter-label">
-                                        Folio
-                                    </label>
-                                    <div class="relative">
-                                        <Input id="folio" v-model="folio" placeholder="Buscar por folio, cliente, ID o póliza..." />
-                                    </div>
+                                    <Input
+                                        id="folio"
+                                        v-model="folio"
+                                        label="Folio"
+                                        placeholder="Buscar por folio, cliente, ID o póliza..."
+                                        classInput="filter-input"
+                                        classLabel="filter-label"
+                                    />
                                 </div>
                                 <div class="filter-field">
                                     <Select
@@ -717,42 +708,22 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     />
                                 </div>
                                 <div class="filter-field">
-                                    <label for="fechaInicio"
-                                        class="filter-label">
-                                        Fecha inicio
-                                    </label>
-                                    <div class="relative">
-                                        <input type="date" id="fechaInicio" v-model="fechaInicio"
-                                            @focus="focusedInput = 'inicio'" @blur="focusedInput = null" :class="[
-                                                'w-full rounded-xl border px-4 py-3 text-sm font-normal tracking-[0.01em] transition-all duration-200',
-                                                isDark
-                                                    ? (focusedInput === 'inicio'
-                                                        ? 'custom-dark-date-focused'
-                                                        : 'custom-dark-date')
-                                                    : (focusedInput === 'inicio'
-                                                        ? 'custom-light-date-focused'
-                                                        : 'custom-light-date')
-                                            ]" />
-                                    </div>
+                                    <DateInput
+                                        label="Fecha inicio"
+                                        id="fechaInicio"
+                                        v-model="fechaInicio"
+                                        placeholder="Seleccione fecha inicio"
+                                        classLabel="filter-label"
+                                    />
                                 </div>
                                 <div class="filter-field">
-                                    <label for="fechaFin"
-                                        class="filter-label">
-                                        Fecha fin
-                                    </label>
-                                    <div class="relative">
-                                        <input type="date" id="fechaFin" v-model="fechaFin"
-                                            @focus="focusedInput = 'fin'" @blur="focusedInput = null" :class="[
-                                                'w-full rounded-xl border px-4 py-3 text-sm font-normal tracking-[0.01em] transition-all duration-200',
-                                                isDark
-                                                    ? (focusedInput === 'fin'
-                                                        ? 'custom-dark-date-focused'
-                                                        : 'custom-dark-date')
-                                                    : (focusedInput === 'fin'
-                                                        ? 'custom-light-date-focused'
-                                                        : 'custom-light-date')
-                                            ]" />
-                                    </div>
+                                    <DateInput
+                                        label="Fecha fin"
+                                        id="fechaFin"
+                                        v-model="fechaFin"
+                                        placeholder="Seleccione fecha fin"
+                                        classLabel="filter-label"
+                                    />
                                 </div>
                             </div>
                             <div class="filters-actions">
@@ -1150,54 +1121,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 }
 .animate-spin {
     animation: spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-input[type="date"]:focus-visible {
-    outline: 2px solid rgb(59 130 246 / 0.3);
-    outline-offset: 2px;
-}
-.custom-light-date {
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    color: #1e293b !important;
-    border: 1px solid rgba(226, 232, 240, 0.7);
-}
-.custom-light-date:hover {
-    border-color: rgba(226, 232, 240, 0.85);
-    background-color: #fff;
-}
-.custom-light-date-focused {
-    background-color: #fff !important;
-    color: #0f172a !important;
-    border: 1px solid rgba(147, 197, 253, 0.5);
-    box-shadow: 0 3px 12px rgba(59, 130, 246, 0.07);
-    transform: scale(1.005);
-}
-.custom-dark-date {
-    background-color: rgba(31, 31, 31, 0.60) !important;
-    color: #fafbfc !important;
-    border: 1px solid rgba(38, 38, 38, 0.65);
-}
-.custom-dark-date:hover {
-    border-color: rgba(163, 163, 163, 0.32);
-    background-color: rgba(31, 31, 31, 0.85);
-}
-.custom-dark-date-focused {
-    background-color: rgba(23, 23, 23, 0.95) !important;
-    color: #fafbfc !important;
-    border: 1px solid rgba(147, 197, 253, 0.5);
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
-    transform: scale(1.005);
-}
-input[type="date"]::-webkit-inner-spin-button,
-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0);
-}
-.custom-dark-date::-webkit-calendar-picker-indicator,
-.custom-dark-date-focused::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-}
-.custom-dark-date::-moz-calendar-picker-indicator,
-.custom-dark-date-focused::-moz-calendar-picker-indicator {
-    filter: invert(1);
 }
 tbody tr {
     will-change: background-color;
