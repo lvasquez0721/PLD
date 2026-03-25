@@ -62,6 +62,15 @@ class OperacionesController extends Controller
             ], 500);
         }
 
+        // Validar si el cliente está activo
+        $cliente = TbClientes::find($validatedData['IDCliente']);
+        if (!$cliente || !$cliente->Activo) {
+            return response()->json([
+                'codigoError' => 403,
+                'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
+            ], 403);
+        }
+
         try {
             $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
@@ -97,9 +106,14 @@ class OperacionesController extends Controller
                 $beneficiarioModel->save();
             }
 
+            $mensajeExito = "Operación ingresada exitosamente";
+            if ($cliente->CoincideEnListasNegras) {
+                $mensajeExito .= ". Nota: El cliente cuenta con coincidencias en listas.";
+            }
+
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Operación ingresada exitosamente",
+                "error" => $mensajeExito,
                 "IDOperacion" => $operacion->IDOperacion
             ], 201);
         } catch (\Exception $e) {
@@ -147,6 +161,15 @@ class OperacionesController extends Controller
             }
 
             $cliente = TbClientes::where('IDCliente', $request->IDCliente)->first();
+
+            // Validar si el cliente está activo
+            if (!$cliente || !$cliente->Activo) {
+                return response()->json([
+                    'codigoError' => 403,
+                    'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
+                ], 403);
+            }
+
             $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
             $horaActual = now()->format('H:i:s');
             $fechaActual = now()->format('Y-m-d');
@@ -306,9 +329,14 @@ class OperacionesController extends Controller
             }
 
             // Código de éxito: 0
+            $mensajeExito = "Operación ingresada exitosamente";
+            if ($cliente->CoincideEnListasNegras) {
+                $mensajeExito .= ". Nota: El cliente cuenta con coincidencias en listas.";
+            }
+
             return response()->json([
                 "codigoError" => 0,
-                "error" => "Operación ingresada exitosamente",
+                "error" => $mensajeExito,
                 "IDOperacion" => $idOperacionResult
             ], 201);
 

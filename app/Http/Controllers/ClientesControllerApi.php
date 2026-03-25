@@ -104,9 +104,15 @@ class ClientesControllerApi extends Controller
         $detalleListaBloqueadas = [];
         $listasDetectadas = [];
 
-        if (!empty($rfc)) {
+        $curp = isset($data['CURP']) ? strtoupper(trim($data['CURP'])) : null;
+
+        if (!empty($rfc) || !empty($curp)) {
             // Buscar en UIF
-            $registroUIF = TbListasNegrasUIF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            $registroUIF = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
+                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            })->first();
+
             if ($registroUIF) {
                 $personaBloqueada = true;
                 $detalleListaBloqueadas[] = [
@@ -120,7 +126,11 @@ class ClientesControllerApi extends Controller
             }
 
             // Buscar en CNSF
-            $registroCNSF = TbListasNegraCNSF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            $registroCNSF = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
+                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            })->first();
+
             if ($registroCNSF) {
                 $personaBloqueada = true;
                 $detalleListaBloqueadas[] = [
@@ -227,9 +237,14 @@ class ClientesControllerApi extends Controller
 
             DB::commit();
 
+            $mensajeExito = 'Cliente ingresado exitosamente';
+            if ($personaBloqueada) {
+                $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+            }
+
             return response()->json([
                 'codigoError' => 0,
-                'message' => 'Cliente ingresado exitosamente',
+                'message' => $mensajeExito,
                 'IDCliente' => $cliente->IDCliente,
                 'esPPE' => $cliente->EsPPEActivo,
                 'personaBloqueada' => $cliente->CoincideEnListasNegras,
@@ -442,14 +457,19 @@ class ClientesControllerApi extends Controller
             }
         }
 
-        // Buscar en listas bloqueadas por RFC actualizado
+        // Buscar en listas bloqueadas por RFC o CURP actualizados
         $rfc = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
+        $curp = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
         $coincideEnListasNegras = false;
         $detalleListaBloqueadas = [];
         $listasDetectadas = [];
 
-        if ($rfc) {
-            $CNSFrfc = TbListasNegraCNSF::where('RFC', $rfc)->first();
+        if ($rfc || $curp) {
+            $CNSFrfc = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
+                if ($rfc) $q->orWhere('RFC', $rfc);
+                if ($curp) $q->orWhere('CURP', $curp);
+            })->first();
+
             if ($CNSFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
@@ -461,7 +481,12 @@ class ClientesControllerApi extends Controller
                 ];
                 $listasDetectadas[] = 'CNSF';
             }
-            $UIFrfc = TbListasNegrasUIF::where('RFC', $rfc)->first();
+
+            $UIFrfc = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
+                if ($rfc) $q->orWhere('RFC', $rfc);
+                if ($curp) $q->orWhere('CURP', $curp);
+            })->first();
+
             if ($UIFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
@@ -476,6 +501,9 @@ class ClientesControllerApi extends Controller
         }
 
         $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
+        if ($coincideEnListasNegras) {
+            $cliente->Activo = 0;
+        }
         $cliente->save();
 
         // Si coincide en listas negras, registrar alerta
@@ -515,9 +543,14 @@ class ClientesControllerApi extends Controller
             ]);
         }
 
+        $mensajeExito = 'Cliente actualizado exitosamente';
+        if ($coincideEnListasNegras) {
+            $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+        }
+
         return response()->json([
             'codigoError' => 0,
-            'error' => 'Sin mensaje',
+            'message' => $mensajeExito,
             'IDCliente' => $cliente->IDCliente,
             'esPPE' => $esPPE,
             'personaBloqueada' => $coincideEnListasNegras,
