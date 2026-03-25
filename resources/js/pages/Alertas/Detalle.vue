@@ -562,17 +562,17 @@ function submitEditarAlerta(e: Event) {
                     </div>
 
                     <!-- 6. Evidencias del sistema -->
-                    <div v-if="evidencias" class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
-                        <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3">Análisis automático</div>
-                        <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4" v-if="!esPreocupante">
+                    <div class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
+                        <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3">Evidencias y análisis</div>
+                        <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4" v-if="!esPreocupante && evidencias && !Array.isArray(evidencias)">
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Total de pagos</span>
-                                <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">{{ evidencias.total_pagos ?? '-' }}</span>
+                                <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">{{ evidencias?.total_pagos ?? '-' }}</span>
                             </div>
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Total pagado</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">
-                                    {{ numberFormat(evidencias.total_pagado, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
+                                    {{ numberFormat(evidencias?.total_pagado, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
                                     <span class="ml-1 text-xs text-gray-600 dark:text-gray-300">
                                         {{ getMonedaInfo(String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')).nombre }}
                                     </span>
@@ -581,7 +581,7 @@ function submitEditarAlerta(e: Event) {
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Saldo pendiente</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">
-                                    {{ numberFormat(evidencias.saldo_pendiente, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
+                                    {{ numberFormat(evidencias?.saldo_pendiente, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
                                     <span class="ml-1 text-xs text-gray-600 dark:text-gray-300">
                                         {{ getMonedaInfo(String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')).nombre }}
                                     </span>
@@ -590,8 +590,8 @@ function submitEditarAlerta(e: Event) {
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">¿Liquidada?</span>
                                 <span class="text-sm font-bold">
-                                    <span v-if="evidencias.operacion_pagada === true" class="text-green-700 dark:text-green-300">Sí</span>
-                                    <span v-else-if="evidencias.operacion_pagada === false" class="text-yellow-700 dark:text-yellow-200">No</span>
+                                    <span v-if="evidencias?.operacion_pagada === true" class="text-green-700 dark:text-green-300">Sí</span>
+                                    <span v-else-if="evidencias?.operacion_pagada === false" class="text-yellow-700 dark:text-yellow-200">No</span>
                                     <span v-else>-</span>
                                 </span>
                             </div>
