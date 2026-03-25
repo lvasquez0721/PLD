@@ -3,8 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
-import { computed, ref, onMounted, watch } from 'vue';
-import { ArrowLeft } from 'lucide-vue-next';
+import { computed, ref, onMounted, watch, toRefs } from 'vue';
+import { ArrowLeft, Globe } from 'lucide-vue-next';
 
 // 🚩 Usar window.route (Ziggy) si está disponible
 const route = (window as any).route as (...args: any[]) => any;
@@ -68,7 +68,8 @@ const props = defineProps<{
     reportes?: any[]
 }>();
 
-const { alerta, cliente, operacion, reportes } = props;
+// Usamos toRefs para mantener la reactividad en el script
+const { alerta, cliente, operacion, reportes } = toRefs(props);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Alertas', href: route ? route('alertas.index') : '/alertas' },
@@ -132,21 +133,12 @@ function numberFormat(n: any, moneda: string = 'MXN') {
     }).format(Number(n))}`;
 }
 
-function resolveCurrency(moneda: string | null | undefined) {
-    const info = getMonedaInfo(moneda);
-    return info.id;
-}
-
-function resolveMonedaSimbolo(moneda: string | null | undefined) {
-    return getMonedaInfo(moneda).simbolo;
-}
-
 function parseEvidencias(e: string | null | undefined): any {
     if (!e) return null;
     try { return typeof e === 'string' ? JSON.parse(e) : e; } catch { return null; }
 }
 
-const evidencias = computed(() => parseEvidencias(alerta?.Evidencias));
+const evidencias = computed(() => parseEvidencias(alerta.value?.Evidencias));
 
 function getEvidenciaPublicUrl(ev: any): string | undefined {
     if (ev.url) {
@@ -203,11 +195,9 @@ const listaEvidencias = computed(() => {
 });
 
 const pagosOperacion = computed(() => {
-    return (operacion?.pagos || []);
+    return (operacion.value?.pagos || []);
 });
-const analisisFraccionado = computed(() => evidencias.value?.analisis_fraccionado ?? []);
 const detallePagos = computed(() => evidencias.value?.detalle_pagos ?? []);
-const defaultMoneda = computed(() => alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN');
 
 const estatus = ref('');
 const evidenciasFormulario = ref<File[] | undefined>(undefined);
@@ -223,7 +213,7 @@ const opcionesEstatus = [
     { value: 'Reportado', label: 'Reportado' },
 ];
 
-const alertaEstatus = computed(() => (alerta?.Estatus || '').toLowerCase());
+const alertaEstatus = computed(() => (alerta.value?.Estatus || '').toLowerCase());
 const puedeEditar = computed(() => {
     const est = alertaEstatus.value;
     return est !== 'enviado' && est !== 'reportado' && est !== 'cerrado';
@@ -235,26 +225,26 @@ const puedeEliminarEvidencias = computed(() => {
 
 // Mostrar información relevante del cliente si existe
 const clienteInfo = computed(() => {
-    if (!cliente) return null;
+    if (!cliente.value) return null;
 
-    const nombreCompleto = cliente.Nombre && cliente.ApellidoPaterno
+    const nombreCompleto = cliente.value.Nombre && cliente.value.ApellidoPaterno
         ? [
-            cliente.Nombre,
-            cliente.ApellidoPaterno,
-            cliente.ApellidoMaterno || ''
+            cliente.value.Nombre,
+            cliente.value.ApellidoPaterno,
+            cliente.value.ApellidoMaterno || ''
           ].filter(Boolean).join(' ')
         : (
-            cliente.Nombre ?? cliente.RazonSocial ?? cliente.nombre ?? cliente.razon_social ?? ''
+            cliente.value.Nombre ?? cliente.value.RazonSocial ?? cliente.value.nombre ?? cliente.value.razon_social ?? ''
         );
 
-    const tipo = cliente.tipo_persona
-        ? personaTipoNombreFromObj(cliente.tipo_persona)
-        : (cliente.IDTipoPersona ? personaTipoDisplay(cliente.IDTipoPersona) : '-');
+    const tipo = cliente.value.tipo_persona
+        ? personaTipoNombreFromObj(cliente.value.tipo_persona)
+        : (cliente.value.IDTipoPersona ? personaTipoDisplay(cliente.value.IDTipoPersona) : '-');
 
     // El domicilio: usar primer domicilio, si hay
     let domicilio = '-';
-    if (Array.isArray(cliente.domicilios) && cliente.domicilios.length > 0) {
-        const d = cliente.domicilios[0];
+    if (Array.isArray(cliente.value.domicilios) && cliente.value.domicilios.length > 0) {
+        const d = cliente.value.domicilios[0];
         domicilio = [
             d.Calle,
             d.NoExterior ? `No. ${d.NoExterior}` : '',
@@ -269,23 +259,66 @@ const clienteInfo = computed(() => {
     return {
         nombre: nombreCompleto || '-',
         tipo,
-        rfc: cliente.RFC || '-',
-        curp: cliente.CURP || '-',
-        fechaNacimiento: cliente.FechaNacimiento ? formatDate(cliente.FechaNacimiento) : '-',
+        rfc: cliente.value.RFC || '-',
+        curp: cliente.value.CURP || '-',
+        fechaNacimiento: cliente.value.FechaNacimiento ? formatDate(cliente.value.FechaNacimiento) : '-',
         domicilio,
-        idCliente: cliente.IDCliente,
+        idCliente: cliente.value.IDCliente,
+        activo: cliente.value.Activo,
     };
 });
 
 // Función para ir a los detalles del cliente (mostrar SIEMPRE que haya un cliente)
+const loadingActivar = ref(false);
+const showActivarClienteModal = ref(false);
+
+function abrirModalActivarCliente() {
+    if (loadingActivar.value || (clienteInfo.value && clienteInfo.value.activo)) return;
+    showActivarClienteModal.value = true;
+}
+
+function cerrarModalActivarCliente() {
+    if (loadingActivar.value) return;
+    showActivarClienteModal.value = false;
+}
+
+function confirmarActivarCliente() {
+    if (loadingActivar.value) return;
+    showActivarClienteModal.value = false;
+    activarCliente();
+}
+
+function activarCliente() {
+    if (!cliente.value || !cliente.value.IDCliente) return;
+
+    const url = route
+        ? route('clientes.activar', { id_cliente: cliente.value.IDCliente })
+        : `/clientes/${cliente.value.IDCliente}/activar`;
+
+    loadingActivar.value = true;
+    router.post(url, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Cliente activado correctamente.');
+        },
+        onError: (errs) => {
+            console.error(errs);
+            toast.error('Hubo un error al activar el cliente.');
+        },
+        onFinish: () => {
+            loadingActivar.value = false;
+        }
+    });
+}
+
 function verDetallesCliente() {
-    if (cliente && cliente.IDCliente) {
+    if (cliente.value && cliente.value.IDCliente) {
         // La ruta está registrada en routes/web.php y usa ClientesController@verDetallesCliente
         // Usar Ziggy si está disponible, sino fallback a la ruta estándar
         if (route) {
-            router.visit(route('clientes.ver-detalles', cliente.IDCliente));
+            router.visit(route('clientes.ver-detalles', cliente.value.IDCliente));
         } else {
-            router.visit(`/clientes/ver-detalles/${cliente.IDCliente}`);
+            router.visit(`/clientes/ver-detalles/${cliente.value.IDCliente}`);
         }
     }
 }
@@ -303,40 +336,40 @@ function volverPaginaAnterior() {
 }
 
 const esPreocupante = computed(() => {
-    return (alerta.Patron && typeof alerta.Patron === 'string' && alerta.Patron.trim().toLowerCase() === 'preocupante')
+    return (alerta.value.Patron && typeof alerta.value.Patron === 'string' && alerta.value.Patron.trim().toLowerCase() === 'preocupante')
 });
 const pagoPreocupante = computed(() => {
     return {
-        monto: alerta.MontoOperacion,
-        instrumento: alerta.InstrumentoMonetario,
-        moneda: alerta.IDMoneda
+        monto: alerta.value.MontoOperacion,
+        instrumento: alerta.value.InstrumentoMonetario,
+        moneda: alerta.value.IDMoneda
     };
 });
 
 onMounted(() => {
     if (puedeEditar.value) {
-        if (alerta.Estatus && estatus.value === '') {
+        if (alerta.value.Estatus && estatus.value === '') {
             const found = opcionesEstatus.find(opt =>
-                opt.value.toLowerCase() === alerta.Estatus.toLowerCase()
+                opt.value.toLowerCase() === alerta.value.Estatus.toLowerCase()
             );
-            estatus.value = found ? found.value : alerta.Estatus;
+            estatus.value = found ? found.value : alerta.value.Estatus;
         }
-        if (alerta.Razones && razones.value === '') {
-            razones.value = alerta.Razones;
+        if (alerta.value.Razones && razones.value === '') {
+            razones.value = alerta.value.Razones;
         }
-        if (alerta.Descripcion && descripcion.value === '') {
-            descripcion.value = alerta.Descripcion;
+        if (alerta.value.Descripcion && descripcion.value === '') {
+            descripcion.value = alerta.value.Descripcion;
         }
     }
 });
 
-const loadingEvidencias = ref<Array<string | number>>([]);
+const loadingEvidencias = ref<(string | number)[]>([]);
 
-function getEvidenciaKey(ev: any, idx: number): string | number {
+function getEvidenciaKey(ev: any, idx: any): string | number {
     return ev.id || ev.ID || ev.Id || ev.FileName || ev.path || ev.url || idx;
 }
 
-function eliminarEvidencia(ev: any, idx: number) {
+function eliminarEvidencia(ev: any, idx: any) {
     const est = alertaEstatus.value;
     if (est === 'cerrado' || est === 'enviado' || est === 'reportado') {
         return;
@@ -347,7 +380,7 @@ function eliminarEvidencia(ev: any, idx: number) {
 
     router.delete('/alertas/evidencias', {
         data: {
-            idAlerta: alerta.IDRegistroAlerta,
+            idAlerta: alerta.value.IDRegistroAlerta,
             path: ev.path,
         },
         preserveScroll: true,
@@ -380,7 +413,7 @@ function submitEditarAlerta(e: Event) {
         }
     }
 
-    formData.append('idAlerta', alerta.IDRegistroAlerta);
+    formData.append('idAlerta', alerta.value.IDRegistroAlerta);
 
     loadingSubmit.value = true;
 
@@ -454,6 +487,17 @@ function submitEditarAlerta(e: Event) {
                         <div class="flex justify-between items-center mb-3">
                             <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100">Información del cliente</div>
                             <div class="flex gap-2">
+                                <!-- Botón de Activar Cliente -->
+                                <button
+                                    v-if="cliente && cliente.IDCliente && !clienteInfo.activo"
+                                    type="button"
+                                    @click="abrirModalActivarCliente"
+                                    :disabled="loadingActivar"
+                                    class="inline-flex items-center px-3 py-1.5 rounded bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                                >
+                                    <span v-if="loadingActivar" class="mr-2 animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                    Activar cliente
+                                </button>
                                 <button
                                     v-if="cliente && cliente.IDCliente"
                                     type="button"
@@ -464,7 +508,14 @@ function submitEditarAlerta(e: Event) {
                                 </button>
                             </div>
                         </div>
-                        <div class="flex flex-col md:flex-row gap-x-8 gap-y-2">
+                        <div class="flex flex-col md:flex-row gap-x-8 gap-y-2 flex-wrap">
+                            <div>
+                                <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Estatus</span>
+                                <span class="inline-block px-2 py-0.5 rounded text-xs font-bold"
+                                    :class="clienteInfo.activo ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'">
+                                    {{ clienteInfo.activo ? 'Activo' : 'Inactivo' }}
+                                </span>
+                            </div>
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Nombre Completo</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">{{ clienteInfo.nombre }}</span>
@@ -521,18 +572,18 @@ function submitEditarAlerta(e: Event) {
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Total pagado</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">
-                                    {{ numberFormat(evidencias.total_pagado, alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN') }}
+                                    {{ numberFormat(evidencias.total_pagado, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
                                     <span class="ml-1 text-xs text-gray-600 dark:text-gray-300">
-                                        {{ getMonedaInfo(alerta.IDMoneda ?? operacion?.IDMoneda).nombre }}
+                                        {{ getMonedaInfo(String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')).nombre }}
                                     </span>
                                 </span>
                             </div>
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Saldo pendiente</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">
-                                    {{ numberFormat(evidencias.saldo_pendiente, alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN') }}
+                                    {{ numberFormat(evidencias.saldo_pendiente, String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')) }}
                                     <span class="ml-1 text-xs text-gray-600 dark:text-gray-300">
-                                        {{ getMonedaInfo(alerta.IDMoneda ?? operacion?.IDMoneda).nombre }}
+                                        {{ getMonedaInfo(String(alerta.IDMoneda ?? operacion?.IDMoneda ?? 'MXN')).nombre }}
                                     </span>
                                 </span>
                             </div>
@@ -580,15 +631,15 @@ function submitEditarAlerta(e: Event) {
                                     <tbody>
                                         <tr>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ numberFormat(pagoPreocupante.monto, pagoPreocupante.moneda) }}
+                                                {{ numberFormat(pagoPreocupante.monto, String(pagoPreocupante.moneda ?? 'MXN')) }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 {{ pagoPreocupante.instrumento || '-' }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ getMonedaInfo(pagoPreocupante.moneda).nombre }}
+                                                {{ getMonedaInfo(String(pagoPreocupante.moneda ?? 'MXN')).nombre }}
                                                 <span v-if="pagoPreocupante.moneda">
-                                                    ({{ getMonedaInfo(pagoPreocupante.moneda).simbolo }})
+                                                    ({{ getMonedaInfo(String(pagoPreocupante.moneda ?? 'MXN')).simbolo }})
                                                 </span>
                                             </td>
                                         </tr>
@@ -610,11 +661,11 @@ function submitEditarAlerta(e: Event) {
                                             <td class="px-3 py-2 whitespace-nowrap">{{ pago.fecha_pago ?? pago.FechaPago ?? '-' }}</td>
                                             <td class="px-3 py-2 whitespace-nowrap">{{ pago.forma_pago ?? '-' }}</td>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ numberFormat(pago.monto ?? pago.Monto, pago.moneda ?? pago.IDMoneda ?? 'MXN') }}
+                                                {{ numberFormat(pago.monto ?? pago.Monto, String(pago.moneda ?? pago.IDMoneda ?? 'MXN')) }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ getMonedaInfo(pago.moneda ?? pago.IDMoneda).nombre }}
-                                                <span v-if="pago.moneda || pago.IDMoneda">({{ getMonedaInfo(pago.moneda ?? pago.IDMoneda).simbolo }})</span>
+                                                {{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).nombre }}
+                                                <span v-if="pago.moneda || pago.IDMoneda">({{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).simbolo }})</span>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -720,6 +771,49 @@ function submitEditarAlerta(e: Event) {
                 </div>
             </div>
         </FadeIn>
+
+        <!-- Modal de Confirmación de Activación de Cliente -->
+        <div
+            v-if="showActivarClienteModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+            <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-neutral-100 flex items-center gap-2">
+                    <Globe class="w-5 h-5 text-blue-600" />
+                    Confirmar activación de cliente
+                </h3>
+                <p class="mt-3 text-sm text-gray-700 dark:text-neutral-300">
+                    Antes de activar este cliente, se sugiere revisar primero sus coincidencias en listas de observación y sus alertas PLD.
+                </p>
+                <div class="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800 dark:border-yellow-800/60 dark:bg-yellow-900/20 dark:text-yellow-200">
+                    Estado actual:
+                    <span class="font-semibold">{{ (cliente && cliente.CoincideEnListasNegras) ? 'Con coincidencias en listas' : 'Sin coincidencias en listas' }}</span>
+                    |
+                    <span class="font-semibold">{{ (reportes && reportes.length > 0) ? 'Con alertas PLD' : 'Sin alertas PLD' }}</span>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="cerrarModalActivarCliente"
+                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        @click="confirmarActivarCliente"
+                        :disabled="loadingActivar"
+                        class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-70"
+                    >
+                        <span
+                            v-if="loadingActivar"
+                            class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        ></span>
+                        Confirmar activación
+                    </button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>
 
