@@ -373,7 +373,7 @@ class OperacionesController extends Controller
         $alerta->Estatus = $this->determinarEstatusAlerta($alertaData);
         $alerta->Descripcion = $alertaData['descripcion'];
         $alerta->Razones = $alertaData['razones'];
-        $alerta->Evidencias = json_encode($evidencias);
+        $alerta->Evidencias = '';
         $alerta->IDReporteOP = null;
 
         $alerta->save();

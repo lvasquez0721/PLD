@@ -226,10 +226,12 @@ class AlertasController extends Controller
             $evidenciasData = [];
             if ($request->hasFile('evidencias')) {
                 foreach ($request->file('evidencias') as $file) {
-                    $storedPath = $file->store('alertas/evidencias', 'public');
+                    // Usar el nombre original del archivo al guardarlo, evitando preprend un uniqid
+                    $originalName = $file->getClientOriginalName();
+                    $storedPath = $file->storeAs('alertas/evidencias', $originalName, 'public');
                     $evidenciasData[] = [
                         'path' => $storedPath,
-                        'original' => $file->getClientOriginalName(),
+                        'original' => $originalName,
                         'mime' => $file->getClientMimeType(),
                         'size' => $file->getSize(),
                     ];
@@ -429,7 +431,7 @@ class AlertasController extends Controller
                 }
             }
 
-            // Manejo de evidencias (añade a las existentes)
+            // Manejo de evidencias (añade a las existentes) - guardar usando nombre original
             $evidenciasData = [];
             if ($request->hasFile('evidencias')) {
                 // Decodifica las evidencias previas
@@ -441,10 +443,12 @@ class AlertasController extends Controller
                     }
                 }
                 foreach ($request->file('evidencias') as $file) {
-                    $storedPath = $file->store('alertas/evidencias', 'public');
+                    // Guardar el archivo usando el nombre original, sin añadir uniqid
+                    $originalName = $file->getClientOriginalName();
+                    $storedPath = $file->storeAs('alertas/evidencias', $originalName, 'public');
                     $evidenciasData[] = [
                         'path'      => $storedPath,
-                        'original'  => $file->getClientOriginalName(),
+                        'original'  => $originalName,
                         'mime'      => $file->getClientMimeType(),
                         'size'      => $file->getSize(),
                     ];

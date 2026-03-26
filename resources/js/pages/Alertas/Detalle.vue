@@ -561,9 +561,72 @@ function submitEditarAlerta(e: Event) {
                         </div>
                     </div>
 
+                    <!-- 5. Card Exclusivo de Evidencias -->
+                    <div class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
+                        <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3 flex items-center justify-between">
+                            <span>Evidencias</span>
+                            <span v-if="listaEvidencias.length" class="text-xs font-normal text-gray-500 bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
+                                {{ listaEvidencias.length }} archivo(s)
+                            </span>
+                        </div>
+
+                        <div v-if="listaEvidencias.length">
+                            <ul class="space-y-2">
+                                <li v-for="(ev, idx) in listaEvidencias" :key="getEvidenciaKey(ev, idx)" class="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors">
+                                    <div class="flex items-center gap-3 overflow-hidden">
+                                        <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        <div class="flex flex-col overflow-hidden">
+                                            <a v-if="ev.url"
+                                                class="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline truncate"
+                                                :href="ev.url"
+                                                target="_blank"
+                                                rel="noopener"
+                                                :title="ev.name"
+                                            >
+                                                {{ ev.name }}
+                                            </a>
+                                            <span v-else class="text-sm font-medium text-gray-700 dark:text-neutral-300 truncate">{{ ev.name }}</span>
+                                            <span class="text-[10px] text-gray-500 uppercase">Archivo adjunto</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Botón de eliminar solo visible si puede eliminar evidencias -->
+                                    <button v-if="puedeEliminarEvidencias"
+                                        class="inline-flex items-center px-3 py-1.5 text-xs rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-semibold transition-colors disabled:opacity-50"
+                                        @click="eliminarEvidencia(ev, idx)"
+                                        :disabled="loadingEvidencias.includes(getEvidenciaKey(ev, idx))"
+                                        type="button"
+                                        title="Eliminar evidencia"
+                                    >
+                                        <span v-if="!loadingEvidencias.includes(getEvidenciaKey(ev, idx))" class="flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            Eliminar
+                                        </span>
+                                        <span v-else class="animate-spin w-4 h-4 inline-block border-2 border-current rounded-full border-t-transparent"></span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div v-else class="flex flex-col items-center justify-center py-8 text-center bg-gray-50 dark:bg-neutral-800/30 rounded-xl border-2 border-dashed border-gray-200 dark:border-neutral-800">
+                            <div class="p-3 bg-gray-100 dark:bg-neutral-800 rounded-full mb-2">
+                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <p class="text-sm text-gray-500 font-medium">No hay evidencias cargadas</p>
+                            <p class="text-xs text-gray-400 mt-1">Sube archivos en la sección de edición</p>
+                        </div>
+                    </div>
+
                     <!-- 6. Evidencias del sistema -->
                     <div class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
-                        <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3">Evidencias y análisis</div>
+                        <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3">Análisis y pagos</div>
                         <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4" v-if="!esPreocupante && evidencias && !Array.isArray(evidencias)">
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Total de pagos</span>
@@ -596,27 +659,6 @@ function submitEditarAlerta(e: Event) {
                                 </span>
                             </div>
                         </div>
-
-                        <!-- Evidencias adjuntas-->
-                        <div v-if="listaEvidencias.length" class="mb-3">
-                            <div class="text-[13px] font-medium mb-1 text-gray-700 dark:text-neutral-200">Archivos de evidencia actuales:</div>
-                            <ul class="space-y-1">
-                                <li v-for="(ev, idx) in listaEvidencias" :key="getEvidenciaKey(ev, idx)" class="flex items-center gap-3 text-[15px]">
-                                    <a v-if="ev.url" class="hover:underline text-blue-700 dark:text-blue-300 break-all" :href="ev.url" target="_blank" rel="noopener">{{ ev.name }}</a>
-                                    <span v-else>{{ ev.name }}</span>
-                                    <!-- Botón de eliminar solo visible si puede eliminar evidencias -->
-                                    <button v-if="puedeEliminarEvidencias"
-                                        class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-red-100 text-red-800 hover:bg-red-200 ml-2 font-semibold transition disabled:opacity-50"
-                                        @click="eliminarEvidencia(ev, idx)"
-                                        :disabled="loadingEvidencias.includes(getEvidenciaKey(ev, idx))" type="button"
-                                        title="Eliminar evidencia">
-                                        <span v-if="!loadingEvidencias.includes(getEvidenciaKey(ev, idx))">Eliminar</span>
-                                        <span v-else class="animate-spin w-4 h-4 inline-block border-2 border-current rounded-full border-t-transparent"></span>
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                        <!-- FIN evidencias -->
 
                         <div class="overflow-auto">
                             <template v-if="esPreocupante">

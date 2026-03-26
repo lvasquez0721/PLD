@@ -647,8 +647,8 @@ const urlArchivoPublico = (p: string): string => {
     return `/storage/${normalized}`;
 };
 
-const getPatronBadgeClass = (patron: string) => {
-    if (patron.trim().toLowerCase() === 'nuevo') return '';
+const getPatronBadgeClass = (patron: string | null) => {
+    if (!patron || patron.trim().toLowerCase() === 'nuevo') return '';
     return colorFromString(patron);
 };
 
@@ -836,13 +836,13 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm">
                                                     <button
                                                         class="uppercase px-4 py-2 rounded-full text-xs font-extrabold tracking-[0.14em] transition-all duration-200 focus:outline-none border"
-                                                        :class="alerta.Patron.trim().toLowerCase() === 'nuevo'
+                                                        :class="alerta.Patron && alerta.Patron.trim().toLowerCase() === 'nuevo'
                                                             ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-green-400 text-white border-none shadow-[0_1px_4px_rgba(34,197,94,0.22)] outline-none ring-2 ring-green-200/40 dark:ring-green-700/30 hover:bg-green-700/95 hover:from-green-600 hover:to-green-400 active:scale-95 focus:ring-4 focus:ring-emerald-300/60'
                                                             : getPatronBadgeClass(alerta.Patron) + ' bg-white dark:bg-neutral-950 hover:bg-gray-100 dark:hover:bg-neutral-900'
                                                         "
                                                         @click="openNuevoAlertaModal(alerta)"
                                                     >
-                                                        {{ alerta.Patron.toUpperCase() }}
+                                                        {{ (alerta.Patron ?? '').toUpperCase() }}
                                                     </button>
                                                 </td>
                                                 <td class="whitespace-nowrap px-5 py-4">
