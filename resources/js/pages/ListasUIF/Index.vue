@@ -2,10 +2,8 @@
 import { ref, watch, computed, onMounted } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import Titulo from '@/components/ui/Titulo.vue';
-import { FileText, Settings, Search, Pencil, Trash2, X, Download } from 'lucide-vue-next';
+import { FileText, Search, Pencil, Trash2, Download } from 'lucide-vue-next';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
-import { activeTab, setTab } from "../../../scripts/setTab.js";
 import { type BreadcrumbItem } from '@/types'
 import Input from '@/components/forms/Input.vue';
 import DateInput from '@/components/forms/DateInput.vue';
@@ -56,6 +54,7 @@ const form = useForm({
 const buscar = ref('');
 
 // Variables para Modales
+const showCreateModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
 const itemToDelete = ref<ListaUIF | null>(null);
@@ -73,14 +72,6 @@ watch(() => (page.props as any).toast, (newToast) => {
         showToast.value = true;
     }
 }, { immediate: true });
-
-watch(activeTab, (newTab) => {
-    if (newTab === 'altaListas') {
-        form.reset();
-        fechaNacimientoTemp.value = '';
-        fechaAcuerdoTemp.value = '';
-    }
-});
 
 // Fechas reactivas (como strings para DateInput tipo nativo)
 // Se manejan dentro del form directamente o como temporales
@@ -103,6 +94,15 @@ const formatFechaParaInput = (fechaStr: string | null) => {
     return fechaStr.split(/[T ]/)[0];
 };
 
+const openCreateModal = () => {
+    form.clearErrors();
+    form.reset();
+    form.IDRegistroListaUIF = null;
+    fechaNacimientoTemp.value = '';
+    fechaAcuerdoTemp.value = '';
+    showCreateModal.value = true;
+};
+
 // Función submit para guardar (Nuevo Registro)
 const guardar = () => {
     form.IDRegistroListaUIF = null;
@@ -112,6 +112,7 @@ const guardar = () => {
     form.post('/listas-uif/altaListas', {
         preserveScroll: true,
         onSuccess: () => {
+            showCreateModal.value = false;
             form.reset();
             fechaNacimientoTemp.value = '';
             fechaAcuerdoTemp.value = '';
@@ -276,117 +277,13 @@ const showingMessage = computed(() => {
         <FadeIn>
         <div class="relative">
 
-        <!-- Tabs -->
-        <div
-            class="flex gap-1 mb-8 p-1 rounded-xl border border-slate-100 bg-gradient-to-r from-white via-slate-50/70 to-white shadow-sm backdrop-blur-sm dark:border-neutral-800 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90 w-fit transition-all duration-700">
-            <button @click="setTab('altaListas')" :class="[
-                'px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-out',
-                activeTab === 'altaListas'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800'
-            ]">
-                Alta de listas
-            </button>
-            <button @click="setTab('consulta')" :class="[
-                'px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-out',
-                activeTab === 'consulta'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800'
-            ]">
-                Consulta de listas
-            </button>
-        </div>
-
-        <!-- Alta de listas -->
-        <div
-            v-if="activeTab === 'altaListas'"
-            class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
-            <form @submit.prevent="guardar" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="space-y-1">
-                        <Input
-                            v-model="form.nombre"
-                            id="nombre"
-                            label="Nombre / Razón social:"
-                            placeholder="Ingrese el nombre o razón social"
-                            icon="user"
-                        />
-                        <InputError :message="form.errors.nombre" />
-                    </div>
-                    <div class="space-y-1">
-                        <Input
-                            v-model="form.RFCCURP"
-                            id="rfc"
-                            label="RFC / CURP:"
-                            placeholder="Ingrese RFC o CURP"
-                            icon="search"
-                        />
-                        <InputError :message="form.errors.RFCCURP" />
-                    </div>
-                    <div class="space-y-1">
-                        <DateInput
-                            v-model="fechaNacimientoTemp"
-                            id="fecha-nac"
-                            label="Fecha nacimiento:"
-                        />
-                        <InputError :message="form.errors.fechaNacimiento" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="space-y-1">
-                        <DateInput
-                            v-model="fechaAcuerdoTemp"
-                            id="fecha-acuerdo"
-                            label="Fecha publicación acuerdo:"
-                        />
-                        <InputError :message="form.errors.fechaPublicacionAcuerdo" />
-                    </div>
-                    <div class="space-y-1">
-                        <Input
-                            v-model="form.acuerdo"
-                            id="acuerdo"
-                            label="Acuerdo:"
-                            placeholder="Ingrese el número de acuerdo"
-                            icon="check"
-                        />
-                        <InputError :message="form.errors.acuerdo" />
-                    </div>
-                    <div class="space-y-1">
-                        <Input
-                            v-model="form.noOficioUIF"
-                            id="no-oficio"
-                            label="No Oficio UIF:"
-                            placeholder="Ingrese número de oficio"
-                            icon="phone"
-                        />
-                        <InputError :message="form.errors.noOficioUIF" />
-                    </div>
-
-                    <div class="space-y-1">
-                        <YearPicker
-                            v-model="form.anioLista"
-                            id="anio-lista"
-                            label="Año Lista:"
-                            placeholder="Ingrese año de la lista"
-                            icon="calendar"
-                        />
-                        <InputError :message="form.errors.anioLista" />
-                    </div>
-                </div>
-
-                <div class="mt-4 flex justify-end">
-                    <PrimaryButton type="submit" label="Guardar" :icon="FileText" :disabled="form.processing" />
-                </div>
-            </form>
-        </div>
-        <!-- Consulta -->
-        <div
-            v-if="activeTab === 'consulta'"
-            class="space-y-6">
+        <div class="space-y-6">
 
             <!-- FILTROS -->
             <div class="mt-6 flex flex-col gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] md:flex-row md:items-end md:justify-start dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
+                <div class="flex items-end">
+                    <PrimaryButton type="button" label="Alta de listas" :icon="FileText" @click="openCreateModal" />
+                </div>
                 <div class="flex flex-col gap-1 w-48">
                     <label class="text-xs text-slate-600 dark:text-neutral-300">Número de elementos</label>
                     <select v-model.number="perPage" :disabled="isLoading" class="w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-xs text-slate-900 shadow-inner outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900">
@@ -508,6 +405,88 @@ const showingMessage = computed(() => {
         </div>
 
         <Toast v-model="showToast" :message="toastMessage" :type="toastType" />
+
+        <!-- MODAL DE ALTA -->
+        <ModalForm v-model="showCreateModal" title="Alta en listas UIF" subtitle="Capture la información del nuevo registro">
+            <form @submit.prevent="guardar" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <Input
+                            v-model="form.nombre"
+                            id="nombre"
+                            label="Nombre / Razón social:"
+                            placeholder="Ingrese el nombre o razón social"
+                            icon="user"
+                        />
+                        <InputError :message="form.errors.nombre" />
+                    </div>
+                    <div class="space-y-1">
+                        <Input
+                            v-model="form.RFCCURP"
+                            id="rfc"
+                            label="RFC / CURP:"
+                            placeholder="Ingrese RFC o CURP"
+                            icon="search"
+                        />
+                        <InputError :message="form.errors.RFCCURP" />
+                    </div>
+                    <div class="space-y-1">
+                        <DateInput
+                            v-model="fechaNacimientoTemp"
+                            id="fecha-nac"
+                            label="Fecha nacimiento:"
+                        />
+                        <InputError :message="form.errors.fechaNacimiento" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <DateInput
+                            v-model="fechaAcuerdoTemp"
+                            id="fecha-acuerdo"
+                            label="Fecha publicación acuerdo:"
+                        />
+                        <InputError :message="form.errors.fechaPublicacionAcuerdo" />
+                    </div>
+                    <div class="space-y-1">
+                        <Input
+                            v-model="form.acuerdo"
+                            id="acuerdo"
+                            label="Acuerdo:"
+                            placeholder="Ingrese el número de acuerdo"
+                            icon="check"
+                        />
+                        <InputError :message="form.errors.acuerdo" />
+                    </div>
+                    <div class="space-y-1">
+                        <Input
+                            v-model="form.noOficioUIF"
+                            id="no-oficio"
+                            label="No Oficio UIF:"
+                            placeholder="Ingrese número de oficio"
+                            icon="phone"
+                        />
+                        <InputError :message="form.errors.noOficioUIF" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <YearPicker
+                            v-model="form.anioLista"
+                            id="anio-lista"
+                            label="Año Lista:"
+                            placeholder="Ingrese año de la lista"
+                            icon="calendar"
+                        />
+                        <InputError :message="form.errors.anioLista" />
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <PrimaryButton type="submit" label="Guardar" :icon="FileText" :disabled="form.processing" />
+                </div>
+            </form>
+        </ModalForm>
 
         <!-- MODAL DE EDICIÓN -->
         <ModalForm v-model="showEditModal" title="Editar Registro UIF" subtitle="Actualice los datos del registro seleccionado">
