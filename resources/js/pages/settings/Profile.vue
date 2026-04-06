@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import { edit } from '@/routes/profile';
-import { send } from '@/routes/verification';
-import { Form, Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
-import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { type BreadcrumbItem } from '@/types';
+import { edit } from '@/routes/profile';
 
 interface Props {
     mustVerifyEmail: boolean;
@@ -23,106 +17,62 @@ defineProps<Props>();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
-        title: 'Profile settings',
+        title: 'Configuración de perfil',
         href: edit().url,
     },
 ];
 
 const page = usePage();
-const user = page.props.auth.user;
+const user = page.props.auth.user as {
+    usuario?: string;
+    nombre?: string;
+    apellido_p?: string;
+    apellido_m?: string;
+    email: string;
+};
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Profile settings" />
+        <Head title="Configuración de perfil" />
 
         <SettingsLayout>
-            <div class="flex flex-col space-y-6">
+            <div class="flex flex-col space-y-8 max-w-xl mx-auto">
                 <HeadingSmall
-                    title="Profile information"
-                    description="Update your name and email address"
+                    title="Información del perfil"
+                    description="Tu información personal de usuario"
                 />
 
-                <Form
-                    v-bind="ProfileController.update.form()"
-                    class="space-y-6"
-                    v-slot="{ errors, processing, recentlySuccessful }"
-                >
-                    <div class="grid gap-2">
-                        <Label for="name">Name</Label>
-                        <Input
-                            id="name"
-                            class="mt-1 block w-full"
-                            name="name"
-                            :default-value="user.name"
-                            required
-                            autocomplete="name"
-                            placeholder="Full name"
-                        />
-                        <InputError class="mt-2" :message="errors.name" />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            class="mt-1 block w-full"
-                            name="email"
-                            :default-value="user.email"
-                            required
-                            autocomplete="username"
-                            placeholder="Email address"
-                        />
-                        <InputError class="mt-2" :message="errors.email" />
-                    </div>
-
-                    <div v-if="mustVerifyEmail && !user.email_verified_at">
-                        <p class="-mt-4 text-sm text-muted-foreground">
-                            Your email address is unverified.
-                            <Link
-                                :href="send()"
-                                as="button"
-                                class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                            >
-                                Click here to resend the verification email.
-                            </Link>
-                        </p>
-
-                        <div
-                            v-if="status === 'verification-link-sent'"
-                            class="mt-2 text-sm font-medium text-green-600"
-                        >
-                            A new verification link has been sent to your email
-                            address.
+                <div class="space-y-4 bg-white rounded-xl shadow-sm px-8 py-8 border border-gray-100">
+                    <dl class="divide-y divide-gray-200">
+                        <!-- Mejor alineación a la izquierda, mejor contraste y jerarquía para mejor UX -->
+                        <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
+                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Usuario</dt>
+                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.usuario || '-' }}</dd>
                         </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <Button
-                            :disabled="processing"
-                            data-test="update-profile-button"
-                            >Save</Button
-                        >
-
-                        <Transition
-                            enter-active-class="transition ease-in-out"
-                            enter-from-class="opacity-0"
-                            leave-active-class="transition ease-in-out"
-                            leave-to-class="opacity-0"
-                        >
-                            <p
-                                v-show="recentlySuccessful"
-                                class="text-sm text-neutral-600"
-                            >
-                                Saved.
-                            </p>
-                        </Transition>
-                    </div>
-                </Form>
+                        <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
+                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Nombre</dt>
+                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.nombre || '-' }}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
+                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Apellido paterno</dt>
+                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.apellido_p || '-' }}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
+                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Apellido materno</dt>
+                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.apellido_m || '-' }}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
+                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Correo electrónico</dt>
+                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-all">{{ user.email }}</dd>
+                        </div>
+                    </dl>
+                </div>
             </div>
 
-            <DeleteUser />
+            <div class="mt-10 max-w-xl mx-auto">
+                <DeleteUser />
+            </div>
         </SettingsLayout>
     </AppLayout>
 </template>
