@@ -108,6 +108,7 @@ const searchInput = ref('');
 let searchTimer: number | null = null;
 const perPage = ref(10);
 const currentPage = ref(1);
+const reporteSeleccionado = ref<Reporte | null>(null);
 
 function normalize(text: string): string {
   return (text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -158,18 +159,6 @@ watch(searchInput, (v) => {
   }, 250);
 });
 
-const domicilioExpandidos = ref<Set<number>>(new Set());
-function isDomicilioExpandido(id: number) { return domicilioExpandidos.value.has(id); }
-function toggleDomicilio(id: number) {
-  if (domicilioExpandidos.value.has(id)) domicilioExpandidos.value.delete(id);
-  else domicilioExpandidos.value.add(id);
-  domicilioExpandidos.value = new Set(domicilioExpandidos.value);
-}
-function truncarTexto(texto: string, largo: number) {
-  if (!texto) return '';
-  return texto.length > largo ? `${texto.slice(0, largo)}…` : texto;
-}
-
 const showingMessage = computed(() => {
   if (isLoading.value || !filteredResultados.value.length) return '';
   const total = filteredResultados.value.length;
@@ -180,6 +169,99 @@ const showingMessage = computed(() => {
 });
 
 const breadcrumbs = [{ title: 'Reporte de operaciones', href: '' }];
+type CampoDetalle = { key: keyof Reporte; label: string; full?: boolean };
+const detalleSecciones: Array<{ titulo: string; campos: CampoDetalle[] }> = [
+  {
+    titulo: 'Resumen del reporte',
+    campos: [
+      { key: 'IDReporte', label: 'ID reporte' },
+      { key: 'IDRegistroAlerta', label: 'ID registro alerta' },
+      { key: 'TipoReporte', label: 'Tipo reporte' },
+      { key: 'PeriodoReporte', label: 'Periodo' },
+      { key: 'Folio', label: 'Folio' },
+      { key: 'Estatus', label: 'Estatus' },
+      { key: 'OrganoSupervisor', label: 'Organo supervisor' },
+      { key: 'CveSujetoObligado', label: 'Cve sujeto obligado' },
+      { key: 'IDTipoReporte', label: 'ID tipo reporte' },
+      { key: 'IDTipoOperacion', label: 'ID tipo operacion' },
+    ],
+  },
+  {
+    titulo: 'Operacion',
+    campos: [
+      { key: 'TipoOperacion', label: 'Tipo operacion' },
+      { key: 'InstrumentoMonetario', label: 'Instrumento monetario' },
+      { key: 'NoPoliza', label: 'NoPoliza' },
+      { key: 'Monto', label: 'Monto' },
+      { key: 'IDMoneda', label: 'IDMoneda' },
+      { key: 'FechaOperacion', label: 'Fecha operacion' },
+      { key: 'FechaDeteccion', label: 'Fecha deteccion' },
+      { key: 'Razon', label: 'Razon', full: true },
+      { key: 'Descripcion', label: 'Descripcion', full: true },
+    ],
+  },
+  {
+    titulo: 'Persona',
+    campos: [
+      { key: 'TipoPersona', label: 'Tipo persona' },
+      { key: 'RazonSocial', label: 'Razon social' },
+      { key: 'Nombre', label: 'Nombre' },
+      { key: 'APaterno', label: 'Apellido paterno' },
+      { key: 'AMaterno', label: 'Apellido materno' },
+      { key: 'RFC', label: 'RFC' },
+      { key: 'CURP', label: 'CURP' },
+      { key: 'FechaNacimiento', label: 'Fecha nacimiento' },
+      { key: 'Nacionalidad', label: 'Nacionalidad' },
+      { key: 'Ocupacion', label: 'Ocupacion' },
+      { key: 'Telefono', label: 'Telefono' },
+    ],
+  },
+  {
+    titulo: 'Domicilio',
+    campos: [
+      { key: 'Domicilio', label: 'Domicilio', full: true },
+      { key: 'Colonia', label: 'Colonia' },
+      { key: 'Ciudad', label: 'Ciudad' },
+      { key: 'Localidad', label: 'Localidad' },
+      { key: 'Sucursal', label: 'Sucursal' },
+    ],
+  },
+  {
+    titulo: 'Agente',
+    campos: [
+      { key: 'NombreAgente', label: 'Nombre agente' },
+      { key: 'APaternoAgente', label: 'Apellido paterno agente' },
+      { key: 'AMaternoAgente', label: 'Apellido materno agente' },
+      { key: 'RFCAgente', label: 'RFC agente' },
+      { key: 'CURPAgente', label: 'CURP agente' },
+    ],
+  },
+  {
+    titulo: 'Cuenta y titular',
+    campos: [
+      { key: 'Cuenta', label: 'Cuenta' },
+      { key: 'NoPolizaCuenta', label: 'NoPoliza cuenta' },
+      { key: 'CveSujetoObl', label: 'Cve sujeto obl' },
+      { key: 'NombreTitular', label: 'Nombre titular' },
+      { key: 'APaternoTitular', label: 'Apellido paterno titular' },
+      { key: 'AMaternoTitular', label: 'Apellido materno titular' },
+    ],
+  },
+];
+
+function formatValue(value: string | number | null): string {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'number') return value.toLocaleString();
+  return String(value);
+}
+
+function abrirDetalles(reporte: Reporte) {
+  reporteSeleccionado.value = reporte;
+}
+
+function cerrarDetalles() {
+  reporteSeleccionado.value = null;
+}
 
 const buscar = async () => {
   const params = new URLSearchParams({
@@ -309,135 +391,41 @@ const descargarCSV = () => {
           <table class="min-w-full border-collapse text-sm text-slate-900 dark:text-white whitespace-nowrap">
             <thead>
               <tr class="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 text-xs font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-gradient-to-r dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95 dark:text-neutral-200">
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">ID</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">IDRegistroAlerta</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">TipoReporte</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">PeriodoReporte</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Tipo reporte</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Periodo</th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Folio</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">OrganoSupervisor</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">CveSujetoObligado</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Localidad</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Sucursal</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">TipoOperacion</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">InstrumentoMonetario</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Tipo operacion</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Instrumento monetario</th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">NoPoliza</th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Monto</th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">IDMoneda</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">FechaOperacion</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">FechaDeteccion</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Nacionalidad</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">TipoPersona</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">RazonSocial</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Nombre</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">APaterno</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">AMaterno</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">RFC</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">CURP</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">FechaNacimiento</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Domicilio</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Colonia</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Ciudad</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Telefono</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Ocupacion</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">NombreAgente</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">APaternoAgente</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">AMaternoAgente</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">RFCAgente</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">CURPAgente</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Cuenta</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">NoPolizaCuenta</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">CveSujetoObl</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">NombreTitular</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">APaternoTitular</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">AMaternoTitular</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Descripcion</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Razon</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Estatus</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">IDTipoReporte</th>
-                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">IDTipoOperacion</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Acciones</th>
               </tr>
             </thead>
             <tbody v-if="paginatedResultados.length">
               <tr v-for="item in paginatedResultados" :key="item.IDReporte" class="group cursor-pointer border-b border-l-2 border-slate-100 border-l-transparent bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-l-blue-400 hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-neutral-800/60 dark:border-l-transparent dark:bg-neutral-950/40 dark:hover:border-l-blue-500 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)]">
-                <td class="px-3 py-2 align-middle">{{ item.IDReporte }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.IDRegistroAlerta }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.TipoReporte }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.PeriodoReporte }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.Folio }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.OrganoSupervisor }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.CveSujetoObligado }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Localidad }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Sucursal }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.TipoOperacion }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.InstrumentoMonetario }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.NoPoliza }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.Monto }}</td>
                 <td class="px-3 py-2 align-middle">{{ item.IDMoneda }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.FechaOperacion }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.FechaDeteccion }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Nacionalidad }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.TipoPersona }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.RazonSocial }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Nombre }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.APaterno }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.AMaterno }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.RFC }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.CURP }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.FechaNacimiento }}</td>
                 <td class="px-3 py-2 align-middle">
-                  <div class="flex items-start gap-1">
-                    <button
-                      type="button"
-                      class="mt-0.5 inline-flex h-5 w-5 items-center justify-center text-blue-600 transition-colors hover:text-blue-700 focus:outline-none"
-                      @click.stop="toggleDomicilio(item.IDReporte)"
-                      :aria-expanded="isDomicilioExpandido(item.IDReporte)"
-                      :title="isDomicilioExpandido(item.IDReporte) ? 'Contraer domicilio' : 'Desplegar domicilio'"
-                    >
-                      <svg
-                        class="h-4 w-4 transition-transform duration-200"
-                        :class="isDomicilioExpandido(item.IDReporte) ? 'rotate-90' : ''"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-                      </svg>
-                    </button>
-                    <div class="min-w-0">
-                      <span v-if="isDomicilioExpandido(item.IDReporte)" class="whitespace-nowrap">
-                        {{ item.Domicilio || '' }}
-                      </span>
-                      <span v-else>
-                        {{ truncarTexto(item.Domicilio ?? '', 10) }}
-                      </span>
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-all duration-150 hover:bg-blue-100 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-200 dark:hover:bg-blue-900/50"
+                    @click="abrirDetalles(item)"
+                  >
+                    Ver detalles
+                  </button>
                 </td>
-                <td class="px-3 py-2 align-middle">{{ item.Colonia }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Ciudad }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Telefono }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Ocupacion }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.NombreAgente }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.APaternoAgente }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.AMaternoAgente }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.RFCAgente }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.CURPAgente }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Cuenta }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.NoPolizaCuenta }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.CveSujetoObl }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.NombreTitular }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.APaternoTitular }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.AMaternoTitular }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Descripcion }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Razon }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.Estatus }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.IDTipoReporte }}</td>
-                <td class="px-3 py-2 align-middle">{{ item.IDTipoOperacion }}</td>
               </tr>
             </tbody>
             <tbody v-else>
               <tr>
-                <td colspan="48" class="px-3 py-4 text-center text-sm text-slate-500 dark:text-neutral-400">Sin resultados</td>
+                <td colspan="9" class="px-3 py-4 text-center text-sm text-slate-500 dark:text-neutral-400">Sin resultados</td>
               </tr>
             </tbody>
           </table>
@@ -459,6 +447,65 @@ const descargarCSV = () => {
                   class="rounded-lg border border-slate-300 bg-white/95 px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:bg-neutral-800/90">
             Siguiente
           </button>
+        </div>
+      </div>
+    </div>
+    <div
+      v-if="reporteSeleccionado"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+      @click.self="cerrarDetalles"
+    >
+      <div class="w-full max-w-6xl rounded-xl border border-slate-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-neutral-800">
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Detalle del reporte</h3>
+          <button
+            type="button"
+            class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            @click="cerrarDetalles"
+          >
+            Cerrar
+          </button>
+        </div>
+        <div class="max-h-[75vh] overflow-y-auto p-4">
+          <div class="mb-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/30">
+            <p class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Resumen rapido</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 dark:bg-neutral-800 dark:text-neutral-200">
+                Folio: {{ formatValue(reporteSeleccionado.Folio) }}
+              </span>
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 dark:bg-neutral-800 dark:text-neutral-200">
+                Tipo: {{ formatValue(reporteSeleccionado.TipoReporte) }}
+              </span>
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 dark:bg-neutral-800 dark:text-neutral-200">
+                Monto: {{ formatValue(reporteSeleccionado.Monto) }}
+              </span>
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 dark:bg-neutral-800 dark:text-neutral-200">
+                Estatus: {{ formatValue(reporteSeleccionado.Estatus) }}
+              </span>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <section
+              v-for="seccion in detalleSecciones"
+              :key="seccion.titulo"
+              class="rounded-xl border border-slate-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900/70"
+            >
+              <h4 class="mb-3 text-sm font-semibold text-slate-800 dark:text-neutral-100">{{ seccion.titulo }}</h4>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="campo in seccion.campos"
+                  :key="`${seccion.titulo}-${String(campo.key)}`"
+                  :class="[
+                    'rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/60',
+                    campo.full ? 'sm:col-span-2 lg:col-span-3' : '',
+                  ]"
+                >
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-neutral-400">{{ campo.label }}</p>
+                  <p class="mt-1 break-words text-sm text-slate-900 dark:text-neutral-100">{{ formatValue(reporteSeleccionado[campo.key]) }}</p>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </div>

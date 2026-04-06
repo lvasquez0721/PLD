@@ -87,7 +87,7 @@ const mainNavItems: NavItem[] = [
         badge: null
     },
     {
-        title: 'Lista Negra',
+        title: 'Lista Negra CNSF',
         href: '/lista-negra',
         icon: ListX,
         badge: null

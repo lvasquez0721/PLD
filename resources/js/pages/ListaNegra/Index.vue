@@ -9,7 +9,7 @@
   const page = usePage();
   const isSubmitting = ref(false)
 
-  const breadcrumbs = [{ title: 'Lista Negra', href: '' }];
+  const breadcrumbs = [{ title: 'Lista Negra CNSF', href: '' }];
 
   const showModal = ref(false);
   const selectedId = ref<number | null>(null);
