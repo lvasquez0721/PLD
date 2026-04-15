@@ -425,7 +425,7 @@ const descargarCSV = () => {
                                             class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
                                             IDMoneda</th>
                                         <th
-                                            class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                            class="sticky right-0 z-20 border-b border-l border-slate-200 bg-slate-50 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800 dark:bg-neutral-900">
                                             Acciones</th>
                                     </tr>
                                 </thead>
@@ -440,7 +440,8 @@ const descargarCSV = () => {
                                         <td class="px-3 py-2 align-middle">{{ item.NoPoliza }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.Monto }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.IDMoneda }}</td>
-                                        <td class="px-3 py-2 align-middle">
+                                        <td
+                                            class="sticky right-0 z-10 border-l border-slate-100 bg-white px-3 py-2 align-middle group-hover:bg-blue-50 dark:border-neutral-800/60 dark:bg-neutral-950 dark:group-hover:bg-neutral-900">
                                             <button type="button"
                                                 class="inline-flex items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-all duration-150 hover:bg-blue-100 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-200 dark:hover:bg-blue-900/50"
                                                 @click="abrirDetalles(item)">

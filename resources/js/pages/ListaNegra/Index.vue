@@ -393,18 +393,20 @@
                     <td class="px-3 py-2 align-middle">{{ item.Nombre }}</td>
                     <td class="px-3 py-2 align-middle">{{ item.RFC }}</td>
                     <td class="px-3 py-2 text-center align-middle">
-                      <button @click="openEditModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 transition-all duration-200 ease-out hover:text-amber-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-amber-400 dark:hover:text-amber-300 dark:focus-visible:ring-offset-neutral-950">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                        Editar
-                      </button>
-                      <button @click="openDeleteModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-red-600 transition-all duration-200 ease-out hover:text-red-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-red-400 dark:hover:text-red-300 dark:focus-visible:ring-offset-neutral-950">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                        Eliminar
-                      </button>
+                      <div class="flex items-center justify-center gap-3">
+                        <button @click="openEditModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 transition-all duration-200 ease-out hover:text-amber-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-amber-400 dark:hover:text-amber-300 dark:focus-visible:ring-offset-neutral-950">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                          Editar
+                        </button>
+                        <button @click="openDeleteModal(item)" class="inline-flex items-center gap-1 text-xs font-medium text-red-600 transition-all duration-200 ease-out hover:text-red-500 hover:underline hover:underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-red-400 dark:hover:text-red-300 dark:focus-visible:ring-offset-neutral-950">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                          </svg>
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -438,33 +440,35 @@
 
     <!-- MODAL -->
     <transition name="modal-fade">
-      <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity">
-        <div class="modal-fade-card relative w-full max-w-xl rounded-2xl border border-slate-200 bg-gradient-to-b from-white via-slate-50 to-white p-6 text-slate-900 shadow-2xl shadow-slate-300/70 transition-transform duration-200 ease-out dark:border-neutral-700 dark:bg-gradient-to-b dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950 dark:text-white dark:shadow-black/70">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity p-4">
+        <div class="modal-fade-card relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-gradient-to-b from-white via-slate-50 to-white text-slate-900 shadow-2xl shadow-slate-300/70 transition-transform duration-200 ease-out dark:border-neutral-700 dark:bg-gradient-to-b dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950 dark:text-white dark:shadow-black/70">
 
           <button
-            class="absolute right-3 top-3 rounded-full bg-white/0 px-2 py-1 text-slate-400 shadow-none transition-all duration-150 hover:bg-slate-100/80 hover:text-slate-600 hover:shadow-sm dark:bg-transparent dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200"
+            class="absolute right-3 top-3 z-10 rounded-full bg-white/0 px-2 py-1 text-slate-400 shadow-none transition-all duration-150 hover:bg-slate-100/80 hover:text-slate-600 hover:shadow-sm dark:bg-transparent dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200"
             @click="closeModal">
             ✕
           </button>
 
-          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-neutral-700">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-6 pb-4 border-b border-slate-200 dark:border-neutral-700">
             <h3 class="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
               <span class="h-6 w-1 rounded-full bg-gradient-to-b from-blue-400 to-blue-600"></span>
               {{ modalTitle }}
             </h3>
           </div>
 
-          <div v-if="mostrarAlertaErrores" class="mt-4 p-3 rounded-lg border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300 flex items-start justify-between gap-3">
+          <!-- Content (Scrollable) -->
+          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+            <div v-if="mostrarAlertaErrores" class="p-3 rounded-lg border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300 flex items-start justify-between gap-3 mb-4">
               <div class="flex-1">
-                <h4 class="font-semibold text-red-800 dark:text-red-200 mb-1">Por favor revise la siguiente información en el formulario:</h4>
-                <ul class="mt-2 text-sm list-disc list-inside space-y-1">
+                <h4 class="font-semibold text-red-800 dark:text-red-200 mb-1 text-sm">Por favor revise la siguiente información:</h4>
+                <ul class="text-xs list-disc list-inside space-y-1">
                   <li v-for="(error, field) in erroresValidacion" :key="field">{{ error }}</li>
                 </ul>
               </div>
               <button @click="cerrarAlertaErrores" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors">✕</button>
             </div>
 
-          <div class="flex-1 overflow-y-auto pr-1 text-sm space-y-4 py-4">
             <form @submit.prevent="submitForm" class="space-y-4">
               <div v-if="form.accion === 2" class="text-center text-base text-slate-700 dark:text-neutral-300 mb-4">
                 <p>¿Estás segura de eliminar al usuario <strong>{{ form.nombreListaNegra }}</strong> con RFC <strong>{{ form.RFCListaNegra }}</strong> de la lista negra?</p>
@@ -506,7 +510,9 @@
               </div>
             </form>
           </div>
-          <div class="flex justify-end pt-4 mt-4 border-t border-slate-200 dark:border-neutral-700">
+
+          <!-- Footer -->
+          <div class="flex justify-end p-6 pt-4 border-t border-slate-200 dark:border-neutral-700">
             <div class="flex gap-2">
               <button @click="closeModal" class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700">Cancelar</button>
               <button @click="submitForm" class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">{{ actionButtonText }}</button>
