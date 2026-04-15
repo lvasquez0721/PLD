@@ -447,17 +447,12 @@ function formatFechaDMY(fechaString: string): string {
                                         <span
                                             class="inline-flex items-center justify-center rounded-lg px-3.5 py-1.5 text-sm font-bold shadow-sm transition-all duration-200 hover:scale-105"
                                             :style="{
-                                                background: fila.Perfil >= 3
+                                                background: fila.Perfil >= 2
                                                     ? 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'
-                                                    : fila.Perfil == 2
-                                                        ? 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)'
-                                                        : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
-                                                color:
-                                                    fila.Perfil >= 3
-                                                        ? '#991B1B'
-                                                        : fila.Perfil == 2
-                                                            ? '#92400E'
-                                                            : '#065F46',
+                                                    : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
+                                                color: fila.Perfil >= 2
+                                                    ? '#991B1B'
+                                                    : '#065F46',
                                             }">
                                             {{ fila.Perfil }}
                                         </span>
