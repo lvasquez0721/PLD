@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('TbOperaciones', function (Blueprint $table) {
+        Schema::table('tbOperaciones', function (Blueprint $table) {
             //
             $table->boolean('cancelaPoliza')->default(false);
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('TbOperaciones', function (Blueprint $table) {
+        Schema::table('tbOperaciones', function (Blueprint $table) {
             //
             $table->dropColumn('cancelaPoliza');
         });
