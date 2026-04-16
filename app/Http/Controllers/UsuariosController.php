@@ -91,17 +91,24 @@ class UsuariosController extends Controller
             'apellido_m' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email,'.$id,
             'rol_id' => 'required|exists:roles,id',
+            'password' => 'nullable|string|min:8',
         ]);
 
         try {
             $user = User::findOrFail($id);
 
-            $user->update([
+            $updateData = [
                 'nombre' => $validated['nombre'],
                 'apellido_p' => $validated['apellido_p'],
                 'apellido_m' => $validated['apellido_m'] ?? null,
                 'email' => $validated['email'],
-            ]);
+            ];
+
+            if (!empty($validated['password'])) {
+                $updateData['password'] = bcrypt($validated['password']);
+            }
+
+            $user->update($updateData);
 
             if (isset($validated['rol_id'])) {
                 $role = Role::find($validated['rol_id']);

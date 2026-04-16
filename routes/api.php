@@ -20,6 +20,7 @@ use App\Http\Controllers\SolicitudesController;
 use App\Http\Controllers\TipoCambioController;
 use App\Http\Controllers\TotalPagosController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -134,3 +135,61 @@ Route::post('/migraciones/ejecutar', function () {
         return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
 });
+
+Route::post('/storage-link', function () {
+    try {
+        // Validación previa: asegurarse que el target 'storage' existe y es accesible
+        $storagePath = public_path('storage');
+        $targetPath = storage_path('app/public');
+
+        if (is_link($storagePath)) {
+            // Ya existe un enlace simbólico, verificar que apunta correctamente
+            if (readlink($storagePath) !== $targetPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "El enlace simbólico 'public/storage' existe pero apunta a '".readlink($storagePath)."', no a '$targetPath'.",
+                ], 500);
+            }
+            return response()->json([
+                'success' => true,
+                'output' => "'public/storage' ya existe y apunta correctamente.",
+            ]);
+        }
+        elseif (file_exists($storagePath)) {
+            // Ya existe una carpeta/archivo (no link)
+            return response()->json([
+                'success' => false,
+                'message' => "'public/storage' ya existe pero no es un enlace simbólico. Eliminarlo manualmente y vuelve a intentar.",
+            ], 500);
+        }
+
+        if (!file_exists($targetPath)) {
+            return response()->json([
+                'success' => false,
+                'message' => "El directorio target '$targetPath' no existe.",
+            ], 500);
+        }
+
+        // Intentar crear el enlace simbólico usando Artisan
+        Artisan::call('storage:link');
+
+        if (is_link($storagePath) && readlink($storagePath) === $targetPath) {
+            return response()->json([
+                'success' => true,
+                'output' => "Enlace simbólico creado exitosamente.",
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => "Intento de crear el enlace simbólico falló. Verifica permisos de archivo y rutas.",
+            ], 500);
+        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => "Excepción: " . $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+        ], 500);
+    }
+});
+

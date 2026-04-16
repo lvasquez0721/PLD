@@ -102,10 +102,17 @@ class ClientesControllerApi extends Controller
         // Validar si el RFC existe en listas negras (UIF y CNSF)
         $personaBloqueada = false;
         $detalleListaBloqueadas = [];
+        $listasDetectadas = [];
 
-        if (!empty($rfc)) {
+        $curp = isset($data['CURP']) ? strtoupper(trim($data['CURP'])) : null;
+
+        if (!empty($rfc) || !empty($curp)) {
             // Buscar en UIF
-            $registroUIF = TbListasNegrasUIF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            $registroUIF = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
+                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            })->first();
+
             if ($registroUIF) {
                 $personaBloqueada = true;
                 $detalleListaBloqueadas[] = [
@@ -115,10 +122,15 @@ class ClientesControllerApi extends Controller
                     'RFC' => $registroUIF->RFC,
                     'CURP' => $registroUIF->CURP,
                 ];
+                $listasDetectadas[] = 'UIF';
             }
 
             // Buscar en CNSF
-            $registroCNSF = TbListasNegraCNSF::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+            $registroCNSF = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
+                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            })->first();
+
             if ($registroCNSF) {
                 $personaBloqueada = true;
                 $detalleListaBloqueadas[] = [
@@ -128,6 +140,7 @@ class ClientesControllerApi extends Controller
                     'RFC' => $registroCNSF->RFC,
                     'CURP' => $registroCNSF->CURP,
                 ];
+                $listasDetectadas[] = 'CNSF';
             }
         }
 
@@ -185,11 +198,53 @@ class ClientesControllerApi extends Controller
                 ]);
             }
 
+            // Emitir alerta si coincide en listas negras
+            if ($personaBloqueada) {
+                $nombreCompleto = trim(
+                    ($cliente->Nombre ?? '') .
+                    ' ' .
+                    ($cliente->ApellidoPaterno ?? '') .
+                    ' ' .
+                    ($cliente->ApellidoMaterno ?? '')
+                );
+
+                $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
+                $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
+
+                TbAlertas::create([
+                    'Folio' => null,
+                    'Patron' => 'Personas Bloqueadas',
+                    'IDCliente' => $cliente->IDCliente,
+                    'Cliente' => $nombreCompleto,
+                    'Poliza' => null,
+                    'FechaDeteccion' => now()->toDateString(),
+                    'IDOperacionPago' => null,
+                    'HoraDeteccion' => now()->toTimeString(),
+                    'FechaOperacion' => null,
+                    'HoraOperacion' => null,
+                    'MontoOperacion' => null,
+                    'InstrumentoMonetario' => null,
+                    'RFCAgente' => null,
+                    'Agente' => null,
+                    'Estatus' => 'Generado',
+                    'Descripcion' => $motivo,
+                    'Razones' => $razones,
+                    'Evidencias' => '',
+                    'IDReporteOP' => null,
+                    'IDPago' => null,
+                ]);
+            }
+
             DB::commit();
+
+            $mensajeExito = 'Cliente ingresado exitosamente';
+            if ($personaBloqueada) {
+                $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+            }
 
             return response()->json([
                 'codigoError' => 0,
-                'message' => 'Cliente ingresado exitosamente',
+                'message' => $mensajeExito,
                 'IDCliente' => $cliente->IDCliente,
                 'esPPE' => $cliente->EsPPEActivo,
                 'personaBloqueada' => $cliente->CoincideEnListasNegras,
@@ -402,14 +457,19 @@ class ClientesControllerApi extends Controller
             }
         }
 
-        // Buscar en listas bloqueadas por RFC actualizado
+        // Buscar en listas bloqueadas por RFC o CURP actualizados
         $rfc = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
+        $curp = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
         $coincideEnListasNegras = false;
         $detalleListaBloqueadas = [];
         $listasDetectadas = [];
 
-        if ($rfc) {
-            $CNSFrfc = TbListasNegraCNSF::where('RFC', $rfc)->first();
+        if ($rfc || $curp) {
+            $CNSFrfc = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
+                if ($rfc) $q->orWhere('RFC', $rfc);
+                if ($curp) $q->orWhere('CURP', $curp);
+            })->first();
+
             if ($CNSFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
@@ -421,7 +481,12 @@ class ClientesControllerApi extends Controller
                 ];
                 $listasDetectadas[] = 'CNSF';
             }
-            $UIFrfc = TbListasNegrasUIF::where('RFC', $rfc)->first();
+
+            $UIFrfc = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
+                if ($rfc) $q->orWhere('RFC', $rfc);
+                if ($curp) $q->orWhere('CURP', $curp);
+            })->first();
+
             if ($UIFrfc) {
                 $coincideEnListasNegras = true;
                 $detalleListaBloqueadas[] = [
@@ -436,24 +501,27 @@ class ClientesControllerApi extends Controller
         }
 
         $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
+        if ($coincideEnListasNegras) {
+            $cliente->Activo = 0;
+        }
         $cliente->save();
 
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
             $nombreCompleto = trim(
-                ($cliente->Nombre ?? '').
-                ' '.
-                ($cliente->ApellidoPaterno ?? '').
-                ' '.
+                ($cliente->Nombre ?? '') .
+                ' ' .
+                ($cliente->ApellidoPaterno ?? '') .
+                ' ' .
                 ($cliente->ApellidoMaterno ?? '')
             );
 
-            $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
-            $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
+            $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
+            $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
 
             TbAlertas::create([
                 'Folio' => null,
-                'Patron' => null,
+                'Patron' => 'Personas Bloqueadas',
                 'IDCliente' => $cliente->IDCliente,
                 'Cliente' => $nombreCompleto,
                 'Poliza' => null,
@@ -469,15 +537,20 @@ class ClientesControllerApi extends Controller
                 'Estatus' => 'Detectado',
                 'Descripcion' => $motivo,
                 'Razones' => $razones,
-                'Evidencias' => json_encode($detalleListaBloqueadas),
+                'Evidencias' => '',
                 'IDReporteOP' => null,
                 'IDPago' => null,
             ]);
         }
 
+        $mensajeExito = 'Cliente actualizado exitosamente';
+        if ($coincideEnListasNegras) {
+            $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+        }
+
         return response()->json([
             'codigoError' => 0,
-            'error' => 'Sin mensaje',
+            'message' => $mensajeExito,
             'IDCliente' => $cliente->IDCliente,
             'esPPE' => $esPPE,
             'personaBloqueada' => $coincideEnListasNegras,

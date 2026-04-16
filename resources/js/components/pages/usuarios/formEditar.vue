@@ -38,6 +38,7 @@ const form = ref({
   apellido_m: '',
   email: '',
   rol_id: '',
+  password: '',
 })
 
 const errors = ref<Record<string, string[]>>({})
@@ -55,6 +56,7 @@ watch(
         apellido_m: user.apellido_m || '',
         email: user.email,
         rol_id: user.roles?.[0]?.id ? String(user.roles[0].id) : '',
+        password: '',
       }
       errors.value = {}
       successMessage.value = ''
@@ -72,6 +74,7 @@ function resetForm() {
     apellido_m: '',
     email: '',
     rol_id: '',
+    password: '',
   }
   errors.value = {}
   successMessage.value = ''
@@ -105,6 +108,11 @@ function validate() {
     valid = false
   }
 
+  if (form.value.password && form.value.password.length < 8) {
+    errors.value.password = ['La contraseña debe tener al menos 8 caracteres.']
+    valid = false
+  }
+
   return valid
 }
 
@@ -116,12 +124,16 @@ async function submit() {
   successMessage.value = ''
 
   // Adaptar el payload exactamente a lo que espera UsuariosController@update
-  const payload = {
+  const payload: any = {
     nombre: form.value.nombre,
     apellido_p: form.value.apellido_p,
     apellido_m: form.value.apellido_m || null,
     email: form.value.email,
     rol_id: form.value.rol_id,
+  }
+
+  if (form.value.password) {
+    payload.password = form.value.password
   }
 
   try {
@@ -220,6 +232,19 @@ async function submit() {
           <div v-if="errors.rol_id" class="text-xs text-red-500 mt-1">
             {{ errors.rol_id[0] }}
           </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="border-t pt-4 mt-4">
+          <Label for="edit-password" class="font-bold">Cambiar contraseña (opcional)</Label>
+          <input id="edit-password" v-model="form.password" :aria-invalid="!!errors.password" type="password"
+            placeholder="Nueva contraseña (deja en blanco para no cambiar)" :disabled="loading"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:bg-gray-100
+            dark:border-gray-700 dark:bg-zinc-700 dark:text-gray-200 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
+          <div v-if="errors.password" class="text-xs text-red-500 mt-1">
+            {{ errors.password[0] }}
+          </div>
+          <p class="text-[10px] text-gray-500 mt-1">Si deseas cambiar la contraseña de este usuario, ingresa una nueva aquí. Si no, deja este campo vacío.</p>
         </div>
 
         <!-- General error -->

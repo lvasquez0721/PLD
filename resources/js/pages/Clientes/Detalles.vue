@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { type BreadcrumbItem } from '@/types'
 import { computed, ref } from 'vue'
 import {
@@ -11,7 +11,6 @@ import {
     BookX,
     ClipboardList,
     CheckCircle,
-    XCircle,
     FileText,
     Building,
     UserCircle,
@@ -35,11 +34,13 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Clientes', href: '/clientes' },
-    { title: 'Detalles del cliente' },
+    { title: 'Detalles del cliente', href: '#' },
 ]
 
 // --- STATE MANAGEMENT ---
 const activeTab = ref('resumen')
+const activandoCliente = ref(false)
+const showActivarClienteModal = ref(false)
 
 const navItems = [
     { id: 'resumen', label: 'Resumen', icon: FileText },
@@ -56,6 +57,37 @@ function goBack() {
     window.history.back()
 }
 
+function activarCliente() {
+    if (activandoCliente.value || isClienteActivo.value) return
+
+    activandoCliente.value = true
+    router.post(`/clientes/${props.cliente.IDCliente}/activar`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.reload({ only: ['cliente'] })
+        },
+        onFinish: () => {
+            activandoCliente.value = false
+        }
+    })
+}
+
+function abrirModalActivarCliente() {
+    if (activandoCliente.value || isClienteActivo.value) return
+    showActivarClienteModal.value = true
+}
+
+function cerrarModalActivarCliente() {
+    if (activandoCliente.value) return
+    showActivarClienteModal.value = false
+}
+
+function confirmarActivarCliente() {
+    if (activandoCliente.value) return
+    showActivarClienteModal.value = false
+    activarCliente()
+}
+
 // --- COMPUTED PROPERTIES FOR SUMMARY ---
 const fullName = computed(() => {
     if (props.cliente.RazonSocial) return props.cliente.RazonSocial
@@ -65,6 +97,16 @@ const fullName = computed(() => {
 const isPpe = computed(() => props.cliente.EsPPEActivo)
 const onBlacklist = computed(() => props.listasNegras.length > 0 || props.listasUIF.length > 0)
 const hasAlerts = computed(() => props.alertas.length > 0)
+const isClienteActivo = computed(() => {
+    const activo = props.cliente?.Activo
+    return activo === true || activo === 1 || activo === '1'
+})
+const clienteEstatusLabel = computed(() => (isClienteActivo.value ? 'Activo' : 'Bloqueado'))
+const clienteEstatusClass = computed(() =>
+    isClienteActivo.value
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
+        : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+)
 
 const personaTipo = computed(() => props.cliente.IDTipoPersona === 1 ? 'Persona Física' : 'Persona Moral')
 const personaIcon = computed(() => props.cliente.IDTipoPersona === 1 ? UserCircle : Building)
@@ -194,17 +236,19 @@ function riesgoNombre(n: number): string {
 
     <Head :title="`Detalle de ${fullName}`" />
     <AppLayout :breadcrumbs="breadcrumbs" container-size="full">
-        <!-- Botón de Back -->
-        <div class="mb-4">
-          <button
-            @click="goBack"
-            type="button"
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300"
-          >
-            <ArrowLeft class="h-4 w-4"/>
-            <span>Regresar</span>
-          </button>
-        </div>
+        <Transition appear name="fade-in">
+            <div class="w-full">
+                <!-- Botón de Back -->
+                <div class="mb-4">
+                  <button
+                    @click="goBack"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300"
+                  >
+                    <ArrowLeft class="h-4 w-4"/>
+                    <span>Regresar</span>
+                  </button>
+                </div>
         <div class="grid grid-cols-1 gap-8 lg:grid-cols-4">
             <!-- Columna Izquierda: Navegación y Resumen -->
             <aside class="lg:col-span-1 lg:sticky lg:top-24 h-fit">
@@ -228,10 +272,33 @@ function riesgoNombre(n: number): string {
                             <span class="font-mono">{{ props.cliente.IDCliente }}</span>
                         </div>
                         <div class="flex items-center gap-2 text-gray-600 dark:text-neutral-300">
+                            <span class="w-15 font-semibold">Estatus</span>
+                            <span
+                                class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                :class="clienteEstatusClass"
+                            >
+                                {{ clienteEstatusLabel }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 text-gray-600 dark:text-neutral-300">
                             <span class="w-15 font-semibold">RFC</span>
                             <span v-if="hasRFC" class="font-mono">{{ props.cliente.RFC }}</span>
                             <span v-else class="inline-flex items-center gap-1 rounded bg-yellow-100 text-yellow-800 px-2 py-0.5 font-semibold dark:bg-yellow-900/40 dark:text-yellow-200">No cuenta con RFC</span>
                         </div>
+                    </div>
+                    <div v-if="!isClienteActivo" class="mt-3">
+                        <button
+                            type="button"
+                            @click="abrirModalActivarCliente"
+                            :disabled="activandoCliente"
+                            class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        >
+                            <span
+                                v-if="activandoCliente"
+                                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
+                            ></span>
+                            {{ activandoCliente ? 'Activando...' : 'Activar cliente' }}
+                        </button>
                     </div>
                     <div class="mt-4 flex flex-wrap gap-2 text-xs">
                         <span
@@ -303,6 +370,12 @@ function riesgoNombre(n: number): string {
                                          <p class="font-semibold text-orange-800 dark:text-orange-200">{{ alerta.Patron }}</p>
                                          <p class="mt-1 text-sm text-gray-600 dark:text-neutral-300">{{ alerta.Descripcion }}</p>
                                          <p class="mt-2 text-xs text-gray-500 dark:text-neutral-400">Detectado: {{ formatDate(alerta.FechaDeteccion) }}</p>
+                                         <!-- Botón "Ver detalles" para cada alerta -->
+                                         <Link
+                                            :href="`/alertas/${alerta.IDRegistroAlerta}/detalles`"
+                                            class="mt-3 inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                            Ver detalles
+                                         </Link>
                                     </div>
                                     <Link v-if="props.alertas.length > 3" href="#" @click.prevent="activeTab = 'alertas'" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
                                         Ver todas las {{ props.alertas.length }} alertas &rarr;
@@ -376,6 +449,17 @@ function riesgoNombre(n: number): string {
                                          <dt class="font-medium text-gray-500 dark:text-neutral-400">Es Persona Políticamente Expuesta</dt>
                                          <dd class="mt-1 font-semibold" :class="props.cliente.EsPPEActivo ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'">{{ props.cliente.EsPPEActivo ? 'Sí' : 'No' }}</dd>
                                      </div>
+                                     <div>
+                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Estatus del cliente</dt>
+                                         <dd class="mt-1">
+                                             <span
+                                                 class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                 :class="clienteEstatusClass"
+                                             >
+                                                 {{ clienteEstatusLabel }}
+                                             </span>
+                                         </dd>
+                                     </div>
                                      <div v-if="props.cliente.Preguntas" class="sm:col-span-2 lg:col-span-3"><dt class="font-medium text-gray-500 dark:text-neutral-400">Notas / Perfil PLD</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.Preguntas }}</dd></div>
                                  </dl>
                             </div>
@@ -442,6 +526,14 @@ function riesgoNombre(n: number): string {
                                     <p><b>Razones:</b> {{ alerta.Razones }}</p>
                                     <p><b>Monto:</b> {{ formatCurrency(alerta.MontoOperacion) }} | <b>Póliza:</b> {{ alerta.Poliza }}</p>
                                     <p><b>Fecha Detección:</b> {{ formatDate(alerta.FechaDeteccion) }} {{ alerta.HoraDeteccion }}</p>
+                                </div>
+                                <!-- Botón "Ver detalles" por cada alerta -->
+                                <div class="mt-4">
+                                    <Link
+                                        :href="`/alertas/${alerta.IDRegistroAlerta}/detalles`"
+                                        class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                        Ver detalles
+                                    </Link>
                                 </div>
                                 <div v-if="alerta.Evidencias" class="mt-3">
                                     <b class="text-xs font-medium text-gray-600 dark:text-neutral-300">Evidencias:</b>
@@ -604,6 +696,49 @@ function riesgoNombre(n: number): string {
                     </div>
                 </Transition>
             </main>
+                </div>
+            </div>
+        </Transition>
+
+        <div
+            v-if="showActivarClienteModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+            <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-neutral-100">
+                    Confirmar activación de cliente
+                </h3>
+                <p class="mt-3 text-sm text-gray-700 dark:text-neutral-300">
+                    Antes de activar este cliente, se sugiere revisar primero sus coincidencias en listas de observación y sus alertas PLD.
+                </p>
+                <div class="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800 dark:border-yellow-800/60 dark:bg-yellow-900/20 dark:text-yellow-200">
+                    Estado actual:
+                    <span class="font-semibold">{{ onBlacklist ? 'Con coincidencias en listas' : 'Sin coincidencias en listas' }}</span>
+                    |
+                    <span class="font-semibold">{{ hasAlerts ? 'Con alertas PLD' : 'Sin alertas PLD' }}</span>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="cerrarModalActivarCliente"
+                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        @click="confirmarActivarCliente"
+                        :disabled="activandoCliente"
+                        class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-70"
+                    >
+                        <span
+                            v-if="activandoCliente"
+                            class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        ></span>
+                        Confirmar activación
+                    </button>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>
@@ -615,12 +750,14 @@ import { Globe as GlobeIcon } from 'lucide-vue-next'
 
 <style>
 .fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease-out;
+.fade-leave-active,
+.fade-in-enter-active {
+  transition: opacity 0.4s ease-out;
 }
 
 .fade-enter-from,
-.fade-leave-to {
+.fade-leave-to,
+.fade-in-enter-from {
   opacity: 0;
 }
 </style>

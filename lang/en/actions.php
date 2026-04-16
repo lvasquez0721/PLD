@@ -88,7 +88,7 @@ return [
     'select' => 'Select',
     'select_all' => 'Select All',
     'send' => 'Send',
-    'settings' => 'Settings',
+    'settings' => 'Configuración',
     'show' => 'Show',
     'show_all' => 'Show All',
     'sign_in' => 'Sign In',

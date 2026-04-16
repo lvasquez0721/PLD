@@ -293,6 +293,18 @@ const getTituloSeccion = (index: number) => {
             return null
     }
 }
+
+// -----------------------------------------
+// FORMATO DE FECHA A dd-mm-yyyy
+// -----------------------------------------
+function formatFechaDMY(fechaString: string): string {
+    // Si la fecha está vacía, nula o no es string
+    if (!fechaString || typeof fechaString !== 'string') return ''
+    // Esperamos: yyyy-mm-dd u otros formatos estándar
+    const [y, m, d] = fechaString.split('T')[0].split('-');
+    if (!y || !m || !d) return fechaString // fallback por si acaso
+    return `${d.padStart(2,'0')}-${m.padStart(2,'0')}-${y}`;
+}
 </script>
 
 <template>
@@ -397,7 +409,7 @@ const getTituloSeccion = (index: number) => {
                             </span>
                         </div>
                         <a :href="csvUrl" target="_blank"
-                            class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-green-700 transition-all duration-200 hover:bg-green-50 hover:text-green-800 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 dark:text-green-400 dark:hover:bg-green-950/30 dark:hover:text-green-300 dark:focus:ring-green-400/50 dark:focus:ring-offset-neutral-950">
+                            class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-green-700 transition-all duration-200 hover:bg-green-50 hover:text-green-800 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 dark:text-green-400 dark:hover:bg-green-950/30 dark:hover:text-green-300 dark:focus:ring-green-400 dark:focus:ring-offset-neutral-950">
                             <FileSpreadsheet class="h-4 w-4 transition-transform group-hover:scale-110" />
                             Descargar CSV
                         </a>
@@ -435,24 +447,19 @@ const getTituloSeccion = (index: number) => {
                                         <span
                                             class="inline-flex items-center justify-center rounded-lg px-3.5 py-1.5 text-sm font-bold shadow-sm transition-all duration-200 hover:scale-105"
                                             :style="{
-                                                background: fila.Perfil >= 3
+                                                background: fila.Perfil >= 2
                                                     ? 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'
-                                                    : fila.Perfil == 2
-                                                        ? 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)'
-                                                        : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
-                                                color:
-                                                    fila.Perfil >= 3
-                                                        ? '#991B1B'
-                                                        : fila.Perfil == 2
-                                                            ? '#92400E'
-                                                            : '#065F46',
+                                                    : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
+                                                color: fila.Perfil >= 2
+                                                    ? '#991B1B'
+                                                    : '#065F46',
                                             }">
                                             {{ fila.Perfil }}
                                         </span>
                                     </td>
                                     <td
                                         class="whitespace-nowrap px-5 py-4 text-right text-sm font-medium text-gray-900 dark:text-neutral-100">
-                                        {{ fila.FechaEjecucción }}
+                                        {{ formatFechaDMY(fila.FechaEjecucción) }}
                                     </td>
                                 </tr>
                             </tbody>

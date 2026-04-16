@@ -58,8 +58,8 @@ Se genera la alerta si se cumple la siguiente condición en **cualquiera** de lo
 
 ### Detalles Adicionales
 *   **Conversión de Moneda**:
-    *   Si la moneda es USD (`IDMoneda == 2`), se usa el monto directo.
-    *   Si la moneda es MXN (`IDMoneda == 1`), se intenta obtener el tipo de cambio del día hábil anterior desde Banxico. Si falla, se usa un valor fallback (ej. 20.0).
+    *   Si la moneda es USD, se usa el monto directo.
+    *   Si la moneda es MXN, se intenta obtener el tipo de cambio del día hábil anterior desde Banxico. Si falla, se usa un valor fallback (ej. 20.0).
 *   **Reporte**: Esta alerta marca automáticamente la bandera `genera_reporte = true`, indicando que debe ser considerada para reportes regulatorios.
 
 ---

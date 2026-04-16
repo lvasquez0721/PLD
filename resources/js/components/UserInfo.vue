@@ -2,15 +2,18 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import type { User } from '@/types';
+import { User as UserIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
     user: User;
     showEmail?: boolean;
+    showName?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     showEmail: false,
+    showName: true,
 });
 
 const { getInitials } = useInitials();
@@ -25,13 +28,13 @@ const showAvatar = computed(
     <Avatar class="h-8 w-8 overflow-hidden rounded-lg">
         <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
         <AvatarFallback class="rounded-lg text-black dark:text-white">
-            {{ getInitials(user.name) }}
+            <UserIcon class="size-4" />
         </AvatarFallback>
     </Avatar>
 
     <div class="grid flex-1 text-left text-sm leading-tight">
-        <span class="truncate font-medium">{{ user.name }}</span>
-        <span v-if="showEmail" class="truncate text-xs text-muted-foreground">{{
+        <span v-if="showName" class="truncate font-medium">{{ user.name }}</span>
+        <span v-if="showEmail" class="truncate text-xs text-muted-foreground" :class="{ 'font-medium text-sm text-foreground': !showName }">{{
             user.email
         }}</span>
     </div>

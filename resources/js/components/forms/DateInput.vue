@@ -58,10 +58,17 @@ function onInput(event: Event) {
   emit('update:modelValue', input.value);
 }
 
-function handleWrapperClick() {
+function handleWrapperClick(event: MouseEvent) {
   if (props.disabled) return;
 
   if (dateInput.value) {
+    // Si el clic fue directamente en el input y ya tiene el foco,
+    // permitimos que el navegador maneje la interacción con los segmentos del input (teclado).
+    // Esto evita que el showPicker() bloquee la edición manual.
+    if (event.target === dateInput.value && document.activeElement === dateInput.value) {
+      return;
+    }
+
     // Intentar usar showPicker() si está disponible (navegadores modernos)
     if ('showPicker' in HTMLInputElement.prototype) {
       try {

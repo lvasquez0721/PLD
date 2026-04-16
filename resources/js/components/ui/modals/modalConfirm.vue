@@ -106,13 +106,13 @@ onBeforeUnmount(() => {
       style="animation: fade-bg 0.26s cubic-bezier(.33,.75,.68,1.03)">
       <transition name="modal-bounce-improved">
         <div ref="dialogRef"
-          class="relative mx-2 w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
+          class="relative mx-2 w-full max-h-[95vh] flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
           :class="widthClass ? widthClass : 'max-w-sm'" tabindex="-1">
-          <form class="relative rounded-2xl shadow-2xl bg-white dark:bg-gray-900
+          <form class="relative flex flex-col overflow-hidden rounded-2xl shadow-2xl bg-white dark:bg-gray-900
             p-3 px-1 sm:p-7 sm:px-8 border border-slate-200/70 dark:border-slate-700/60 ring-1 ring-black/7.5"
             @submit.prevent @click.stop>
             <!-- Icono (custom o default) -->
-            <div class="flex flex-col items-center mb-4">
+            <div class="flex flex-col items-center mb-4 shrink-0">
               <slot name="icon">
                 <!-- Icono por defecto (puedes personalizar o dejar vacío) -->
               </slot>
@@ -121,13 +121,15 @@ onBeforeUnmount(() => {
                   ¿Estás seguro?
                 </slot>
               </p>
-              <p class="text-sm text-gray-700 dark:text-gray-300 text-center mb-2">
+            </div>
+            <div class="flex-1 overflow-y-auto mb-4 px-2">
+              <p class="text-sm text-gray-700 dark:text-gray-300 text-center">
                 <slot name="description">
                   ¿Seguro que deseas continuar con esta acción?
                 </slot>
               </p>
             </div>
-            <div class="flex justify-end gap-2 mt-1">
+            <div class="flex justify-end gap-2 mt-1 shrink-0">
               <button type="button" class="btn btn-sm btn-secondary" @click="emitCancel" :disabled="loading">
                 <slot name="cancel">
                   Cancelar

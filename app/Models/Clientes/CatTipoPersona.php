@@ -23,4 +23,10 @@ class CatTipoPersona extends Model
         'IDTipoPersona',
         'TipoPersona',
     ];
+
+    // Relación con TbClientes
+    public function clientes()
+    {
+        return $this->hasMany(TbClientes::class, 'IDTipoPersona', 'IDTipoPersona');
+    }
 }

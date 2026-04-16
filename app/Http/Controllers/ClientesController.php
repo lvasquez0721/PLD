@@ -34,7 +34,7 @@ class ClientesController extends Controller
 
         return inertia('Clientes/Index', [
             'clientes' => $clientes,
-            'filters' => $request->only(['search', 'tipo', 'per_page', 'category']),
+            'filters' => $request->only(['search', 'tipo', 'estatus', 'per_page', 'category']),
             'toast' => session('toast'),
         ]);
     }
@@ -127,6 +127,17 @@ class ClientesController extends Controller
                 $query->where('IDTipoPersona', 1);
             } elseif ($request->input('tipo') === 'moral') {
                 $query->where('IDTipoPersona', '!=', 1);
+            }
+        }
+
+        // Filtro por estatus del cliente (campo Activo)
+        if ($request->filled('estatus') && $request->input('estatus') !== 'todos') {
+            if ($request->input('estatus') === 'activo') {
+                $query->where('Activo', 1);
+            } elseif ($request->input('estatus') === 'inactivo') {
+                $query->where(function ($q) {
+                    $q->where('Activo', 0)->orWhereNull('Activo');
+                });
             }
         }
 
@@ -288,6 +299,17 @@ class ClientesController extends Controller
             'listasNegras' => $listasNegras,
             'perfilTransaccional' => $perfilTransaccional,
             'listasUIF' => $listasUIF,
+        ]);
+    }
+
+    public function activarCliente(TbClientes $id_cliente)
+    {
+        $id_cliente->Activo = 1;
+        $id_cliente->save();
+
+        return redirect()->back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Cliente activado correctamente.',
         ]);
     }
 }

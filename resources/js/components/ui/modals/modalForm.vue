@@ -112,14 +112,14 @@ onBeforeUnmount(() => {
       style="animation: fade-bg 0.26s cubic-bezier(.33,.75,.68,1.03)">
       <transition name="modal-bounce-improved">
         <!-- Referencia para focus trap -->
-        <div ref="dialogRef" class="relative mx-2 w-full
+        <div ref="dialogRef" class="relative mx-2 w-full max-h-[95vh] flex flex-col
             focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
           :class="widthClass ? widthClass : 'max-w-lg'" tabindex="-1">
-          <form class="relative rounded-2xl shadow-2xl bg-white dark:bg-zinc-900
+          <form class="relative flex flex-col overflow-hidden rounded-2xl shadow-2xl bg-white dark:bg-zinc-900
             p-3 px-1 sm:p-7 sm:px-8 border border-slate-200/70 dark:border-slate-700/60
             ring-1 ring-black/7.5 modal-inner-form-fix" @submit.prevent @click.stop>
             <!-- HEADER: título y botón cerrar alineados horizontalmente y centrados verticalmente -->
-            <div class="flex items-center justify-between gap-4 mb-5 min-h-[2.5rem]">
+            <div class="flex items-center justify-between gap-4 mb-5 min-h-[2.5rem] shrink-0">
               <!-- El título siempre aparece a la misma altura del botón de cerrar -->
               <div class="flex-1 min-w-0">
                 <Titulo v-if="title" :title="title" :size="'md'" :weight="'bold'" :color="'default'" />
@@ -133,12 +133,12 @@ onBeforeUnmount(() => {
                 </svg>
               </button>
             </div>
-            <p v-if="subtitle" class="text-xs text-muted-foreground mt-1 mb-5 sm:text-sm">
+            <p v-if="subtitle" class="text-xs text-muted-foreground mt-1 mb-5 sm:text-sm shrink-0">
               {{ subtitle }}
             </p>
             <!-- Formulario o contenido -->
-            <div class="custom-scroll modal-form-content-xfix"
-              style="max-height: 58vh; overflow-y: auto; scrollbar-width: thin;">
+            <div class="custom-scroll modal-form-content-xfix flex-1 overflow-y-auto"
+              style="scrollbar-width: thin;">
               <slot />
             </div>
           </form>
