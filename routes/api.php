@@ -34,6 +34,7 @@ Route::post('/login', [AuthControllerApi::class, 'login']);
 Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
 Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
 Route::post('/operaciones/rollback', [OperacionesController::class, 'rollbackOperacion'])->middleware('auth:sanctum');
+Route::post('/pagos/rollback', [OperacionesController::class, 'rollbackPagos'])->middleware('auth:sanctum');
 
 // Ruta para inserción masiva de clientes
 // Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');

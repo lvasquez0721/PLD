@@ -360,11 +360,21 @@ class ListaNegraController extends Controller
                 ], 400);
             }
 
-            // 1. Obtener datos del cliente
-            $cliente = TbClientes::select( 'tbClientes.RFC','tbClientes.CURP','tbClientes.Nombre','tbClientes.ApellidoPaterno','tbClientes.ApellidoMaterno','tbClientes.Activo','tbClientes.CoincideEnListasNegras','tbClientes.EsPPEActivo','tbClientesPPE.Cargo')
-                ->leftJoin('tbClientesPPE', 'tbClientesPPE.IDCliente', '=', 'tbClientes.IDCliente')
-                ->where('tbClientes.IDCliente', $id)
+            // 1. Obtener datos del cliente (sin leftJoin)
+            $cliente = TbClientes::select(
+                    'RFC',
+                    'CURP',
+                    'Nombre',
+                    'ApellidoPaterno',
+                    'ApellidoMaterno',
+                    'Activo',
+                    'CoincideEnListasNegras',
+                    'EsPPEActivo'
+                )
+                ->where('IDCliente', $id)
                 ->first();
+
+
 
             if (!$cliente) {
                 return response()->json([

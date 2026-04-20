@@ -414,15 +414,88 @@ class OperacionesController extends Controller
 
     private function determinarEstatusAlerta($alertaData): string
     {
-        if (isset($alertaData['genera_reporte']) && $alertaData['genera_reporte']) {
-            return 'Reportado';
-        }
-
-        if (isset($alertaData['monto_usd']) && $alertaData['monto_usd'] < 10000) {
-            return 'Cerrado';
+        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
+            return 'Por reportar';
         }
 
         return 'Generado';
+    }
+
+    /**
+     * Revierte los pagos de una operación. Si existen alertas con Estatus = "Generado",
+     * también las elimina junto con sus tbPagosAlertas asociados.
+     * Espera en la request el campo "IDOperacion".
+     */
+    public function rollbackPagos(Request $request)
+    {
+        try {
+            $idOperacion = $request->input('IDOperacion');
+            if (!$idOperacion) {
+                return response()->json([
+                    'codigoError' => 400,
+                    'error' => 'IDOperacion es requerido para realizar el rollback de pagos.'
+                ], 400);
+            }
+
+            $operacion = TbOperaciones::find($idOperacion);
+            if (!$operacion) {
+                return response()->json([
+                    'codigoError' => 404,
+                    'error' => 'No se encontró la operación con el ID proporcionado.'
+                ], 404);
+            }
+
+            $pagos = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
+            if ($pagos->isEmpty()) {
+                return response()->json([
+                    'codigoError' => 404,
+                    'error' => 'No se encontraron pagos asociados a la operación proporcionada.',
+                    'IDOperacion' => $idOperacion
+                ], 404);
+            }
+
+            \DB::beginTransaction();
+
+            // Verificar alertas relacionadas con Estatus = "Generado"
+            $alertasGeneradas = TbAlertas::where('IDOperacion', $idOperacion)
+                ->where('Estatus', 'Generado')
+                ->get();
+
+            foreach ($alertasGeneradas as $alerta) {
+                // Eliminar registros en tbPagosAlertas antes de borrar la alerta
+                TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->delete();
+                $alerta->delete();
+            }
+
+            // Copiar pagos al log y eliminarlos
+            foreach ($pagos as $pago) {
+                $logPagoData = $pago->toArray();
+                unset($logPagoData['IDOperacionPago']);
+                $logPagoData['IDOperacion'] = $idOperacion;
+
+                $logPago = new LogOperacionesPagos();
+                $logPago->fill($logPagoData);
+                $logPago->save();
+            }
+
+            TbOperacionesPagos::where('IDOperacion', $idOperacion)->delete();
+
+            \DB::commit();
+
+            return response()->json([
+                'codigoError' => 0,
+                'mensaje' => 'Los pagos han sido revertidos correctamente.' . ($alertasGeneradas->isNotEmpty() ? ' Se eliminaron ' . $alertasGeneradas->count() . ' alerta(s) con estatus "Generado" asociadas.' : ''),
+                'IDOperacion' => $idOperacion
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'codigoError' => 500,
+                'error' => 'Ocurrió un error al intentar revertir los pagos.',
+                'detalles' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -454,6 +527,16 @@ class OperacionesController extends Controller
                 return response()->json([
                     'codigoError' => 409,
                     'error' => 'La operación ya ha sido cancelada previamente.',
+                    'IDOperacion' => $operacion->IDOperacion
+                ], 409);
+            }
+
+            // Validar si existen alertas relacionadas a la operación
+            $alertasExistentes = TbAlertas::where('IDOperacion', $idOperacion)->exists();
+            if ($alertasExistentes) {
+                return response()->json([
+                    'codigoError' => 409,
+                    'error' => 'No es posible revertir la operación porque tiene alertas relacionadas.',
                     'IDOperacion' => $operacion->IDOperacion
                 ], 409);
             }
