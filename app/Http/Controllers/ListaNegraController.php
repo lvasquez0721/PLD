@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Clientes\TbClientes;
 use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // error log
-use Inertia\Inertia; // <-- Agregar esto
-use App\Models\Clientes\TbClientes;
+use Illuminate\Support\Facades\DB; // error log
+use Illuminate\Support\Facades\Log; // <-- Agregar esto
+use Inertia\Inertia;
 
 class ListaNegraController extends Controller
 {
@@ -60,11 +60,11 @@ class ListaNegraController extends Controller
                 'FechaNacimiento',
                 'Pais'
             )
-            ->when($buscar, function ($query, $buscar) {
-                $query->where('Nombre', 'LIKE', "%{$buscar}%")
-                    ->orWhere('RFC', 'LIKE', "%{$buscar}%");
-            })
-            ->orderBy('IDRegistroListaCNSF', 'DESC');
+                ->when($buscar, function ($query, $buscar) {
+                    $query->where('Nombre', 'LIKE', "%{$buscar}%")
+                        ->orWhere('RFC', 'LIKE', "%{$buscar}%");
+                })
+                ->orderBy('IDRegistroListaCNSF', 'DESC');
 
             $listas = $query->get();
 
@@ -72,11 +72,11 @@ class ListaNegraController extends Controller
                 return redirect()->back()->with('error', 'No hay datos para exportar.');
             }
 
-            $fileName = 'lista_negra_cnsf_' . date('Ymd_His') . '.csv';
+            $fileName = 'lista_negra_cnsf_'.date('Ymd_His').'.csv';
 
             $headers = [
                 'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
             ];
 
             $callback = function () use ($listas) {
@@ -91,7 +91,7 @@ class ListaNegraController extends Controller
                     'RFC',
                     'CURP',
                     'Fecha Nacimiento',
-                    'País'
+                    'País',
                 ]);
 
                 foreach ($listas as $item) {
@@ -101,7 +101,7 @@ class ListaNegraController extends Controller
                         $item->RFC,
                         $item->CURP,
                         $item->FechaNacimiento,
-                        $item->Pais
+                        $item->Pais,
                     ]);
                 }
                 fclose($file);
@@ -110,7 +110,8 @@ class ListaNegraController extends Controller
             return response()->stream($callback, 200, $headers);
 
         } catch (\Exception $e) {
-            Log::error('Error Export CSV: ' . $e->getMessage());
+            Log::error('Error Export CSV: '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Ocurrió un error al exportar el CSV.');
         }
     }
@@ -286,10 +287,10 @@ class ListaNegraController extends Controller
             // Log detailed exception info
             Log::error('Error Delete: '.$e->getMessage(), [
                 'exception' => $e,
-                'trace'     => $e->getTraceAsString(),
-                'file'      => $e->getFile(),
-                'line'      => $e->getLine(),
-                'request'   => $request->all(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all(),
                 'record_id' => $id,
             ]);
 
@@ -362,21 +363,19 @@ class ListaNegraController extends Controller
 
             // 1. Obtener datos del cliente (sin leftJoin)
             $cliente = TbClientes::select(
-                    'RFC',
-                    'CURP',
-                    'Nombre',
-                    'ApellidoPaterno',
-                    'ApellidoMaterno',
-                    'Activo',
-                    'CoincideEnListasNegras',
-                    'EsPPEActivo'
-                )
+                'RFC',
+                'CURP',
+                'Nombre',
+                'ApellidoPaterno',
+                'ApellidoMaterno',
+                'Activo',
+                'CoincideEnListasNegras',
+                'EsPPEActivo'
+            )
                 ->where('IDCliente', $id)
                 ->first();
 
-
-
-            if (!$cliente) {
+            if (! $cliente) {
                 return response()->json([
                     'success' => false,
                     'mensaje' => 'El cliente no existe.',
@@ -386,33 +385,33 @@ class ListaNegraController extends Controller
             $nombreCompleto = trim("{$cliente->Nombre} {$cliente->ApellidoPaterno} {$cliente->ApellidoMaterno}");
 
             $rfcGenericos = ['XAXX010101000'];
-            $rfcValido    = !empty($cliente->RFC) && !in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
-            $curpValido   = !empty($cliente->CURP);
-            $nombreValido = !empty($nombreCompleto);
+            $rfcValido = ! empty($cliente->RFC) && ! in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
+            $curpValido = ! empty($cliente->CURP);
+            $nombreValido = ! empty($nombreCompleto);
 
             if ($rfcValido && $curpValido) {
-                $registros = TbListasNegraCNSF::where('RFC',  'LIKE', '%' . $cliente->RFC  . '%')
-                ->where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();
-            } elseif ($rfcValido && !$curpValido) {
-                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%' . $cliente->RFC . '%')
-                ->get();
-            } elseif (!$rfcValido && $curpValido) {
-                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
+            } elseif ($rfcValido && ! $curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->get();
+            } elseif (! $rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
             } elseif ($nombreValido) {
-                $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?',[strtolower($nombreCompleto)])
-                ->get();
+                $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?', [strtolower($nombreCompleto)])
+                    ->get();
             } else {
                 return response()->json([
-                    'registrosEncontrados'   => 0,
+                    'registrosEncontrados' => 0,
                     'detalleListaBloqueadas' => [],
                 ], 200);
             }
 
             if ($registros->isEmpty()) {
                 return response()->json([
-                    'registrosEncontrados'   => 0,
+                    'registrosEncontrados' => 0,
                     'detalleListaBloqueadas' => [],
                 ], 200);
             }
@@ -424,22 +423,23 @@ class ListaNegraController extends Controller
                     strtolower(trim($item->Nombre ?? '')),
                     $porcentaje
                 );
+
                 return $porcentaje;
             })->first();
 
             $detalle = [
                 [
-                    'lista'           => 'Listas Negra CNSF',
+                    'lista' => 'Listas Negra CNSF',
                     'nombreDetectado' => $registro->Nombre ?? '',
-                    'IDListaOrigen'   => $cliente->CoincideEnListasNegras,
-                    'cargo'           => $cliente->Cargo ?? '',
-                    'PPEActivo'       => (bool) $cliente->EsPPEActivo,
-                    'clienteActivo'   => (bool) $cliente->Activo,
+                    'IDListaOrigen' => $cliente->CoincideEnListasNegras,
+                    'cargo' => $cliente->Cargo ?? '',
+                    'PPEActivo' => (bool) $cliente->EsPPEActivo,
+                    'clienteAutorizado' => (bool) $cliente->Activo,
                 ],
             ];
 
             return response()->json([
-                'registrosEncontrados'   => count($detalle),
+                'registrosEncontrados' => count($detalle),
                 'detalleListaBloqueadas' => $detalle,
             ], 200);
 
