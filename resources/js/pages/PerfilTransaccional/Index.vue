@@ -48,6 +48,7 @@ const formRegistrar = ref<Record<string, any>>({})
 const resultados = ref<any[]>([])
 const csvUrl = ref('')
 const filtroNombre = ref('')
+const filtroPerfil = ref<'todos' | 'bajo' | 'alto'>('todos')
 
 // -----------------------------------------
 // PAGINACIÓN
@@ -56,7 +57,7 @@ const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
 // Resetear página cuando cambian los resultados o el filtro
-watch([resultados, filtroNombre], () => {
+watch([resultados, filtroNombre,filtroPerfil], () => {
     currentPage.value = 1
 })
 
@@ -232,6 +233,9 @@ const buscarInformacion = async () => {
             resultados.value = data.datos
             csvUrl.value = data.csvUrl
             mostrarAlerta('success', data.mensaje)
+            // Resetear filtros al cargar nuevos datos
+            filtroPerfil.value = 'todos'
+            filtroNombre.value = ''
         } else {
             mostrarAlerta('error', data.mensaje || 'No se encontraron registros.')
         }
@@ -243,18 +247,39 @@ const buscarInformacion = async () => {
 }
 
 // -----------------------------------------
-// Filtrar resultados por nombre
+// Filtrar resultados por nombre y perfil
 // -----------------------------------------
 const resultadosFiltrados = computed(() => {
-    if (!filtroNombre.value) return resultados.value
+    // if (!filtroNombre.value) return resultados.value
 
-    const texto = filtroNombre.value.toLowerCase()
+    // const texto = filtroNombre.value.toLowerCase()
 
-    return resultados.value.filter((f: any) =>
-        `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
-            .toLowerCase()
-            .includes(texto)
-    )
+    // return resultados.value.filter((f: any) =>
+    //     `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
+    //         .toLowerCase()
+    //         .includes(texto)
+    // )
+
+     let resultadosFiltradosTemp = [...resultados.value]
+    
+    // Filtro por nombre
+    if (filtroNombre.value) {
+        const texto = filtroNombre.value.toLowerCase()
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) =>
+            `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
+                .toLowerCase()
+                .includes(texto)
+        )
+    }
+    
+    // Filtro por perfil (bajo: < 2, alto: >= 2)
+    if (filtroPerfil.value === 'bajo') {
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) => f.Perfil < 2)
+    } else if (filtroPerfil.value === 'alto') {
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) => f.Perfil >= 2)
+    }
+    
+    return resultadosFiltradosTemp
 })
 
 // -----------------------------------------
@@ -407,6 +432,10 @@ function formatFechaDMY(fechaString: string): string {
                                 class="rounded-full bg-gradient-to-r from-gray-100 to-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:from-neutral-800 dark:to-neutral-900 dark:text-neutral-300">
                                 {{ resultadosFiltrados.length }}
                             </span>
+                            <span v-if="filtroPerfil !== 'todos'" 
+                                class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
+                                {{ filtroPerfil === 'bajo' ? 'Filtrando: Bajos' : 'Filtrando: Altos' }}
+                            </span>
                         </div>
                         <a :href="csvUrl" target="_blank"
                             class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-green-700 transition-all duration-200 hover:bg-green-50 hover:text-green-800 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 dark:text-green-400 dark:hover:bg-green-950/30 dark:hover:text-green-300 dark:focus:ring-green-400 dark:focus:ring-offset-neutral-950">
@@ -427,8 +456,38 @@ function formatFechaDMY(fechaString: string): string {
                                     </th>
                                     <th scope="col"
                                         class="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
-                                        Evaluación Perfil
+                                        <span>Evaluación Perfil</span>
+                                        <div >
+                                            <button @click="filtroPerfil = 'todos'" 
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroPerfil === 'todos' 
+                                                        ? 'bg-gray-700 text-white' 
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-neutral-700 dark:text-neutral-300'
+                                                ]">
+                                                Todos
+                                            </button>
+                                            <button @click="filtroPerfil = 'bajo'" 
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroPerfil === 'bajo' 
+                                                        ? 'bg-emerald-600 text-white' 
+                                                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400'
+                                                ]">
+                                                Bajos
+                                            </button>
+                                            <button @click="filtroPerfil = 'alto'" 
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroPerfil === 'alto' 
+                                                        ? 'bg-red-600 text-white' 
+                                                        : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/50 dark:text-red-400'
+                                                ]">
+                                                Altos
+                                            </button>
+                                        </div>
                                     </th>
+
                                     <th scope="col"
                                         class="px-5 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                         Periodo
