@@ -37,6 +37,7 @@ class OperacionesController extends Controller
                 'APaternoAgente' => 'required|string|max:100',
                 'AMaternoAgente' => 'required|string|max:100',
                 'RazonSocialAgente' => 'required|string|max:300',
+                'EsEndosoCancelacion' => 'required|boolean',
                 'DetalleBeneficiarios' => 'required|array|min:1',
                 'DetalleBeneficiarios.*.RFC' => 'required|string|max:13',
                 'DetalleBeneficiarios.*.CURP' => 'required|string|max:18',

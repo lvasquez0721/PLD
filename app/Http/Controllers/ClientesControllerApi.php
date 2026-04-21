@@ -11,7 +11,6 @@ use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
-use App\Services\ListasNegras\BuscadorListasIntegral;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +57,7 @@ class ClientesControllerApi extends Controller
                 'codigoError' => 1,
                 'message' => 'Faltan datos obligatorios',
                 'errors' => $validator->errors(),
-            ], 200);
+            ], 422);
         }
 
         $data = $validator->validated();
@@ -91,7 +90,7 @@ class ClientesControllerApi extends Controller
                         'codigoError' => 2,
                         'message' => 'Ya existe un cliente con el mismo nombre y RFC genérico.',
                         'error_code' => 'RFC_GENERICO_DUPLICADO',
-                    ], 200);
+                    ], 422);
                 }
             }
             $data['RFC'] = $rfc;
@@ -106,11 +105,15 @@ class ClientesControllerApi extends Controller
 
         $curp = isset($data['CURP']) ? strtoupper(trim($data['CURP'])) : null;
 
-        if (!empty($rfc) || !empty($curp)) {
+        if (! empty($rfc) || ! empty($curp)) {
             // Buscar en UIF
-            $registroUIF = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
-                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
-                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            $registroUIF = TbListasNegrasUIF::where(function ($q) use ($rfc, $curp) {
+                if (! empty($rfc)) {
+                    $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                }
+                if (! empty($curp)) {
+                    $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+                }
             })->first();
 
             if ($registroUIF) {
@@ -126,9 +129,13 @@ class ClientesControllerApi extends Controller
             }
 
             // Buscar en CNSF
-            $registroCNSF = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
-                if (!empty($rfc)) $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
-                if (!empty($curp)) $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+            $registroCNSF = TbListasNegraCNSF::where(function ($q) use ($rfc, $curp) {
+                if (! empty($rfc)) {
+                    $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
+                }
+                if (! empty($curp)) {
+                    $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
+                }
             })->first();
 
             if ($registroCNSF) {
@@ -147,7 +154,7 @@ class ClientesControllerApi extends Controller
         $esPPE = false; // No se evalúa aquí, dejar en false
 
         // Si el cliente coincide en listas negras, se establece Activo = false; en caso contrario, Activo = true
-        $activo = !$personaBloqueada;
+        $activo = ! $personaBloqueada;
 
         DB::beginTransaction();
         try {
@@ -188,7 +195,7 @@ class ClientesControllerApi extends Controller
                 $domiciliosInsertados[] = $domObj;
             }
 
-            if (!empty($data['IDSistemaOrigen']) && !empty($data['NoClienteSistema'])) {
+            if (! empty($data['IDSistemaOrigen']) && ! empty($data['NoClienteSistema'])) {
                 $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
                 CatIdClientesSistema::create([
                     'IDOrigenSistema' => $nuevoIDOrigen,
@@ -201,15 +208,15 @@ class ClientesControllerApi extends Controller
             // Emitir alerta si coincide en listas negras
             if ($personaBloqueada) {
                 $nombreCompleto = trim(
-                    ($cliente->Nombre ?? '') .
-                    ' ' .
-                    ($cliente->ApellidoPaterno ?? '') .
-                    ' ' .
+                    ($cliente->Nombre ?? '').
+                    ' '.
+                    ($cliente->ApellidoPaterno ?? '').
+                    ' '.
                     ($cliente->ApellidoMaterno ?? '')
                 );
 
-                $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
-                $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
+                $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
+                $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
                 TbAlertas::create([
                     'Folio' => null,
@@ -306,7 +313,7 @@ class ClientesControllerApi extends Controller
                 'codigoError' => 1,
                 'message' => 'Faltan datos obligatorios',
                 'errors' => $validator->errors(),
-            ], 200);
+            ], 422);
         }
 
         $validated = $validator->validated();
@@ -317,7 +324,7 @@ class ClientesControllerApi extends Controller
             return response()->json([
                 'codigoError' => 1,
                 'message' => 'Cliente no encontrado',
-            ], 200);
+            ], 404);
         }
 
         // Guardar el estado actual del cliente en el log antes de la actualización
@@ -465,9 +472,13 @@ class ClientesControllerApi extends Controller
         $listasDetectadas = [];
 
         if ($rfc || $curp) {
-            $CNSFrfc = TbListasNegraCNSF::where(function($q) use ($rfc, $curp) {
-                if ($rfc) $q->orWhere('RFC', $rfc);
-                if ($curp) $q->orWhere('CURP', $curp);
+            $CNSFrfc = TbListasNegraCNSF::where(function ($q) use ($rfc, $curp) {
+                if ($rfc) {
+                    $q->orWhere('RFC', $rfc);
+                }
+                if ($curp) {
+                    $q->orWhere('CURP', $curp);
+                }
             })->first();
 
             if ($CNSFrfc) {
@@ -482,9 +493,13 @@ class ClientesControllerApi extends Controller
                 $listasDetectadas[] = 'CNSF';
             }
 
-            $UIFrfc = TbListasNegrasUIF::where(function($q) use ($rfc, $curp) {
-                if ($rfc) $q->orWhere('RFC', $rfc);
-                if ($curp) $q->orWhere('CURP', $curp);
+            $UIFrfc = TbListasNegrasUIF::where(function ($q) use ($rfc, $curp) {
+                if ($rfc) {
+                    $q->orWhere('RFC', $rfc);
+                }
+                if ($curp) {
+                    $q->orWhere('CURP', $curp);
+                }
             })->first();
 
             if ($UIFrfc) {
@@ -509,15 +524,15 @@ class ClientesControllerApi extends Controller
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
             $nombreCompleto = trim(
-                ($cliente->Nombre ?? '') .
-                ' ' .
-                ($cliente->ApellidoPaterno ?? '') .
-                ' ' .
+                ($cliente->Nombre ?? '').
+                ' '.
+                ($cliente->ApellidoPaterno ?? '').
+                ' '.
                 ($cliente->ApellidoMaterno ?? '')
             );
 
-            $motivo = 'Detectado en listas negras: ' . implode(', ', $listasDetectadas);
-            $razones = "El cliente con RFC {$cliente->RFC} coincide en: " . implode(', ', $listasDetectadas);
+            $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
+            $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
             TbAlertas::create([
                 'Folio' => null,

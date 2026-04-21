@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\CatCampos;
 use App\Models\CatParametrosPerfilTrans;
-use App\Models\TbPerfilTransaccional;
 use App\Models\Clientes\TbClientes;
+use App\Models\TbPerfilTransaccional;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -80,24 +80,24 @@ class PerfilTransaccionalController extends Controller
             }
 
             // Caso 1: Buscar por IDCliente (para API / Postman) y
-            if (!empty($idCliente) && empty($periodo)) {
+            if (! empty($idCliente) && empty($periodo)) {
                 // Verificar si el cliente existe
                 $clienteExiste = TbClientes::where('IDCliente', $idCliente)->exists();
-                
-                if (!$clienteExiste) {
+
+                if (! $clienteExiste) {
                     return response()->json([
                         'success' => false,
-                        'mensaje' => 'El cliente especificado no existe.',
+                        'mensaje' => 'No se encontró información para el cliente especificado.',
                     ], 404);
                 }
 
                 // Ejecutar el SP con el IDCliente como parámetro
                 try {
-                    DB::select('CALL SP_PerfilTransIndividual(?, ?, ?)', [ $idCliente, 2, '' ]);
+                    DB::select('CALL SP_PerfilTransIndividual(?, ?, ?)', [$idCliente, 2, '']);
                 } catch (\Exception $e) {
                     return response()->json([
                         'success' => false,
-                        'mensaje' => 'Error al ejecutar el SP', //: ' . $e->getMessage(),
+                        'mensaje' => 'Error al ejecutar el SP', // : ' . $e->getMessage(),
                     ], 500);
                 }
 
@@ -107,10 +107,10 @@ class PerfilTransaccionalController extends Controller
                     'tbClientes.ApellidoPaterno',
                     'tbClientes.ApellidoMaterno'
                 )
-                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
-                ->where('tbPerfilTransaccional.IDCliente', $idCliente)
-                ->orderBy('tbPerfilTransaccional.IDRegistroPerfil', 'DESC')
-                ->first();
+                    ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                    ->where('tbPerfilTransaccional.IDCliente', $idCliente)
+                    ->orderBy('tbPerfilTransaccional.IDRegistroPerfil', 'DESC')
+                    ->first();
 
                 if (! $registro) {
                     return response()->json([
@@ -120,10 +120,10 @@ class PerfilTransaccionalController extends Controller
                 }
 
                 return response()->json([
-                    //'perfilTransaccionalV' => (float) $registro->Perfil,
+                    // 'perfilTransaccionalV' => (float) $registro->Perfil,
                     'perfilTransaccional' => (float) $registro->Perfil,
-                    'IDRiesgoPerfil' => ((float)$registro->Perfil < 2) ? 1 : 2,
-                    
+                    'IDRiesgoPerfil' => ((float) $registro->Perfil < 2) ? 1 : 2,
+
                 ]);
             }
 
@@ -139,9 +139,9 @@ class PerfilTransaccionalController extends Controller
                 'tbClientes.ApellidoPaterno',
                 'tbClientes.ApellidoMaterno'
             )
-            ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
-            ->whereDate('FechaEjecucción', $periodo)
-            ->get();
+                ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
+                ->whereDate('FechaEjecucción', $periodo)
+                ->get();
 
             if ($datos->isEmpty()) {
                 return response()->json([

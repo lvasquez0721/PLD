@@ -508,7 +508,7 @@ class ListaNegraController extends Controller
             if (empty($id)) {
                 return response()->json([
                     'success' => false,
-                    'mensaje' => 'Debe enviar el campo IDRegistroListaCNSF.',
+                    'mensaje' => 'Debe enviar el campo ID.',
                 ], 400);
             }
 
@@ -528,8 +528,8 @@ class ListaNegraController extends Controller
 
             if (! $cliente) {
                 return response()->json([
-                    'success' => false,
-                    'mensaje' => 'El cliente no existe.',
+                    'codigoError' => 1,
+                    'error' => 'El cliente no existe.',
                 ], 404);
             }
 
