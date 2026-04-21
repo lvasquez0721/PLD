@@ -34,37 +34,66 @@ const user = page.props.auth.user as {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
+
         <Head title="Configuración de perfil" />
 
         <SettingsLayout>
             <div class="flex flex-col space-y-8 max-w-xl mx-auto">
-                <HeadingSmall
-                    title="Información del perfil"
-                    description="Tu información personal de usuario"
-                />
+                <HeadingSmall title="Información del perfil" description="Tu información personal de usuario" />
 
-                <div class="space-y-4 bg-white rounded-xl shadow-sm px-8 py-8 border border-gray-100">
-                    <dl class="divide-y divide-gray-200">
+                <div
+                    class="space-y-4 bg-white dark:bg-gray-900 rounded-xl shadow-sm px-8 py-8 border border-gray-100 dark:border-gray-800 transition-colors duration-300">
+                    <dl class="divide-y divide-gray-200 dark:divide-gray-800">
                         <!-- Mejor alineación a la izquierda, mejor contraste y jerarquía para mejor UX -->
                         <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
-                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Usuario</dt>
-                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.usuario || '-' }}</dd>
+                            <dt
+                                class="col-span-2 text-gray-600 dark:text-gray-300 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">
+                                Usuario
+                            </dt>
+                            <dd
+                                class="col-span-3 text-gray-900 dark:text-gray-100 text-lg font-semibold sm:text-left text-left break-words">
+                                {{ user.usuario || '-' }}
+                            </dd>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
-                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Nombre</dt>
-                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.nombre || '-' }}</dd>
+                            <dt
+                                class="col-span-2 text-gray-600 dark:text-gray-300 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">
+                                Nombre
+                            </dt>
+                            <dd
+                                class="col-span-3 text-gray-900 dark:text-gray-100 text-lg font-semibold sm:text-left text-left break-words">
+                                {{ user.nombre || '-' }}
+                            </dd>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
-                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Apellido paterno</dt>
-                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.apellido_p || '-' }}</dd>
+                            <dt
+                                class="col-span-2 text-gray-600 dark:text-gray-300 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">
+                                Apellido paterno
+                            </dt>
+                            <dd
+                                class="col-span-3 text-gray-900 dark:text-gray-100 text-lg font-semibold sm:text-left text-left break-words">
+                                {{ user.apellido_p || '-' }}
+                            </dd>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
-                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Apellido materno</dt>
-                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-words">{{ user.apellido_m || '-' }}</dd>
+                            <dt
+                                class="col-span-2 text-gray-600 dark:text-gray-300 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">
+                                Apellido materno
+                            </dt>
+                            <dd
+                                class="col-span-3 text-gray-900 dark:text-gray-100 text-lg font-semibold sm:text-left text-left break-words">
+                                {{ user.apellido_m || '-' }}
+                            </dd>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-5 items-center py-4 first:pt-0 last:pb-0">
-                            <dt class="col-span-2 text-gray-600 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">Correo electrónico</dt>
-                            <dd class="col-span-3 text-gray-900 text-lg font-semibold sm:text-left text-left break-all">{{ user.email }}</dd>
+                            <dt
+                                class="col-span-2 text-gray-600 dark:text-gray-300 text-base font-medium sm:text-left sm:pr-6 pb-2 sm:pb-0">
+                                Correo electrónico
+                            </dt>
+                            <dd
+                                class="col-span-3 text-gray-900 dark:text-gray-100 text-lg font-semibold sm:text-left text-left break-all">
+                                {{ user.email }}
+                            </dd>
                         </div>
                     </dl>
                 </div>
