@@ -134,7 +134,7 @@ const opcionesEstatus = ref<{ value: string; label: string }[]>([
     { value: 'Generado', label: 'Generado' },
     { value: 'Analizado', label: 'Analizado' },
     { value: 'Cerrado', label: 'Cerrado' },
-    { value: 'Reportado', label: 'Reportado' },
+    { value: 'Por reportar', label: 'Por reportar' },
     { value: 'Enviado', label: 'Enviado' }
 ]);
 

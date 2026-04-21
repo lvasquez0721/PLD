@@ -210,17 +210,17 @@ const opcionesEstatus = [
     { value: 'Analizado', label: 'Analizado' },
     { value: 'Cerrado', label: 'Cerrado' },
     { value: 'Enviado', label: 'Enviado' },
-    { value: 'Reportado', label: 'Reportado' },
+    { value: 'Por reportar', label: 'Por reportar' },
 ];
 
 const alertaEstatus = computed(() => (alerta.value?.Estatus || '').toLowerCase());
 const puedeEditar = computed(() => {
     const est = alertaEstatus.value;
-    return est !== 'enviado' && est !== 'reportado' && est !== 'cerrado';
+    return est !== 'enviado' && est !== 'cerrado';
 });
 const puedeEliminarEvidencias = computed(() => {
     const est = alertaEstatus.value;
-    return est !== 'enviado' && est !== 'reportado' && est !== 'cerrado';
+    return est !== 'enviado' && est !== 'cerrado';
 });
 
 // Mostrar información relevante del cliente si existe
@@ -371,7 +371,7 @@ function getEvidenciaKey(ev: any, idx: any): string | number {
 
 function eliminarEvidencia(ev: any, idx: any) {
     const est = alertaEstatus.value;
-    if (est === 'cerrado' || est === 'enviado' || est === 'reportado') {
+    if (est === 'cerrado' || est === 'enviado') {
         return;
     }
     if (!confirm('¿Seguro que deseas eliminar este archivo de evidencia?')) return;

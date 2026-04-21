@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlertasController;
+use App\Http\Controllers\ExportarLayoutController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ConsultaInusualidadController;
@@ -106,6 +107,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('/consulta-inusualidad', [ConsultaInusualidadController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('consulta-inusualidad.index');
+
+// Exportar Layout PLD
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/exportar-layout', [ExportarLayoutController::class, 'index'])->name('exportar-layout.index');
+    Route::get('/exportar-layout/exportar', [ExportarLayoutController::class, 'exportar'])->name('exportar-layout.exportar');
+});
 
 // Clientes
 Route::get('/clientes', [ClientesController::class, 'index'])

@@ -194,7 +194,7 @@ class AlertasController extends Controller
             'idAlerta' => 'required|integer',
             'instrumento' => 'required|string',
             'patron' => 'required|string', // Se sigue validando para cumplir requisitos de frontend/form, pero se ignorará abajo
-            'estatus' => 'required|string|in:Generado,Analizado,Cerrado,Reportado,Enviado',
+            'estatus' => 'required|string|in:Generado,Analizado,Cerrado,Por reportar,Enviado',
             'nombre' => 'required|string',
             'noCliente' => 'required|integer',
             'poliza' => 'required|string',
@@ -264,7 +264,6 @@ class AlertasController extends Controller
             $fechaActualYMD = date('Y-m-d');
 
             $estatus = $request->input('estatus');
-            $generarReporte = in_array($estatus, ['Enviado', 'Reportado']);
 
             // El patrón siempre es "Preocupante" según la instrucción
             $alerta->Patron = "Preocupante";
@@ -290,63 +289,8 @@ class AlertasController extends Controller
 
             $alerta->save();
 
-            // Si se debe emitir un reporte al ser "Enviado" o "Reportado"
-            if ($generarReporte) {
-                // Verificar si ya existe el reporte para esta alerta (opcional: evitar duplicados)
-                $existeReporte = \App\Models\TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
-                    ->whereIn('Estatus', ['Enviado', 'Reportado'])
-                    ->first();
-
-                if (!$existeReporte) {
-                    $reporte = new \App\Models\TbReporteRegulatorioPLD();
-
-                    $reporte->IDRegistroAlerta = $alerta->IDRegistroAlerta;
-                    $reporte->TipoReporte = "Preocupante"; // Puede ajustarse según lógica
-                    $reporte->PeriodoReporte = now()->format('Ym');
-                    $reporte->Folio = $alerta->Folio;
-                    // Considera llenar los demás campos requeridos en TbReporteRegulatorioPLD
-                    $reporte->OrganoSupervisor = null;
-                    $reporte->CveSujetoObligado = null;
-                    $reporte->Localidad = null;
-                    $reporte->Sucursal = null;
-                    $reporte->TipoOperacion = "Preocupante"; // Siempre "Preocupante"
-                    $reporte->InstrumentoMonetario = $alerta->InstrumentoMonetario;
-                    $reporte->NoPoliza = $alerta->Poliza;
-                    $reporte->Monto = $alerta->MontoOperacion;
-                    $reporte->IDMoneda = $alerta->IDMoneda;
-                    $reporte->FechaOperacion = $alerta->FechaOperacion;
-                    $reporte->FechaDeteccion = $alerta->FechaDeteccion ?? $fechaActualYMD;
-                    $reporte->Nacionalidad = null;
-                    $reporte->TipoPersona = null;
-                    $reporte->RazonSocial = null;
-                    $reporte->Nombre = $alerta->Cliente;
-                    $reporte->APaterno = null;
-                    $reporte->AMaterno = null;
-                    $reporte->RFC = $alerta->RFCAgente;
-                    $reporte->CURP = null;
-                    $reporte->FechaNacimiento = null;
-                    $reporte->Domicilio = null;
-                    $reporte->Colonia = null;
-                    $reporte->Ciudad = null;
-                    $reporte->Telefono = null;
-                    $reporte->Ocupacion = null;
-                    $reporte->NombreAgente = $alerta->Agente;
-                    $reporte->APaternoAgente = null;
-                    $reporte->AMaternoAgente = null;
-                    $reporte->RFCAgente = $alerta->RFCAgente;
-                    $reporte->CURPAgente = null;
-                    $reporte->Cuenta = null;
-                    $reporte->NoPolizaCuenta = null;
-                    $reporte->CveSujetoObl = null;
-                    $reporte->NombreTitular = null;
-                    $reporte->APaternoTitular = null;
-                    $reporte->AMaternoTitular = null;
-                    $reporte->Descripcion = $alerta->Descripcion;
-                    $reporte->Razon = $alerta->Razones;
-                    $reporte->Estatus = $estatus;
-
-                    $reporte->save();
-                }
+            if ($estatus === 'Enviado') {
+                $this->emitirReporteRegulatorio($alerta);
             }
 
             if ($isInertia) {
@@ -399,7 +343,7 @@ class AlertasController extends Controller
     {
         $validator = \Validator::make($request->all(), [
             'idAlerta'      => 'required|integer',
-            'estatus'       => 'required|string|in:Generado,Analizado,Cerrado,Reportado,Enviado',
+            'estatus'       => 'required|string|in:Generado,Analizado,Cerrado,Reportado,Enviado,Por reportar',
             'razones'       => 'required|string',
             'descripcion'   => 'required|string',
             'evidencias'    => 'sometimes|array',
@@ -456,68 +400,14 @@ class AlertasController extends Controller
                 $alerta->Evidencias = json_encode(array_merge($evidenciasPrevias, $evidenciasData));
             }
 
-            $alerta->Estatus      = $request->input('estatus');
+            $estatus = $request->input('estatus');
+            $alerta->Estatus      = $estatus;
             $alerta->Razones      = $request->input('razones');
             $alerta->Descripcion  = $request->input('descripcion');
             $alerta->save();
 
-            // Emitir reporte si estatus es "Enviado" o "Reportado"
-            $estatus = $request->input('estatus');
-            if (in_array($estatus, ['Enviado', 'Reportado'])) {
-                // Busca si ya existe un reporte generado para esta alerta con los mismos estatus
-                $yaExisteReporte = \App\Models\TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
-                    ->whereIn('Estatus', ['Enviado', 'Reportado'])
-                    ->first();
-
-                if (!$yaExisteReporte) {
-                    $reporte = new \App\Models\TbReporteRegulatorioPLD();
-
-                    $reporte->IDRegistroAlerta   = $alerta->IDRegistroAlerta;
-                    $reporte->TipoReporte        = "Preocupante";
-                    $reporte->PeriodoReporte     = now()->format('Ym');
-                    $reporte->Folio              = $alerta->Folio;
-                    $reporte->OrganoSupervisor   = null;
-                    $reporte->CveSujetoObligado  = null;
-                    $reporte->Localidad          = null;
-                    $reporte->Sucursal           = null;
-                    $reporte->TipoOperacion      = "Preocupante";
-                    $reporte->InstrumentoMonetario = $alerta->InstrumentoMonetario ?? null;
-                    $reporte->NoPoliza           = $alerta->Poliza ?? null;
-                    $reporte->Monto              = $alerta->MontoOperacion ?? null;
-                    $reporte->IDMoneda           = $alerta->IDMoneda ?? null;
-                    $reporte->FechaOperacion     = $alerta->FechaOperacion ?? now()->format('Y-m-d');
-                    $reporte->FechaDeteccion     = $alerta->FechaDeteccion ?? now()->format('Y-m-d');
-                    $reporte->Nacionalidad       = null;
-                    $reporte->TipoPersona        = null;
-                    $reporte->RazonSocial        = null;
-                    $reporte->Nombre             = $alerta->Cliente ?? null;
-                    $reporte->APaterno           = null;
-                    $reporte->AMaterno           = null;
-                    $reporte->RFC                = $alerta->RFCAgente ?? null;
-                    $reporte->CURP               = null;
-                    $reporte->FechaNacimiento    = null;
-                    $reporte->Domicilio          = null;
-                    $reporte->Colonia            = null;
-                    $reporte->Ciudad             = null;
-                    $reporte->Telefono           = null;
-                    $reporte->Ocupacion          = null;
-                    $reporte->NombreAgente       = $alerta->Agente ?? null;
-                    $reporte->APaternoAgente     = null;
-                    $reporte->AMaternoAgente     = null;
-                    $reporte->RFCAgente          = $alerta->RFCAgente ?? null;
-                    $reporte->CURPAgente         = null;
-                    $reporte->Cuenta             = null;
-                    $reporte->NoPolizaCuenta     = null;
-                    $reporte->CveSujetoObl       = null;
-                    $reporte->NombreTitular      = null;
-                    $reporte->APaternoTitular    = null;
-                    $reporte->AMaternoTitular    = null;
-                    $reporte->Descripcion        = $alerta->Descripcion;
-                    $reporte->Razon              = $alerta->Razones;
-                    $reporte->Estatus            = $estatus;
-
-                    $reporte->save();
-                }
+            if ($estatus === 'Enviado') {
+                $this->emitirReporteRegulatorio($alerta);
             }
 
             if ($isInertia) {
@@ -697,5 +587,67 @@ class AlertasController extends Controller
             'reportes' => $reportes,
             'tipoPersona' => $tipoPersona,
         ]);
+    }
+
+    private function emitirReporteRegulatorio(TbAlertas $alerta): void
+    {
+        $yaExiste = TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
+            ->where('Estatus', 'Enviado')
+            ->exists();
+
+        if ($yaExiste) {
+            return;
+        }
+
+        $cliente = $alerta->IDCliente
+            ? TbClientes::with(['domicilios'])->find($alerta->IDCliente)
+            : null;
+
+        $domicilio = null;
+        $colonia   = null;
+        $ciudad    = null;
+
+        if ($cliente && $cliente->domicilios->isNotEmpty()) {
+            $d        = $cliente->domicilios->first();
+            $domicilio = trim(implode(' ', array_filter([
+                $d->Calle ?? '',
+                $d->NoExterior ? 'No. ' . $d->NoExterior : '',
+                $d->NoInterior ? 'Int. ' . $d->NoInterior : '',
+            ]))) ?: null;
+            $colonia = $d->Colonia ?? null;
+            $ciudad  = $d->Municipio ?? null;
+        }
+
+        $hoy = now()->format('Y-m-d');
+
+        $reporte = new TbReporteRegulatorioPLD();
+        $reporte->IDRegistroAlerta    = $alerta->IDRegistroAlerta;
+        $reporte->TipoReporte         = $alerta->Patron ?? 'Preocupante';
+        $reporte->PeriodoReporte      = now()->format('Ym');
+        $reporte->Folio               = $alerta->Folio;
+        $reporte->TipoOperacion       = $alerta->Patron ?? 'Preocupante';
+        $reporte->InstrumentoMonetario = $alerta->InstrumentoMonetario;
+        $reporte->NoPoliza            = $alerta->Poliza;
+        $reporte->Monto               = $alerta->MontoOperacion;
+        $reporte->IDMoneda            = $alerta->IDMoneda;
+        $reporte->FechaOperacion      = $alerta->FechaOperacion ?? $hoy;
+        $reporte->FechaDeteccion      = $alerta->FechaDeteccion ?? $hoy;
+        $reporte->RazonSocial         = $cliente?->RazonSocial;
+        $reporte->Nombre              = $cliente?->Nombre  ?? $alerta->Cliente;
+        $reporte->APaterno            = $cliente?->ApellidoPaterno;
+        $reporte->AMaterno            = $cliente?->ApellidoMaterno;
+        $reporte->RFC                 = $cliente?->RFC ?? $alerta->RFCAgente;
+        $reporte->CURP                = $cliente?->CURP;
+        $reporte->FechaNacimiento     = $cliente?->FechaNacimiento;
+        $reporte->Domicilio           = $domicilio;
+        $reporte->Colonia             = $colonia;
+        $reporte->Ciudad              = $ciudad;
+        $reporte->Telefono            = $cliente?->Telefono;
+        $reporte->NombreAgente        = $alerta->Agente;
+        $reporte->RFCAgente           = $alerta->RFCAgente;
+        $reporte->Descripcion         = $alerta->Descripcion;
+        $reporte->Razon               = $alerta->Razones;
+        $reporte->Estatus             = 'Enviado';
+        $reporte->save();
     }
 }

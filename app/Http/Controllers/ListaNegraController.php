@@ -2,16 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Clientes\TbClientes;
+use App\Models\Clientes\TbClientes;
+use App\Models\Clientes\TbClientes;
 use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Auth; // error log
+use Illuminate\Support\Facades\DB; // <-- Agregar esto
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log; // error log
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage; // error log
 use Inertia\Inertia; // <-- Agregar esto
-use App\Models\Clientes\TbClientes;
+use Inertia\Inertia;
 
 class ListaNegraController extends Controller
 {
@@ -34,7 +39,7 @@ class ListaNegraController extends Controller
             'Observaciones',
             'Acuerdo'
         )
-            ->with(['oficios' => function($query) {
+            ->with(['oficios' => function ($query) {
                 // Traer TODOS los oficios ordenados del más reciente al más antiguo
                 $query->orderBy('TimeStampArchivo', 'desc');
             }])
@@ -47,31 +52,36 @@ class ListaNegraController extends Controller
             })
             ->orderBy('IDRegistroListaCNSF', 'DESC')
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 // Transformar para incluir el array de oficios
-                $item->oficios_list = $item->oficios->map(function($oficio) {
+                $item->oficios_list = $item->oficios->map(function ($oficio) {
                     // Mapear cada oficio con sus datos
                     $accionTexto = '';
-                    switch($oficio->IDAccion) {
-                        case 1: $accionTexto = 'Actualización'; break;
-                        case 2: $accionTexto = 'Eliminación'; break;
-                        case 3: $accionTexto = 'Alta'; break;
+                    switch ($oficio->IDAccion) {
+                        case 1: $accionTexto = 'Actualización';
+                            break;
+                        case 2: $accionTexto = 'Eliminación';
+                            break;
+                        case 3: $accionTexto = 'Alta';
+                            break;
                         default: $accionTexto = 'Desconocido';
                     }
+
                     return [
                         'id' => $oficio->IDControlOficios,
                         'nombre' => $oficio->Archivo,
                         'path' => $oficio->PathArchivo,
                         'fecha' => $oficio->TimeStampArchivo,
                         'accion' => $accionTexto,
-                        'accion_id' => $oficio->IDAccion
+                        'accion_id' => $oficio->IDAccion,
                     ];
                 });
                 // También mantener el campo 'Oficio' por compatibilidad (el más reciente)
                 $item->Oficio = $item->oficios->isNotEmpty() ? $item->oficios->first()->Archivo : null;
                 $item->total_oficios = $item->oficios->count();
-                
+
                 unset($item->oficios); // Eliminar la relación original
+
                 return $item;
             });
 
@@ -93,41 +103,45 @@ class ListaNegraController extends Controller
             $oficios = TbControlOficios::where('IDListaN', $id)
                 ->orderBy('TimeStampArchivo', 'desc')
                 ->get()
-                ->map(function($oficio) {
+                ->map(function ($oficio) {
                     $accionTexto = '';
-                    switch($oficio->IDAccion) {
-                        case 1: $accionTexto = 'Actualización'; break;
-                        case 2: $accionTexto = 'Eliminación'; break;
-                        case 3: $accionTexto = 'Alta'; break;
+                    switch ($oficio->IDAccion) {
+                        case 1: $accionTexto = 'Actualización';
+                            break;
+                        case 2: $accionTexto = 'Eliminación';
+                            break;
+                        case 3: $accionTexto = 'Alta';
+                            break;
                         default: $accionTexto = 'Desconocido';
                     }
-                    
-                     // Limpiar la ruta para que sea accesible desde /storage
+
+                    // Limpiar la ruta para que sea accesible desde /storage
                     $rutaLimpia = $oficio->PathArchivo;
                     // Si tiene 'public/' al inicio, lo removemos
                     $rutaLimpia = str_replace('public/', '', $rutaLimpia);
                     // Si tiene 'storage/' al inicio, lo removemos
                     $rutaLimpia = str_replace('storage/', '', $rutaLimpia);
-                    
+
                     return [
                         'id' => $oficio->IDControlOficios,
                         'nombre' => $oficio->Archivo,
                         'path' => $rutaLimpia,
                         'fecha' => $oficio->TimeStampArchivo,
                         'accion' => $accionTexto,
-                        'accion_id' => $oficio->IDAccion
+                        'accion_id' => $oficio->IDAccion,
                     ];
                 });
-            
+
             return response()->json([
                 'success' => true,
-                'oficios' => $oficios
+                'oficios' => $oficios,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error getOficios: ' . $e->getMessage());
+            Log::error('Error getOficios: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los oficios: ' . $e->getMessage()
+                'message' => 'Error al obtener los oficios: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -148,6 +162,11 @@ class ListaNegraController extends Controller
                 'Observaciones',
                 'Acuerdo'
             )
+                ->when($buscar, function ($query, $buscar) {
+                    $query->where('Nombre', 'LIKE', "%{$buscar}%")
+                        ->orWhere('RFC', 'LIKE', "%{$buscar}%");
+                })
+                ->orderBy('IDRegistroListaCNSF', 'DESC');
             ->when($buscar, function ($query, $buscar) {
                 $query->where('Nombre', 'LIKE', "%{$buscar}%")
                     ->orWhere('RFC', 'LIKE', "%{$buscar}%");
@@ -163,11 +182,11 @@ class ListaNegraController extends Controller
                 return redirect()->back()->with('error', 'No hay datos para exportar.');
             }
 
-            $fileName = 'lista_negra_cnsf_' . date('Ymd_His') . '.csv';
+            $fileName = 'lista_negra_cnsf_'.date('Ymd_His').'.csv';
 
             $headers = [
                 'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
             ];
 
             $callback = function () use ($listas) {
@@ -183,6 +202,7 @@ class ListaNegraController extends Controller
                     'CURP',
                     'Fecha Nacimiento',
                     'País',
+                    'País',
                     'Observaciones',
                     'Acuerdo'
                 ]);
@@ -195,6 +215,7 @@ class ListaNegraController extends Controller
                         $item->CURP,
                         $item->FechaNacimiento,
                         $item->Pais,
+                        $item->Pais,
                         $item->Observaciones,
                         $item->Acuerdo
                     ]);
@@ -205,7 +226,8 @@ class ListaNegraController extends Controller
             return response()->stream($callback, 200, $headers);
 
         } catch (\Exception $e) {
-            Log::error('Error Export CSV: ' . $e->getMessage());
+            Log::error('Error Export CSV: '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Ocurrió un error al exportar el CSV.');
         }
     }
@@ -224,7 +246,7 @@ class ListaNegraController extends Controller
                 'pais' => 'required|string|max:255',
                 'archivo' => 'required|file|mimes:pdf',
                 'observaciones' => 'nullable|string',
-                'acuerdo' => 'nullable|string'
+                'acuerdo' => 'nullable|string',
             ]);
 
             DB::beginTransaction();
@@ -291,7 +313,7 @@ class ListaNegraController extends Controller
                 'pais' => 'required|string|max:255',
                 'archivo' => 'required|file|mimes:pdf',
                 'observaciones' => 'nullable|string',
-                'acuerdo' => 'nullable|string'
+                'acuerdo' => 'nullable|string',
             ]);
 
             DB::beginTransaction();
@@ -352,7 +374,7 @@ class ListaNegraController extends Controller
                 'pais' => 'nullable|string|max:255',
                 'archivo' => 'required|file|mimes:pdf',
                 'observaciones' => 'nullable|string',
-                'acuerdo' => 'nullable|string'
+                'acuerdo' => 'nullable|string',
             ]);
 
             DB::beginTransaction();
@@ -391,10 +413,10 @@ class ListaNegraController extends Controller
             // Log detailed exception info
             Log::error('Error Delete: '.$e->getMessage(), [
                 'exception' => $e,
-                'trace'     => $e->getTraceAsString(),
-                'file'      => $e->getFile(),
-                'line'      => $e->getLine(),
-                'request'   => $request->all(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all(),
                 'record_id' => $id,
             ]);
 
@@ -438,47 +460,48 @@ class ListaNegraController extends Controller
     {
         $archivo = $request->file('archivo');
         $nombreArchivo = time().'_'.$archivo->getClientOriginalName();
-        
+
         try {
             // 1. Guardar en storage/app/public/oficios
             $storagePath = storage_path('app/public/oficios');
-            if (!file_exists($storagePath)) {
+            if (! file_exists($storagePath)) {
                 mkdir($storagePath, 0755, true);
             }
-            
+
             $archivo->move($storagePath, $nombreArchivo);
-            
+
             // Verificar que se guardó correctamente
-            if (!file_exists($storagePath . '/' . $nombreArchivo)) {
+            if (! file_exists($storagePath.'/'.$nombreArchivo)) {
                 throw new \Exception('No se pudo guardar el archivo en storage');
             }
-            
+
             // 2. Guardar también en public/storage/oficios
             $publicPath = public_path('storage/oficios');
-            if (!file_exists($publicPath)) {
+            if (! file_exists($publicPath)) {
                 mkdir($publicPath, 0755, true);
             }
-            
+
             // Copiar el archivo a la ubicación pública
-            copy($storagePath . '/' . $nombreArchivo, $publicPath . '/' . $nombreArchivo);
-            
+            copy($storagePath.'/'.$nombreArchivo, $publicPath.'/'.$nombreArchivo);
+
             // 3. Guardar en BD
             $registro = TbControlOficios::create([
                 'IDListaN' => $id,
-                'PathArchivo' => 'oficios/' . $nombreArchivo, // Ruta relativa para storage
+                'PathArchivo' => 'oficios/'.$nombreArchivo, // Ruta relativa para storage
                 'Archivo' => $nombreArchivo,
                 'IDAccion' => $accion,
                 'TimeStampArchivo' => now(),
             ]);
-            
-            if (!$registro) {
+
+            if (! $registro) {
                 throw new \Exception('No se pudo guardar el registro en BD');
             }
-            
+
             return true;
-            
+
         } catch (\Exception $e) {
-            Log::error('Error guardando oficio: ' . $e->getMessage());
+            Log::error('Error guardando oficio: '.$e->getMessage());
+
             return false;
         }
     }
@@ -495,13 +518,21 @@ class ListaNegraController extends Controller
                 ], 400);
             }
 
-            // 1. Obtener datos del cliente
-            $cliente = TbClientes::select( 'tbClientes.RFC','tbClientes.CURP','tbClientes.Nombre','tbClientes.ApellidoPaterno','tbClientes.ApellidoMaterno','tbClientes.Activo','tbClientes.CoincideEnListasNegras','tbClientes.EsPPEActivo','tbClientesPPE.Cargo')
-                ->leftJoin('tbClientesPPE', 'tbClientesPPE.IDCliente', '=', 'tbClientes.IDCliente')
-                ->where('tbClientes.IDCliente', $id)
+            // 1. Obtener datos del cliente (sin leftJoin)
+            $cliente = TbClientes::select(
+                'RFC',
+                'CURP',
+                'Nombre',
+                'ApellidoPaterno',
+                'ApellidoMaterno',
+                'Activo',
+                'CoincideEnListasNegras',
+                'EsPPEActivo'
+            )
+                ->where('IDCliente', $id)
                 ->first();
 
-            if (!$cliente) {
+            if (! $cliente) {
                 return response()->json([
                     'success' => false,
                     'mensaje' => 'El cliente no existe.',
@@ -511,11 +542,24 @@ class ListaNegraController extends Controller
             $nombreCompleto = trim("{$cliente->Nombre} {$cliente->ApellidoPaterno} {$cliente->ApellidoMaterno}");
 
             $rfcGenericos = ['XAXX010101000'];
+            $rfcValido = ! empty($cliente->RFC) && ! in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
+            $curpValido = ! empty($cliente->CURP);
+            $nombreValido = ! empty($nombreCompleto);
+
             $rfcValido    = !empty($cliente->RFC) && !in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
             $curpValido   = !empty($cliente->CURP);
             $nombreValido = !empty($nombreCompleto);
-            
+
             if ($rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
+            } elseif ($rfcValido && ! $curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->get();
+            } elseif (! $rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
                 $registros = TbListasNegraCNSF::where('RFC',  'LIKE', '%' . $cliente->RFC  . '%')
                 ->where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
                 ->get();
@@ -524,20 +568,20 @@ class ListaNegraController extends Controller
                 ->get();
             } elseif (!$rfcValido && $curpValido) {
                 $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();                                        
-            } elseif ($nombreValido) {
-                $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?',[strtolower($nombreCompleto)])
                 ->get();
+            } elseif ($nombreValido) {
+                $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?', [strtolower($nombreCompleto)])
+                    ->get();
             } else {
                 return response()->json([
-                    'registrosEncontrados'   => 0,
+                    'registrosEncontrados' => 0,
                     'detalleListaBloqueadas' => [],
                 ], 200);
             }
 
             if ($registros->isEmpty()) {
                 return response()->json([
-                    'registrosEncontrados'   => 0,
+                    'registrosEncontrados' => 0,
                     'detalleListaBloqueadas' => [],
                 ], 200);
             }
@@ -549,22 +593,23 @@ class ListaNegraController extends Controller
                     strtolower(trim($item->Nombre ?? '')),
                     $porcentaje
                 );
+
                 return $porcentaje;
             })->first();
 
             $detalle = [
                 [
-                    'lista'           => 'Listas Negra CNSF',
+                    'lista' => 'Listas Negra CNSF',
                     'nombreDetectado' => $registro->Nombre ?? '',
-                    'IDListaOrigen'   => $cliente->CoincideEnListasNegras,
-                    'cargo'           => $cliente->Cargo ?? '',
-                    'PPEActivo'       => (bool) $cliente->EsPPEActivo,
-                    'clienteActivo'   => (bool) $cliente->Activo,
+                    'IDListaOrigen' => $cliente->CoincideEnListasNegras,
+                    'cargo' => $cliente->Cargo ?? '',
+                    'PPEActivo' => (bool) $cliente->EsPPEActivo,
+                    'clienteAutorizado' => (bool) $cliente->Activo,
                 ],
             ];
 
             return response()->json([
-                'registrosEncontrados'   => count($detalle),
+                'registrosEncontrados' => count($detalle),
                 'detalleListaBloqueadas' => $detalle,
             ], 200);
 
