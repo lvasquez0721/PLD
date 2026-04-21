@@ -3,9 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clientes\TbClientes;
-use App\Models\Clientes\TbClientes;
-use App\Models\Clientes\TbClientes;
-use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use Illuminate\Http\Request;
