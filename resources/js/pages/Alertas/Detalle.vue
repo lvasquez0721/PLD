@@ -371,7 +371,7 @@ function getEvidenciaKey(ev: any, idx: any): string | number {
 
 function eliminarEvidencia(ev: any, idx: any) {
     const est = alertaEstatus.value;
-    if (est === 'cerrado' || est === 'enviado' || est === 'reportado') {
+    if (est === 'cerrado' || est === 'enviado') {
         return;
     }
     if (!confirm('¿Seguro que deseas eliminar este archivo de evidencia?')) return;

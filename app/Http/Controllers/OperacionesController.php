@@ -12,7 +12,6 @@ use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
 use App\Services\PLD\AnalisisPagosService;
 use App\Services\PLD\ReportesRegulatorios;
-
 use Illuminate\Http\Request;
 
 class OperacionesController extends Controller
@@ -64,7 +63,7 @@ class OperacionesController extends Controller
 
         // Validar si el cliente está activo
         $cliente = TbClientes::find($validatedData['IDCliente']);
-        if (!$cliente || !$cliente->Activo) {
+        if (! $cliente || ! $cliente->Activo) {
             return response()->json([
                 'codigoError' => 403,
                 'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
@@ -106,15 +105,15 @@ class OperacionesController extends Controller
                 $beneficiarioModel->save();
             }
 
-            $mensajeExito = "Operación ingresada exitosamente";
+            $mensajeExito = 'Operación ingresada exitosamente';
             if ($cliente->CoincideEnListasNegras) {
-                $mensajeExito .= ". Nota: El cliente cuenta con coincidencias en listas.";
+                $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
             }
 
             return response()->json([
-                "codigoError" => 0,
-                "error" => $mensajeExito,
-                "IDOperacion" => $operacion->IDOperacion
+                'codigoError' => 0,
+                'error' => $mensajeExito,
+                'IDOperacion' => $operacion->IDOperacion,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -163,7 +162,7 @@ class OperacionesController extends Controller
             $cliente = TbClientes::where('IDCliente', $request->IDCliente)->first();
 
             // Validar si el cliente está activo
-            if (!$cliente || !$cliente->Activo) {
+            if (! $cliente || ! $cliente->Activo) {
                 return response()->json([
                     'codigoError' => 403,
                     'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
@@ -192,8 +191,8 @@ class OperacionesController extends Controller
             // Agrupar operaciones por poliza y endoso
             $detalleAGrupado = [];
             foreach ($request->detalleOperaciones as $detalleOperacion) {
-                $key = ($detalleOperacion['folioPoliza'] ?? '') . '||' . ($detalleOperacion['folioEndoso'] ?? '');
-                if (!isset($detalleAGrupado[$key])) {
+                $key = ($detalleOperacion['folioPoliza'] ?? '').'||'.($detalleOperacion['folioEndoso'] ?? '');
+                if (! isset($detalleAGrupado[$key])) {
                     $detalleAGrupado[$key] = [
                         'folioPoliza' => $detalleOperacion['folioPoliza'] ?? null,
                         'folioEndoso' => $detalleOperacion['folioEndoso'] ?? null,
@@ -223,7 +222,7 @@ class OperacionesController extends Controller
                 $op = $operacionQuery->first();
                 $operacion = $op;
 
-                if (!$operacion) {
+                if (! $operacion) {
                     return response()->json([
                         'codigoError' => 404,
                         'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
@@ -240,28 +239,28 @@ class OperacionesController extends Controller
                 $primaTotalOperacion = $operacion->PrimaTotal;
 
                 // Valida si la suma total (pagos anteriores + esta petición) ya cubre justo la prima (0), no sobrepasa, y admite montos negativos y positivos
-                $saldoPendiente = bcadd((string)($primaTotalOperacion - $montoTotalPagado), (string)(-$nuevoPagoTotal), 2); // saldo pendiente después del pago
-                $totalPagadoTrasEstaPeticion = bcadd((string)$montoTotalPagado, (string)$nuevoPagoTotal, 2);
-                $restante = bcsub((string)$primaTotalOperacion, (string)$totalPagadoTrasEstaPeticion, 2);
+                $saldoPendiente = bcadd((string) ($primaTotalOperacion - $montoTotalPagado), (string) (-$nuevoPagoTotal), 2); // saldo pendiente después del pago
+                $totalPagadoTrasEstaPeticion = bcadd((string) $montoTotalPagado, (string) $nuevoPagoTotal, 2);
+                $restante = bcsub((string) $primaTotalOperacion, (string) $totalPagadoTrasEstaPeticion, 2);
 
                 // La póliza se considera pagada si el saldo es exactamente 0 después de este pago (admite positivo y negativo en pagos)
-                if (bccomp((string)$restante, '0', 2) == 0) {
+                if (bccomp((string) $restante, '0', 2) == 0) {
                     // Permite este pago (pagado exacto a la prima), no bloquea.
-                } elseif (bccomp((string)$restante, '0', 2) < 0) {
+                } elseif (bccomp((string) $restante, '0', 2) < 0) {
                     // Demasiado pagado, no se permite. Permite llegar a 0 exacto, admite negativos para compensar.
                     return response()->json([
-                        "codigoError" => 1,
-                        "error" => "No se permite exceder el pago total de la póliza / endoso",
-                        "IDOperacion" => $idOperacionResult
+                        'codigoError' => 1,
+                        'error' => 'No se permite exceder el pago total de la póliza / endoso',
+                        'IDOperacion' => $idOperacionResult,
                     ], 200);
                 }
 
                 // Si ya estaba pagada antes de este pago (restante antes del pago <= 0), no permitir más pagos
-                if (bccomp((string)($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
+                if (bccomp((string) ($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
                     return response()->json([
-                        "codigoError" => 1,
-                        "error" => "La póliza / endoso ya se encuentra pagada en su totalidad",
-                        "IDOperacion" => $idOperacionResult
+                        'codigoError' => 1,
+                        'error' => 'La póliza / endoso ya se encuentra pagada en su totalidad',
+                        'IDOperacion' => $idOperacionResult,
                     ], 200);
                 }
 
@@ -283,7 +282,7 @@ class OperacionesController extends Controller
                             'codigoError' => 500,
                             'error' => 'Error al guardar el pago.',
                             'detalles' => $e->getMessage(),
-                            'IDOperacion' => $idOperacionResult
+                            'IDOperacion' => $idOperacionResult,
                         ], 500);
                     }
 
@@ -329,15 +328,15 @@ class OperacionesController extends Controller
             }
 
             // Código de éxito: 0
-            $mensajeExito = "Operación ingresada exitosamente";
+            $mensajeExito = 'Operación ingresada exitosamente';
             if ($cliente->CoincideEnListasNegras) {
-                $mensajeExito .= ". Nota: El cliente cuenta con coincidencias en listas.";
+                $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
             }
 
             return response()->json([
-                "codigoError" => 0,
-                "error" => $mensajeExito,
-                "IDOperacion" => $idOperacionResult
+                'codigoError' => 0,
+                'error' => $mensajeExito,
+                'IDOperacion' => $idOperacionResult,
             ], 201);
 
         } catch (\Exception $e) {
@@ -345,7 +344,7 @@ class OperacionesController extends Controller
                 'codigoError' => 500,
                 'error' => 'Error inesperado en el proceso de inserción de pagos',
                 'detalles' => $e->getMessage(),
-                'IDOperacion' => isset($idOperacionResult) ? $idOperacionResult : null
+                'IDOperacion' => isset($idOperacionResult) ? $idOperacionResult : null,
             ], 500);
         }
     }
@@ -389,7 +388,7 @@ class OperacionesController extends Controller
             'pagos_operacion_count' => count($pagosOperacion),
         ]);
         // Si en el futuro se restaura la clase, puedes descomentar y usar la siguiente línea:
-        $reportesRegulatoriosService = new ReportesRegulatorios();
+        $reportesRegulatoriosService = new ReportesRegulatorios;
         $reportesRegulatoriosService->insertarReporte($operacion, $cliente, $alerta, $evidencias, $pagosOperacion, $resultadoAnalisis);
 
         foreach ($pagosOperacion as $pago) {
@@ -430,18 +429,18 @@ class OperacionesController extends Controller
     {
         try {
             $idOperacion = $request->input('IDOperacion');
-            if (!$idOperacion) {
+            if (! $idOperacion) {
                 return response()->json([
                     'codigoError' => 400,
-                    'error' => 'IDOperacion es requerido para realizar el rollback de pagos.'
+                    'error' => 'IDOperacion es requerido para realizar el rollback de pagos.',
                 ], 400);
             }
 
             $operacion = TbOperaciones::find($idOperacion);
-            if (!$operacion) {
+            if (! $operacion) {
                 return response()->json([
                     'codigoError' => 404,
-                    'error' => 'No se encontró la operación con el ID proporcionado.'
+                    'error' => 'No se encontró la operación con el ID proporcionado.',
                 ], 404);
             }
 
@@ -450,7 +449,7 @@ class OperacionesController extends Controller
                 return response()->json([
                     'codigoError' => 404,
                     'error' => 'No se encontraron pagos asociados a la operación proporcionada.',
-                    'IDOperacion' => $idOperacion
+                    'IDOperacion' => $idOperacion,
                 ], 404);
             }
 
@@ -473,7 +472,7 @@ class OperacionesController extends Controller
                 unset($logPagoData['IDOperacionPago']);
                 $logPagoData['IDOperacion'] = $idOperacion;
 
-                $logPago = new LogOperacionesPagos();
+                $logPago = new LogOperacionesPagos;
                 $logPago->fill($logPagoData);
                 $logPago->save();
             }
@@ -484,12 +483,13 @@ class OperacionesController extends Controller
 
             return response()->json([
                 'codigoError' => 0,
-                'mensaje' => 'Los pagos han sido revertidos correctamente.' . ($alertasGeneradas->isNotEmpty() ? ' Se eliminaron ' . $alertasGeneradas->count() . ' alerta(s) con estatus "Generado" asociadas.' : ''),
-                'IDOperacion' => $idOperacion
+                'mensaje' => 'Los pagos han sido revertidos correctamente.'.($alertasGeneradas->isNotEmpty() ? ' Se eliminaron '.$alertasGeneradas->count().' alerta(s) con estatus "Generado" asociadas.' : ''),
+                'IDOperacion' => $idOperacion,
             ]);
 
         } catch (\Exception $e) {
             \DB::rollBack();
+
             return response()->json([
                 'codigoError' => 500,
                 'error' => 'Ocurrió un error al intentar revertir los pagos.',
@@ -506,19 +506,19 @@ class OperacionesController extends Controller
     {
         try {
             $idOperacion = $request->input('IDOperacion');
-            if (!$idOperacion) {
+            if (! $idOperacion) {
                 return response()->json([
                     'codigoError' => 400,
-                    'error' => 'IDOperacion es requerido para realizar el rollback.'
+                    'error' => 'IDOperacion es requerido para realizar el rollback.',
                 ], 400);
             }
 
             // Buscar la operación original en tbOperaciones
             $operacion = TbOperaciones::find($idOperacion);
-            if (!$operacion) {
+            if (! $operacion) {
                 return response()->json([
                     'codigoError' => 404,
-                    'error' => 'No se encontró la operación con el ID proporcionado.'
+                    'error' => 'No se encontró la operación con el ID proporcionado.',
                 ], 404);
             }
 
@@ -527,29 +527,44 @@ class OperacionesController extends Controller
                 return response()->json([
                     'codigoError' => 409,
                     'error' => 'La operación ya ha sido cancelada previamente.',
-                    'IDOperacion' => $operacion->IDOperacion
+                    'IDOperacion' => $operacion->IDOperacion,
                 ], 409);
             }
 
-            // Validar si existen alertas relacionadas a la operación
-            $alertasExistentes = TbAlertas::where('IDOperacion', $idOperacion)->exists();
-            if ($alertasExistentes) {
-                return response()->json([
-                    'codigoError' => 409,
-                    'error' => 'No es posible revertir la operación porque tiene alertas relacionadas.',
-                    'IDOperacion' => $operacion->IDOperacion
-                ], 409);
+            // Verificar existencia de alertas relacionadas
+            $alertas = TbAlertas::where('IDOperacion', $idOperacion)->get();
+
+            if ($alertas->count() > 0) {
+                // Existen alertas relacionadas, revisar los estatus
+                $alertasEstatusNoGenerado = $alertas->where(fn ($a) => $a->Estatus !== 'Generado');
+                if ($alertasEstatusNoGenerado->count() > 0) {
+                    // Hay alguna en estatus diferente de "Generado", NO proceder
+                    return response()->json([
+                        'codigoError' => 409,
+                        'error' => 'No es posible revertir la operación porque tiene alertas relacionadas en un estatus diferente a "Generado".',
+                        'IDOperacion' => $operacion->IDOperacion,
+                    ], 409);
+                }
             }
 
             // Iniciar transacción DB
             \DB::beginTransaction();
+
+            // Si existen alertas con estatus "Generado", eliminarlas (y sus pagos-alertas relacionados)
+            if ($alertas->count() > 0) {
+                foreach ($alertas as $alerta) {
+                    // Eliminar registros en tbPagosAlertas antes de borrar la alerta
+                    TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->delete();
+                    $alerta->delete();
+                }
+            }
 
             // Copiar la operación a logOperaciones
             $logOperacionData = $operacion->toArray();
             $logOperacionData['cancelaPoliza'] = true; // Marcarla como cancelada en el log
 
             // Si el modelo LogOperaciones no permite autoincrementar el PK, asegúrate de pasarlo (No autoincrement)
-            $logOperacion = new \App\Models\LogOperaciones();
+            $logOperacion = new \App\Models\LogOperaciones;
             $logOperacion->fill($logOperacionData);
             $logOperacion->save();
 
@@ -562,7 +577,7 @@ class OperacionesController extends Controller
                 unset($logPagoData['IDOperacionPago']); // logOperacionesPagos es autoincremental, se debería omitir el PK
                 $logPagoData['IDOperacion'] = $idOperacion; // Aseguramos, aunque debería coincidir
 
-                $logPago = new LogOperacionesPagos();
+                $logPago = new LogOperacionesPagos;
                 $logPago->fill($logPagoData);
                 $logPago->save();
             }
@@ -576,12 +591,14 @@ class OperacionesController extends Controller
             \DB::commit();
 
             return response()->json([
-                "codigoError" => 0,
-                "mensaje" => "La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.",
-                "IDOperacion" => $logOperacion->IDOperacion
+                'codigoError' => 0,
+                'mensaje' => 'La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.'.
+                             ($alertas->count() > 0 ? " Se eliminaron {$alertas->count()} alerta(s) con estatus 'Generado' asociadas." : ''),
+                'IDOperacion' => $logOperacion->IDOperacion,
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();
+
             return response()->json([
                 'codigoError' => 500,
                 'error' => 'Ocurrió un error al intentar revertir la operación.',
@@ -589,5 +606,4 @@ class OperacionesController extends Controller
             ], 500);
         }
     }
-
 }
