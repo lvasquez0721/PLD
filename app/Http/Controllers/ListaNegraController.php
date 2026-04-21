@@ -3,20 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clientes\TbClientes;
-use App\Models\Clientes\TbClientes;
-use App\Models\Clientes\TbClientes;
 use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth; // error log
 use Illuminate\Support\Facades\DB; // <-- Agregar esto
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage; // error log
 use Inertia\Inertia; // <-- Agregar esto
-use Inertia\Inertia;
 
 class ListaNegraController extends Controller
 {
@@ -166,15 +161,15 @@ class ListaNegraController extends Controller
                     $query->where('Nombre', 'LIKE', "%{$buscar}%")
                         ->orWhere('RFC', 'LIKE', "%{$buscar}%");
                 })
+                ->orderBy('IDRegistroListaCNSF', 'DESC')
+                ->when($buscar, function ($query, $buscar) {
+                    $query->where('Nombre', 'LIKE', "%{$buscar}%")
+                        ->orWhere('RFC', 'LIKE', "%{$buscar}%");
+                })
+                ->when($acuerdo, function ($query, $acuerdo) {
+                    $query->where('Acuerdo', 'LIKE', "%{$acuerdo}%");
+                })
                 ->orderBy('IDRegistroListaCNSF', 'DESC');
-            ->when($buscar, function ($query, $buscar) {
-                $query->where('Nombre', 'LIKE', "%{$buscar}%")
-                    ->orWhere('RFC', 'LIKE', "%{$buscar}%");
-            })
-            ->when($acuerdo, function ($query, $acuerdo) {
-                $query->where('Acuerdo', 'LIKE', "%{$acuerdo}%");
-            })
-            ->orderBy('IDRegistroListaCNSF', 'DESC');
 
             $listas = $query->get();
 
@@ -204,7 +199,7 @@ class ListaNegraController extends Controller
                     'País',
                     'País',
                     'Observaciones',
-                    'Acuerdo'
+                    'Acuerdo',
                 ]);
 
                 foreach ($listas as $item) {
@@ -217,7 +212,7 @@ class ListaNegraController extends Controller
                         $item->Pais,
                         $item->Pais,
                         $item->Observaciones,
-                        $item->Acuerdo
+                        $item->Acuerdo,
                     ]);
                 }
                 fclose($file);
@@ -546,9 +541,9 @@ class ListaNegraController extends Controller
             $curpValido = ! empty($cliente->CURP);
             $nombreValido = ! empty($nombreCompleto);
 
-            $rfcValido    = !empty($cliente->RFC) && !in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
-            $curpValido   = !empty($cliente->CURP);
-            $nombreValido = !empty($nombreCompleto);
+            $rfcValido = ! empty($cliente->RFC) && ! in_array(strtoupper(trim($cliente->RFC)), $rfcGenericos);
+            $curpValido = ! empty($cliente->CURP);
+            $nombreValido = ! empty($nombreCompleto);
 
             if ($rfcValido && $curpValido) {
                 $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
@@ -560,15 +555,15 @@ class ListaNegraController extends Controller
             } elseif (! $rfcValido && $curpValido) {
                 $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
                     ->get();
-                $registros = TbListasNegraCNSF::where('RFC',  'LIKE', '%' . $cliente->RFC  . '%')
-                ->where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();
-            } elseif ($rfcValido && !$curpValido) {
-                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%' . $cliente->RFC . '%')
-                ->get();
-            } elseif (!$rfcValido && $curpValido) {
-                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%' . $cliente->CURP . '%')
-                ->get();
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
+            } elseif ($rfcValido && ! $curpValido) {
+                $registros = TbListasNegraCNSF::where('RFC', 'LIKE', '%'.$cliente->RFC.'%')
+                    ->get();
+            } elseif (! $rfcValido && $curpValido) {
+                $registros = TbListasNegraCNSF::where('CURP', 'LIKE', '%'.$cliente->CURP.'%')
+                    ->get();
             } elseif ($nombreValido) {
                 $registros = TbListasNegraCNSF::whereRaw('LOWER(TRIM(Nombre)) = ?', [strtolower($nombreCompleto)])
                     ->get();
