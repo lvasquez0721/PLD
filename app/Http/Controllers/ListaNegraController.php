@@ -3,14 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clientes\TbClientes;
+use App\Models\ListasBloqueadas\LogListaNegraCNSF;
 use App\Models\ListasBloqueadas\TbControlOficios;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // error log
-use Illuminate\Support\Facades\DB; // <-- Agregar esto
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage; // error log
-use Inertia\Inertia; // <-- Agregar esto
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class ListaNegraController extends Controller
 {
