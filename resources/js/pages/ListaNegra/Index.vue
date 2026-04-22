@@ -176,7 +176,7 @@
   }
 
   // Función para ver un PDF específico
-  const verPDF = (oficio) => {
+  const verPDF = (oficio: any) => {
     // Usar la ruta de storage (funcionará con storage link)
     pdfPreviewUrl.value = `/storage/${oficio.path}`;
     mostrarPDF.value = true;
@@ -540,8 +540,8 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-center align-middle">
-                                    <button 
-                                        v-if="item.total_oficios > 0" 
+                                    <button                                         
+                                        v-if="item.total_oficios && item.total_oficios > 0" 
                                         @click="verOficios(item)"
                                         class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 transition-all duration-200 ease-out hover:text-blue-500 hover:underline hover:underline-offset-4 dark:text-blue-400 dark:hover:text-blue-300">
                                         <Eye class="h-4 w-4" />
