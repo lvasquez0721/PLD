@@ -548,6 +548,16 @@ class OperacionesController extends Controller
                 }
             }
 
+            // Verificar si la operación tiene pagos asociados
+            $pagosCount = TbOperacionesPagos::where('IDOperacion', $idOperacion)->count();
+            if ($pagosCount > 0) {
+                return response()->json([
+                    'codigoError' => 409,
+                    'error' => 'No se pudo realizar el rollback porque la operación cuenta con pagos asociados.',
+                    'IDOperacion' => $operacion->IDOperacion,
+                ], 409);
+            }
+
             // Iniciar transacción DB
             \DB::beginTransaction();
 
@@ -569,23 +579,6 @@ class OperacionesController extends Controller
             $logOperacion->fill($logOperacionData);
             $logOperacion->save();
 
-            // Obtener pagos de la operación
-            $pagos = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
-
-            foreach ($pagos as $pago) {
-                // Copiar cada pago a logOperacionesPagos
-                $logPagoData = $pago->toArray();
-                unset($logPagoData['IDOperacionPago']); // logOperacionesPagos es autoincremental, se debería omitir el PK
-                $logPagoData['IDOperacion'] = $idOperacion; // Aseguramos, aunque debería coincidir
-
-                $logPago = new LogOperacionesPagos;
-                $logPago->fill($logPagoData);
-                $logPago->save();
-            }
-
-            // Eliminar pagos originales en tbOperacionesPagos
-            TbOperacionesPagos::where('IDOperacion', $idOperacion)->delete();
-
             // Eliminar la operación original en tbOperaciones
             $operacion->delete();
 
@@ -593,7 +586,7 @@ class OperacionesController extends Controller
 
             return response()->json([
                 'codigoError' => 0,
-                'mensaje' => 'La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.'.
+                'mensaje' => 'La operación ha sido revertida y movida correctamente a logOperaciones.'.
                              ($alertas->count() > 0 ? " Se eliminaron {$alertas->count()} alerta(s) con estatus 'Generado' asociadas." : ''),
                 'IDOperacion' => $logOperacion->IDOperacion,
             ]);
