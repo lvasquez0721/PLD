@@ -37,6 +37,8 @@ class OperacionesController extends Controller
                 'APaternoAgente' => 'required|string|max:100',
                 'AMaternoAgente' => 'required|string|max:100',
                 'RazonSocialAgente' => 'required|string|max:300',
+                'IDFormaPago' => 'nullable|string',
+                'IDTipoPago' => 'nullable|integer|exists:catTipoPagos,IDTipoPago',
                 'EsEndosoCancelacion' => 'required|boolean',
                 'DetalleBeneficiarios' => 'required|array|min:1',
                 'DetalleBeneficiarios.*.RFC' => 'required|string|max:13',
@@ -89,6 +91,8 @@ class OperacionesController extends Controller
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
             $operacion->FechaFinVigencia = $validatedData['FechaFinVigencia'];
             $operacion->tipoDocumento = $request->tipoDocumento ?? null;
+            $operacion->IDFormaPago = $request->IDFormaPago ?? null;
+            $operacion->IDTipoPago = $validatedData['IDTipoPago'] ?? null;
             $operacion->save();
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
@@ -138,9 +142,9 @@ class OperacionesController extends Controller
                     'IDCliente' => 'required|integer',
                     'montoPagado' => 'required|numeric',
                     'IDMoneda' => 'required|string',
-                    'IDFormaPago' => 'required|string',
                     'TipoCambio' => 'required|numeric',
                     'FechaPago' => 'required|date',
+                    'IDFormaPago' => 'nullable|integer|exists:catFormaPagos,IDFormaPago',
                     'detalleOperaciones' => 'required|array|min:1',
                     'detalleOperaciones.*.folioPoliza' => 'nullable|string',
                     'detalleOperaciones.*.folioEndoso' => 'nullable|string',
@@ -272,7 +276,7 @@ class OperacionesController extends Controller
                     $pago->IDCliente = $request->IDCliente;
                     $pago->Monto = $detalleOperacion['detalleMontoPagado'];
                     $pago->IDMoneda = $request->IDMoneda;
-                    $pago->IDFormaPago = $request->IDFormaPago;
+                    $pago->IDFormaPago = $request->IDFormaPago ?? null;
                     $pago->TipoCambio = $request->TipoCambio;
                     $pago->FechaPago = $request->FechaPago;
 
@@ -393,7 +397,7 @@ class OperacionesController extends Controller
         $reportesRegulatoriosService->insertarReporte($operacion, $cliente, $alerta, $evidencias, $pagosOperacion, $resultadoAnalisis);
 
         foreach ($pagosOperacion as $pago) {
-            $formaPago = CatFormaPagos::find($pago->IDFormaPago);
+            $formaPago = CatFormaPagos::find($operacion->IDFormaPago);
             $pagoAlerta = new TbPagosAlertas;
             $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
             $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;

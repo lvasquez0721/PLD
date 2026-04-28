@@ -61,6 +61,7 @@ interface Resultado {
     Ncliente:            number;
     Nombre:              string;
     NoPoliza?:           string | null;
+    TipoPago?:           string | null;
     FormaPago?:          string | null;
     FechaPago?:          string | null;
     MontoPagadoMXD:      number | null;
@@ -405,6 +406,7 @@ const labelUSDacum = computed(() => {
                                 <thead>
                                     <tr class="sticky top-0 z-10 bg-blue-50 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:bg-blue-950/60 dark:text-neutral-200">
                                         <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Póliza</th>
+                                        <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Tipo de Pago</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Forma de Pago</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Fecha Pago</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-right dark:border-neutral-800">Monto {{ monedaLabel }}</th>
@@ -412,13 +414,14 @@ const labelUSDacum = computed(() => {
                                 </thead>
                                 <tbody v-if="isLoadingDetalle">
                                     <tr>
-                                        <td colspan="4" class="px-3 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">Cargando…</td>
+                                        <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">Cargando…</td>
                                     </tr>
                                 </tbody>
                                 <tbody v-else-if="paginatedDetalle.length">
                                     <tr v-for="(row, idx) in paginatedDetalle" :key="idx"
                                         class="border-b border-slate-100 bg-white even:bg-slate-50/50 dark:border-neutral-800/60 dark:bg-neutral-950/40 dark:even:bg-neutral-900/30">
                                         <td class="px-3 py-2">{{ row.NoPoliza ?? 'N/A' }}</td>
+                                        <td class="px-3 py-2">{{ row.TipoPago ?? 'N/A' }}</td>
                                         <td class="px-3 py-2">{{ row.FormaPago ?? 'N/A' }}</td>
                                         <td class="px-3 py-2">{{ row.FechaPago ?? 'N/A' }}</td>
                                         <td class="px-3 py-2 text-right font-mono">
@@ -428,7 +431,7 @@ const labelUSDacum = computed(() => {
                                 </tbody>
                                 <tbody v-else>
                                     <tr>
-                                        <td colspan="4" class="px-3 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">Sin movimientos</td>
+                                        <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">Sin movimientos</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -488,6 +491,7 @@ const labelUSDacum = computed(() => {
                                         <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Nombre</th>
                                         <template v-if="!modoAgrupado">
                                             <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Póliza</th>
+                                            <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Tipo de Pago</th>
                                             <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Forma de Pago</th>
                                             <th class="border-b border-slate-200 px-3 py-2 text-left dark:border-neutral-800">Fecha Pago</th>
                                         </template>
@@ -498,7 +502,7 @@ const labelUSDacum = computed(() => {
 
                                 <tbody v-if="isLoading">
                                     <tr>
-                                        <td :colspan="modoAgrupado ? 4 : 6" class="px-3 py-8 text-center text-sm text-slate-400 dark:text-neutral-500">Cargando…</td>
+                                        <td :colspan="modoAgrupado ? 4 : 7" class="px-3 py-8 text-center text-sm text-slate-400 dark:text-neutral-500">Cargando…</td>
                                     </tr>
                                 </tbody>
 
@@ -509,6 +513,7 @@ const labelUSDacum = computed(() => {
                                         <td class="px-3 py-2 align-middle max-w-[220px] truncate" :title="row.Nombre">{{ row.Nombre }}</td>
                                         <template v-if="!modoAgrupado">
                                             <td class="px-3 py-2 align-middle">{{ row.NoPoliza ?? 'N/A' }}</td>
+                                            <td class="px-3 py-2 align-middle">{{ row.TipoPago ?? 'N/A' }}</td>
                                             <td class="px-3 py-2 align-middle">{{ row.FormaPago ?? 'N/A' }}</td>
                                             <td class="px-3 py-2 align-middle">{{ row.FechaPago ?? 'N/A' }}</td>
                                         </template>
@@ -527,7 +532,7 @@ const labelUSDacum = computed(() => {
 
                                 <tbody v-else>
                                     <tr>
-                                        <td :colspan="modoAgrupado ? 4 : 6" class="px-3 py-8 text-center text-sm text-slate-400 dark:text-neutral-500">
+                                        <td :colspan="modoAgrupado ? 4 : 7" class="px-3 py-8 text-center text-sm text-slate-400 dark:text-neutral-500">
                                             No hay información con esos criterios
                                         </td>
                                     </tr>

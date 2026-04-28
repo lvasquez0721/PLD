@@ -21,6 +21,8 @@ class TbOperaciones extends Model
     protected $fillable = [
         'IDCliente',
         'IDMoneda',
+        'IDFormaPago',
+        'IDTipoPago',
         'FechaInicioVigencia',
         'FechaFinVigencia',
         'RazonSocialAgente',
@@ -35,7 +37,7 @@ class TbOperaciones extends Model
         'APaternoAgente',
         'AMaternoAgente',
         'tipoDocumento',
-        'cancelaPoliza'
+        'cancelaPoliza',
     ];
 
     /**

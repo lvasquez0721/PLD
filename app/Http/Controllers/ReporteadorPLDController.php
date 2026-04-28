@@ -44,10 +44,12 @@ class ReporteadorPLDController extends Controller
             ->join('tbOperaciones as o', 'op.IDOperacion', '=', 'o.IDOperacion')
             ->join('tbClientes as c', 'o.IDCliente', '=', 'c.IDCliente')
             ->leftJoin('catFormaPagos as cf', 'op.IDFormaPago', '=', 'cf.IDFormaPago')
+            ->leftJoin('catTipoPagos as ct', 'o.IDTipoPago', '=', 'ct.IDTipoPago')
             ->select([
                 DB::raw('c.IDCliente as Ncliente'),
                 DB::raw("$nombreExpr as Nombre"),
                 'o.FolioPoliza as NoPoliza',
+                'ct.TipoPago',
                 'cf.FormaPago',
                 'op.FechaPago',
                 DB::raw("CASE WHEN op.IDMoneda = 'MXN' THEN op.Monto ELSE op.Monto * op.TipoCambio END as MontoPagadoMXD"),
@@ -103,12 +105,13 @@ class ReporteadorPLDController extends Controller
                     ]);
                 }
             } else {
-                fputcsv($file, ['No. Cliente', 'Nombre', 'Póliza', 'Forma de Pago', 'Fecha Pago', $montoHeader]);
+                fputcsv($file, ['No. Cliente', 'Nombre', 'Póliza', 'Tipo de Pago', 'Forma de Pago', 'Fecha Pago', $montoHeader]);
                 foreach ($resultados as $row) {
                     fputcsv($file, [
                         $row->Ncliente,
                         $row->Nombre,
                         $row->NoPoliza  ?? '',
+                        $row->TipoPago  ?? '',
                         $row->FormaPago ?? '',
                         $row->FechaPago ?? '',
                         number_format((float) $row->$montoField, 2),
@@ -162,7 +165,8 @@ class ReporteadorPLDController extends Controller
         $query = DB::table('tbOperacionesPagos as op')
             ->join('tbOperaciones as o', 'op.IDOperacion', '=', 'o.IDOperacion')
             ->join('tbClientes as c', 'o.IDCliente', '=', 'c.IDCliente')
-            ->leftJoin('catFormaPagos as cf', 'op.IDFormaPago', '=', 'cf.IDFormaPago');
+            ->leftJoin('catFormaPagos as cf', 'op.IDFormaPago', '=', 'cf.IDFormaPago')
+            ->leftJoin('catTipoPagos as ct', 'o.IDTipoPago', '=', 'ct.IDTipoPago');
 
         // ── Filtros base ─────────────────────────────────────────────────────────
 
@@ -228,6 +232,7 @@ class ReporteadorPLDController extends Controller
             DB::raw('c.IDCliente as Ncliente'),
             DB::raw("$nombreExpr as Nombre"),
             'o.FolioPoliza as NoPoliza',
+            'ct.TipoPago',
             'cf.FormaPago',
             'op.FechaPago',
             DB::raw("$mxdExpr as MontoPagadoMXD"),
