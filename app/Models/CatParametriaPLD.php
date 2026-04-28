@@ -39,6 +39,8 @@ class CatParametriaPLD extends Model
 
     const TOLERANCIA_PAGOS_FRACCIONADOS = 15;
 
+    const REPORTEADOR_MONTO_ACUMULADO = 2;
+
     const MONTO_AUTORIZACION_EFECTIVO_PF = 16;
 
     const MONTO_AUTORIZACION_EFECTIVO_PM = 17;
@@ -65,6 +67,11 @@ class CatParametriaPLD extends Model
         }
 
         return $param->Valor;
+    }
+
+    public static function getReporteadorMontoAcumulado()
+    {
+        return self::getValor(self::REPORTEADOR_MONTO_ACUMULADO, 75000);
     }
 
     public static function getOperacionesRelevantes()

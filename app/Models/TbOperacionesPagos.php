@@ -34,6 +34,7 @@ class TbOperacionesPagos extends Model
     {
         return $this->belongsTo(TbOperaciones::class, 'IDOperacion', 'IDOperacion');
     }
+    
 
     /**
      * Relación con la moneda (catMonedas)

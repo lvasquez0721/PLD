@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlertasController;
+use App\Http\Controllers\ReporteadorPLDController;
 use App\Http\Controllers\ExportarLayoutController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use App\Http\Controllers\ClientesController;
@@ -112,6 +113,14 @@ Route::get('/consulta-inusualidad', [ConsultaInusualidadController::class, 'inde
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/exportar-layout', [ExportarLayoutController::class, 'index'])->name('exportar-layout.index');
     Route::get('/exportar-layout/exportar', [ExportarLayoutController::class, 'exportar'])->name('exportar-layout.exportar');
+});
+
+// Reporteador PLD
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/reporteador-pld', [ReporteadorPLDController::class, 'index'])->name('reporteador-pld.index');
+    Route::get('/reporteador-pld/buscar', [ReporteadorPLDController::class, 'buscar'])->name('reporteador-pld.buscar');
+    Route::get('/reporteador-pld/detalle', [ReporteadorPLDController::class, 'detalle'])->name('reporteador-pld.detalle');
+    Route::get('/reporteador-pld/exportar', [ReporteadorPLDController::class, 'exportarCSV'])->name('reporteador-pld.exportar');
 });
 
 // Clientes

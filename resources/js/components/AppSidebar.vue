@@ -116,6 +116,12 @@ const mainNavItems: NavItem[] = [
         icon: Download,
         badge: null
     },
+    {
+        title: 'Reporteador PLD',
+        href: '/reporteador-pld',
+        icon: BarChart3,
+        badge: null
+    },
     //{
     //    title: 'Consulta Inusualidad',
     //    href: '/consulta-inusualidad',
