@@ -38,6 +38,9 @@ class TbOperaciones extends Model
         'AMaternoAgente',
         'tipoDocumento',
         'cancelaPoliza',
+        // Añadidos de la migración 2026_04_29_213405_add_columns_to_tb_operaciones.php
+        'PagaTercero',
+        'EsquemaDePago',
     ];
 
     /**

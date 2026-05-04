@@ -21,7 +21,8 @@ class OperacionesController extends Controller
     public function insertarOperacion(Request $request)
     {
         try {
-            $validatedData = $request->validate([
+            // Validación condicional para Nombre/Apellidos o RazonSocialAgente
+            $rules = [
                 'IDCliente' => 'required|integer',
                 'FolioPoliza' => 'required|string|max:40',
                 'FolioEndoso' => 'required|string|max:40',
@@ -33,13 +34,14 @@ class OperacionesController extends Controller
                 'GastosEmision' => 'required|numeric',
                 'RFCAgente' => 'required|string|max:13',
                 'CURPAgente' => 'required|string|max:18',
-                'NombreAgente' => 'required|string|max:100',
-                'APaternoAgente' => 'required|string|max:100',
-                'AMaternoAgente' => 'required|string|max:100',
-                'RazonSocialAgente' => 'required|string|max:300',
+                'NombreAgente' => 'nullable|string|max:100',
+                'APaternoAgente' => 'nullable|string|max:100',
+                'AMaternoAgente' => 'nullable|string|max:100',
+                'RazonSocialAgente' => 'nullable|string|max:300',
                 'IDFormaPago' => 'nullable|string',
-                'IDTipoPago' => 'nullable|integer|exists:catTipoPagos,IDTipoPago',
                 'EsEndosoCancelacion' => 'required|boolean',
+                'PagaTercero' => 'required|boolean',
+                'EsquemaDePago' => 'nullable|string',
                 'DetalleBeneficiarios' => 'required|array|min:1',
                 'DetalleBeneficiarios.*.RFC' => 'required|string|max:13',
                 'DetalleBeneficiarios.*.CURP' => 'required|string|max:18',
@@ -49,7 +51,16 @@ class OperacionesController extends Controller
                 'DetalleBeneficiarios.*.razonSocial' => 'nullable|string|max:300',
                 'DetalleBeneficiarios.*.preferente' => 'required|boolean',
                 'DetalleBeneficiarios.*.porcentajeParticipacion' => 'required|numeric|min:0|max:100',
-            ]);
+            ];
+
+            // Aplica reglas de required_if para respetar la lógica: si no hay RazonSocialAgente, son requeridos los nombres; si hay RazonSocialAgente, los nombres no son requeridos
+            $rules['RazonSocialAgente'] .= '|required_without:NombreAgente,APaternoAgente,AMaternoAgente';
+            $rules['NombreAgente'] .= '|required_without:RazonSocialAgente';
+            $rules['APaternoAgente'] .= '|required_without:RazonSocialAgente';
+            $rules['AMaternoAgente'] .= '|required_without:RazonSocialAgente';
+
+            $validatedData = $request->validate($rules);
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'codigoError' => 422,
@@ -83,16 +94,27 @@ class OperacionesController extends Controller
             $operacion->GastosEmision = $validatedData['GastosEmision'];
             $operacion->RFCAgente = $validatedData['RFCAgente'];
             $operacion->CURPAgente = $validatedData['CURPAgente'];
-            $operacion->NombreAgente = $validatedData['NombreAgente'];
-            $operacion->APaternoAgente = $validatedData['APaternoAgente'];
-            $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
-            $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
+
+            // Si recibo razon social, setear solo ese. Si recibo nombres, setear ellos.
+            if (! empty($validatedData['RazonSocialAgente'])) {
+                $operacion->NombreAgente = null;
+                $operacion->APaternoAgente = null;
+                $operacion->AMaternoAgente = null;
+                $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
+            } else {
+                $operacion->NombreAgente = $validatedData['NombreAgente'];
+                $operacion->APaternoAgente = $validatedData['APaternoAgente'];
+                $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
+                $operacion->RazonSocialAgente = $validatedData['NombreAgente'].' '.$validatedData['APaternoAgente'].' '.$validatedData['AMaternoAgente'];
+            }
+
             $operacion->IDMoneda = $validatedData['IDMoneda'];
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
             $operacion->FechaFinVigencia = $validatedData['FechaFinVigencia'];
             $operacion->tipoDocumento = $request->tipoDocumento ?? null;
             $operacion->IDFormaPago = $request->IDFormaPago ?? null;
-            $operacion->IDTipoPago = $validatedData['IDTipoPago'] ?? null;
+            $operacion->PagaTercero = $validatedData['PagaTercero'] ?? null;
+            $operacion->EsquemaDePago = $validatedData['EsquemaDePago'] ?? null;
             $operacion->save();
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
@@ -133,6 +155,7 @@ class OperacionesController extends Controller
     // PAGO
     public function insertarOperacionPago(Request $request)
     {
+        $idOperacionResult = null; // Inicializar aquí, para que esté disponible en cualquier catch/response
         try {
             $jsonData = $request->all();
 
@@ -145,6 +168,8 @@ class OperacionesController extends Controller
                     'TipoCambio' => 'required|numeric',
                     'FechaPago' => 'required|date',
                     'IDFormaPago' => 'nullable|integer|exists:catFormaPagos,IDFormaPago',
+                    'PagaTercero' => 'required|boolean',
+                    'AvisoDeCobro' => 'nullable|string',
                     'detalleOperaciones' => 'required|array|min:1',
                     'detalleOperaciones.*.folioPoliza' => 'nullable|string',
                     'detalleOperaciones.*.folioEndoso' => 'nullable|string',
@@ -155,12 +180,14 @@ class OperacionesController extends Controller
                     'codigoError' => 422,
                     'error' => 'Error de validación',
                     'detalles' => $e->errors(),
+                    'IDOperacion' => $idOperacionResult,
                 ], 422);
             } catch (\Exception $e) {
                 return response()->json([
                     'codigoError' => 500,
                     'error' => 'Error inesperado durante la validación',
                     'detalles' => $e->getMessage(),
+                    'IDOperacion' => $idOperacionResult,
                 ], 500);
             }
 
@@ -171,6 +198,7 @@ class OperacionesController extends Controller
                 return response()->json([
                     'codigoError' => 403,
                     'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
+                    'IDOperacion' => $idOperacionResult,
                 ], 403);
             }
 
@@ -186,12 +214,13 @@ class OperacionesController extends Controller
                 return response()->json([
                     'codigoError' => 422,
                     'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sean negativos o positivos.',
+                    'IDOperacion' => $idOperacionResult,
                 ], 422);
             }
 
             $operacionesPagos = [];
             $operacion = null;
-            $idOperacionResult = null; // Inicializar la variable para devolverla al response
+            // $idOperacionResult = null; // YA inicializado arriba
 
             // Agrupar operaciones por poliza y endoso
             $detalleAGrupado = [];
@@ -222,6 +251,7 @@ class OperacionesController extends Controller
                     return response()->json([
                         'codigoError' => 422,
                         'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.',
+                        'IDOperacion' => $idOperacionResult,
                     ], 422);
                 }
                 $op = $operacionQuery->first();
@@ -231,6 +261,7 @@ class OperacionesController extends Controller
                     return response()->json([
                         'codigoError' => 404,
                         'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
+                        'IDOperacion' => $idOperacionResult,
                     ], 404);
                 }
 
@@ -244,11 +275,10 @@ class OperacionesController extends Controller
                 $primaTotalOperacion = $operacion->PrimaTotal;
 
                 // Valida si la suma total (pagos anteriores + esta petición) ya cubre justo la prima (0), no sobrepasa, y admite montos negativos y positivos
-                $saldoPendiente = bcadd((string) ($primaTotalOperacion - $montoTotalPagado), (string) (-$nuevoPagoTotal), 2); // saldo pendiente después del pago
+                $saldoPendiente = bcadd((string) ($primaTotalOperacion - $montoTotalPagado), (string) (-$nuevoPagoTotal), 2);
                 $totalPagadoTrasEstaPeticion = bcadd((string) $montoTotalPagado, (string) $nuevoPagoTotal, 2);
                 $restante = bcsub((string) $primaTotalOperacion, (string) $totalPagadoTrasEstaPeticion, 2);
 
-                // La póliza se considera pagada si el saldo es exactamente 0 después de este pago (admite positivo y negativo en pagos)
                 if (bccomp((string) $restante, '0', 2) == 0) {
                     // Permite este pago (pagado exacto a la prima), no bloquea.
                 } elseif (bccomp((string) $restante, '0', 2) < 0) {
@@ -279,6 +309,8 @@ class OperacionesController extends Controller
                     $pago->IDFormaPago = $request->IDFormaPago ?? null;
                     $pago->TipoCambio = $request->TipoCambio;
                     $pago->FechaPago = $request->FechaPago;
+                    $pago->PagaTercero = $request->PagaTercero;
+                    $pago->AvisoDeCobro = $request->AvisoDeCobro;
 
                     try {
                         $pago->save();

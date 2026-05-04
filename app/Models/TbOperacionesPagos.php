@@ -25,6 +25,9 @@ class TbOperacionesPagos extends Model
         'TipoCambio',
         'FechaPago',
         'TimeStampRegistro',
+        // Añadidos de la migración 2026_04_29_214812_add_columns_to_tb_operaciones_pagos.php
+        'PagaTercero',
+        'AvisoDeCobro',
     ];
 
     /**
@@ -34,7 +37,6 @@ class TbOperacionesPagos extends Model
     {
         return $this->belongsTo(TbOperaciones::class, 'IDOperacion', 'IDOperacion');
     }
-    
 
     /**
      * Relación con la moneda (catMonedas)
