@@ -41,11 +41,13 @@ class TbAlertas extends Model
         // 'IDPago',
     ];
 
-    /**
-     * Relación con la operación de pago (tbOperacionesPagos)
-     */
     public function operacionPago()
     {
         return $this->belongsTo(TbOperacionesPagos::class, 'IDOperacionPago', 'IDOperacionPago');
+    }
+
+    public function pagosAlertas()
+    {
+        return $this->hasMany(TbPagosAlertas::class, 'IDRegistroAlerta', 'IDRegistroAlerta');
     }
 }

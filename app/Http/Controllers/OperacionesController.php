@@ -13,6 +13,7 @@ use App\Models\TbPagosAlertas;
 use App\Services\PLD\AnalisisPagosService;
 use App\Services\PLD\ReportesRegulatorios;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OperacionesController extends Controller
 {
@@ -25,7 +26,7 @@ class OperacionesController extends Controller
             $rules = [
                 'IDCliente' => 'required|integer',
                 'FolioPoliza' => 'required|string|max:40',
-                'FolioEndoso' => 'required|string|max:40',
+                'FolioEndoso' => 'nullable|string|max:40',
                 'FechaEmision' => 'required|date',
                 'PrimaTotal' => 'required|numeric',
                 'IDMoneda' => 'required|string',
@@ -42,15 +43,16 @@ class OperacionesController extends Controller
                 'EsEndosoCancelacion' => 'required|boolean',
                 'PagaTercero' => 'required|boolean',
                 'EsquemaDePago' => 'nullable|string',
-                'DetalleBeneficiarios' => 'required|array|min:1',
-                'DetalleBeneficiarios.*.RFC' => 'required|string|max:13',
-                'DetalleBeneficiarios.*.CURP' => 'required|string|max:18',
-                'DetalleBeneficiarios.*.nombre' => 'required|string|max:100',
-                'DetalleBeneficiarios.*.apellidoPaterno' => 'required|string|max:100',
-                'DetalleBeneficiarios.*.apellidoMaterno' => 'required|string|max:100',
+                'DetalleBeneficiarios' => 'nullable|array',
+                'DetalleBeneficiarios.*.RFC' => 'nullable|string|max:13',
+                'DetalleBeneficiarios.*.CURP' => 'nullable|string|max:18',
+                'DetalleBeneficiarios.*.nombre' => 'nullable|string|max:100',
+                'DetalleBeneficiarios.*.apellidoPaterno' => 'nullable|string|max:100',
+                'DetalleBeneficiarios.*.apellidoMaterno' => 'nullable|string|max:100',
                 'DetalleBeneficiarios.*.razonSocial' => 'nullable|string|max:300',
-                'DetalleBeneficiarios.*.preferente' => 'required|boolean',
-                'DetalleBeneficiarios.*.porcentajeParticipacion' => 'required|numeric|min:0|max:100',
+                'DetalleBeneficiarios.*.preferente' => 'nullable|boolean',
+                'DetalleBeneficiarios.*.porcentajeParticipacion' => 'nullable|numeric|min:0|max:100',
+
             ];
 
             // Aplica reglas de required_if para respetar la lógica: si no hay RazonSocialAgente, son requeridos los nombres; si hay RazonSocialAgente, los nombres no son requeridos
@@ -88,7 +90,7 @@ class OperacionesController extends Controller
             $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
             $operacion->FolioPoliza = $validatedData['FolioPoliza'];
-            $operacion->FolioEndoso = $validatedData['FolioEndoso'];
+            $operacion->FolioEndoso = $validatedData['FolioEndoso'] ?? null;
             $operacion->FechaEmision = $validatedData['FechaEmision'];
             $operacion->PrimaTotal = $validatedData['PrimaTotal'];
             $operacion->GastosEmision = $validatedData['GastosEmision'];
@@ -118,18 +120,20 @@ class OperacionesController extends Controller
             $operacion->save();
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'];
-            foreach ($beneficiarios as $beneficiario) {
-                $beneficiarioModel = new TbOperacionesBeneficiarios;
-                $beneficiarioModel->IDOperacion = $operacion->IDOperacion;
-                $beneficiarioModel->RFCBeneficiario = $beneficiario['RFC'];
-                $beneficiarioModel->CURPBeneficiario = $beneficiario['CURP'];
-                $beneficiarioModel->NombreBeneficiario = $beneficiario['nombre'];
-                $beneficiarioModel->APaternoBeneficiario = $beneficiario['apellidoPaterno'];
-                $beneficiarioModel->AMaternoBeneficiario = $beneficiario['apellidoMaterno'];
-                $beneficiarioModel->RazonSocialBeneficiario = $beneficiario['razonSocial'] ?? null;
-                $beneficiarioModel->Preferente = $beneficiario['preferente'];
-                $beneficiarioModel->PorcentajeParticipacion = $beneficiario['porcentajeParticipacion'];
-                $beneficiarioModel->save();
+            if (! empty($beneficiarios) && is_array($beneficiarios)) {
+                foreach ($beneficiarios as $beneficiario) {
+                    $beneficiarioModel = new TbOperacionesBeneficiarios;
+                    $beneficiarioModel->IDOperacion = $operacion->IDOperacion;
+                    $beneficiarioModel->RFCBeneficiario = $beneficiario['RFC'] ?? null;
+                    $beneficiarioModel->CURPBeneficiario = $beneficiario['CURP'] ?? null;
+                    $beneficiarioModel->NombreBeneficiario = $beneficiario['nombre'] ?? null;
+                    $beneficiarioModel->APaternoBeneficiario = $beneficiario['apellidoPaterno'] ?? null;
+                    $beneficiarioModel->AMaternoBeneficiario = $beneficiario['apellidoMaterno'] ?? null;
+                    $beneficiarioModel->RazonSocialBeneficiario = $beneficiario['razonSocial'] ?? null;
+                    $beneficiarioModel->Preferente = $beneficiario['preferente'] ?? null;
+                    $beneficiarioModel->PorcentajeParticipacion = $beneficiario['porcentajeParticipacion'] ?? null;
+                    $beneficiarioModel->save();
+                }
             }
 
             $mensajeExito = 'Operación ingresada exitosamente';
@@ -155,233 +159,194 @@ class OperacionesController extends Controller
     // PAGO
     public function insertarOperacionPago(Request $request)
     {
-        $idOperacionResult = null; // Inicializar aquí, para que esté disponible en cualquier catch/response
         try {
-            $jsonData = $request->all();
-
-            // Validación personalizada para capturar los errores y regresar JSON
             try {
-                $validated = $request->validate([
-                    'IDCliente' => 'required|integer',
+                $request->validate([
                     'montoPagado' => 'required|numeric',
-                    'IDMoneda' => 'required|string',
-                    'TipoCambio' => 'required|numeric',
+                    'IDFormaPago' => 'nullable|string',
                     'FechaPago' => 'required|date',
-                    'IDFormaPago' => 'nullable|integer|exists:catFormaPagos,IDFormaPago',
-                    'PagaTercero' => 'required|boolean',
-                    'AvisoDeCobro' => 'nullable|string',
-                    'detalleOperaciones' => 'required|array|min:1',
-                    'detalleOperaciones.*.folioPoliza' => 'nullable|string',
-                    'detalleOperaciones.*.folioEndoso' => 'nullable|string',
-                    'detalleOperaciones.*.detalleMontoPagado' => 'required|numeric',
+                    'detallePagos' => 'required|array|min:1',
+                    'detallePagos.*.IDMoneda' => 'required|string',
+                    'detallePagos.*.TipoCambio' => 'required|numeric',
+                    'detallePagos.*.IDCliente' => 'required|integer',
+                    'detallePagos.*.PagaTercero' => 'required|boolean',
+                    'detallePagos.*.AvisoDeCobro' => 'nullable|string',
+                    'detallePagos.*.IDOperacion' => 'required|integer',
+                    'detallePagos.*.folioPoliza' => 'nullable|string|max:50',
+                    'detallePagos.*.folioEndoso' => 'nullable|string|max:50',
+                    'detallePagos.*.detalleMontoPagado' => 'required|numeric',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return response()->json([
                     'codigoError' => 422,
                     'error' => 'Error de validación',
                     'detalles' => $e->errors(),
-                    'IDOperacion' => $idOperacionResult,
                 ], 422);
             } catch (\Exception $e) {
                 return response()->json([
                     'codigoError' => 500,
                     'error' => 'Error inesperado durante la validación',
                     'detalles' => $e->getMessage(),
-                    'IDOperacion' => $idOperacionResult,
                 ], 500);
             }
 
-            $cliente = TbClientes::where('IDCliente', $request->IDCliente)->first();
-
-            // Validar si el cliente está activo
-            if (! $cliente || ! $cliente->Activo) {
-                return response()->json([
-                    'codigoError' => 403,
-                    'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
-                    'IDOperacion' => $idOperacionResult,
-                ], 403);
+            if (! empty($request->IDFormaPago)) {
+                $formaPago = \App\Models\CatFormaPagos::where('IDFormaPago', $request->IDFormaPago)->first();
+                if (! $formaPago) {
+                    return response()->json([
+                        'codigoError' => 422,
+                        'error' => 'El IDFormaPago proporcionado no existe en el catálogo de formas de pago.',
+                        'detalles' => ['IDFormaPago' => ['El valor proporcionado no es válido.']],
+                    ], 422);
+                }
             }
 
-            $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
-            $horaActual = now()->format('H:i:s');
-            $fechaActual = now()->format('Y-m-d');
+            $idsCliente = array_unique(collect($request->detallePagos)->pluck('IDCliente')->toArray());
+            $clientes = TbClientes::whereIn('IDCliente', $idsCliente)->get()->keyBy('IDCliente');
 
-            $sumaDetalles = collect($request->detalleOperaciones)->sum(function ($detalle) {
-                return (float) $detalle['detalleMontoPagado'];
-            });
+            foreach ($idsCliente as $idCliente) {
+                $clienteItem = $clientes->get($idCliente);
+                if (! $clienteItem || ! $clienteItem->Activo) {
+                    return response()->json([
+                        'codigoError' => 403,
+                        'error' => "El cliente ID {$idCliente} no se encuentra activo por coincidencias en listas.",
+                    ], 403);
+                }
+            }
 
+            $sumaDetalles = collect($request->detallePagos)->sum(fn ($d) => (float) $d['detalleMontoPagado']);
             if (bccomp((string) $sumaDetalles, (string) $request->montoPagado, 2) !== 0) {
                 return response()->json([
                     'codigoError' => 422,
-                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado, aunque sean negativos o positivos.',
-                    'IDOperacion' => $idOperacionResult,
+                    'error' => 'La suma de los campos detalleMontoPagado debe ser igual al campo montoPagado.',
                 ], 422);
             }
 
-            $operacionesPagos = [];
-            $operacion = null;
-            // $idOperacionResult = null; // YA inicializado arriba
-
-            // Agrupar operaciones por poliza y endoso
-            $detalleAGrupado = [];
-            foreach ($request->detalleOperaciones as $detalleOperacion) {
-                $key = ($detalleOperacion['folioPoliza'] ?? '').'||'.($detalleOperacion['folioEndoso'] ?? '');
-                if (! isset($detalleAGrupado[$key])) {
-                    $detalleAGrupado[$key] = [
-                        'folioPoliza' => $detalleOperacion['folioPoliza'] ?? null,
-                        'folioEndoso' => $detalleOperacion['folioEndoso'] ?? null,
-                        'detalles' => [],
-                    ];
-                }
-                $detalleAGrupado[$key]['detalles'][] = $detalleOperacion;
+            // Agrupar detalles por IDOperacion
+            $detalleAgrupado = [];
+            foreach ($request->detallePagos as $detalle) {
+                $detalleAgrupado[$detalle['IDOperacion']][] = $detalle;
             }
 
-            foreach ($detalleAGrupado as $grupo) {
-                $folioPoliza = $grupo['folioPoliza'];
-                $folioEndoso = $grupo['folioEndoso'];
-                $operacionQuery = TbOperaciones::query();
-                if ($folioPoliza && $folioEndoso) {
-                    $operacionQuery->where('FolioPoliza', $folioPoliza)
-                        ->where('FolioEndoso', $folioEndoso);
-                } elseif ($folioPoliza) {
-                    $operacionQuery->where('FolioPoliza', $folioPoliza);
-                } elseif ($folioEndoso) {
-                    $operacionQuery->where('FolioEndoso', $folioEndoso);
-                } else {
-                    return response()->json([
-                        'codigoError' => 422,
-                        'error' => 'Se requiere al menos folioPoliza o folioEndoso para identificar la operación.',
-                        'IDOperacion' => $idOperacionResult,
-                    ], 422);
-                }
-                $op = $operacionQuery->first();
-                $operacion = $op;
+            $conversionMoneda = ['MXN' => 1, 'USD' => 2];
+            $analisisService = new AnalisisPagosService;
+            $pagosResultado = [];
 
+            DB::beginTransaction();
+
+            foreach ($detalleAgrupado as $idOperacion => $detalles) {
+                $operacion = TbOperaciones::find($idOperacion);
                 if (! $operacion) {
+                    DB::rollBack();
+
                     return response()->json([
                         'codigoError' => 404,
-                        'error' => 'No se encontró la operación correspondiente a los folios proporcionados.',
-                        'IDOperacion' => $idOperacionResult,
+                        'error' => "No se encontró la operación con IDOperacion: {$idOperacion}.",
                     ], 404);
                 }
 
-                // Guardar IDOperacion de la primera encontrada relevante (o última iteración, si son varias)
-                $idOperacionResult = $operacion->IDOperacion;
+                $clienteAnalisis = $clientes->get($detalles[0]['IDCliente']);
 
-                // Sumar todos los pagos previos para la operación
-                $montoTotalPagado = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->sum('Monto');
-                // Sumar los pagos de esta petición para la operación
-                $nuevoPagoTotal = array_sum(array_column($grupo['detalles'], 'detalleMontoPagado'));
+                $montoTotalPagado = TbOperacionesPagos::where('IDOperacion', $idOperacion)->sum('Monto');
+                $nuevoPagoTotal = array_sum(array_column($detalles, 'detalleMontoPagado'));
                 $primaTotalOperacion = $operacion->PrimaTotal;
+                $totalTrasEstaPeticion = bcadd((string) $montoTotalPagado, (string) $nuevoPagoTotal, 2);
+                $restante = bcsub((string) $primaTotalOperacion, (string) $totalTrasEstaPeticion, 2);
 
-                // Valida si la suma total (pagos anteriores + esta petición) ya cubre justo la prima (0), no sobrepasa, y admite montos negativos y positivos
-                $saldoPendiente = bcadd((string) ($primaTotalOperacion - $montoTotalPagado), (string) (-$nuevoPagoTotal), 2);
-                $totalPagadoTrasEstaPeticion = bcadd((string) $montoTotalPagado, (string) $nuevoPagoTotal, 2);
-                $restante = bcsub((string) $primaTotalOperacion, (string) $totalPagadoTrasEstaPeticion, 2);
-
-                if (bccomp((string) $restante, '0', 2) == 0) {
-                    // Permite este pago (pagado exacto a la prima), no bloquea.
-                } elseif (bccomp((string) $restante, '0', 2) < 0) {
-                    // Demasiado pagado, no se permite. Permite llegar a 0 exacto, admite negativos para compensar.
-                    return response()->json([
-                        'codigoError' => 1,
-                        'error' => 'No se permite exceder el pago total de la póliza / endoso',
-                        'IDOperacion' => $idOperacionResult,
-                    ], 200);
-                }
-
-                // Si ya estaba pagada antes de este pago (restante antes del pago <= 0), no permitir más pagos
                 if (bccomp((string) ($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
+                    DB::rollBack();
+
                     return response()->json([
                         'codigoError' => 1,
                         'error' => 'La póliza / endoso ya se encuentra pagada en su totalidad',
-                        'IDOperacion' => $idOperacionResult,
+                        'IDOperacion' => $idOperacion,
                     ], 200);
                 }
 
-                // Guarda cada uno de los pagos del grupo
-                foreach ($grupo['detalles'] as $detalleOperacion) {
+                if (bccomp((string) $restante, '0', 2) < 0) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'codigoError' => 1,
+                        'error' => 'No se permite exceder el pago total de la póliza / endoso',
+                        'IDOperacion' => $idOperacion,
+                    ], 200);
+                }
+
+                foreach ($detalles as $detalle) {
                     $pago = new TbOperacionesPagos;
-                    $pago->IDOperacion = $operacion->IDOperacion;
-                    $pago->IDCliente = $request->IDCliente;
-                    $pago->Monto = $detalleOperacion['detalleMontoPagado'];
-                    $pago->IDMoneda = $request->IDMoneda;
+                    $pago->IDOperacion = $idOperacion;
+                    $pago->IDCliente = $detalle['IDCliente'];
+                    $pago->Monto = $detalle['detalleMontoPagado'];
+                    $pago->IDMoneda = $detalle['IDMoneda'];
                     $pago->IDFormaPago = $request->IDFormaPago ?? null;
-                    $pago->TipoCambio = $request->TipoCambio;
+                    $pago->TipoCambio = $detalle['TipoCambio'];
                     $pago->FechaPago = $request->FechaPago;
-                    $pago->PagaTercero = $request->PagaTercero;
-                    $pago->AvisoDeCobro = $request->AvisoDeCobro;
+                    $pago->PagaTercero = $detalle['PagaTercero'];
+                    $pago->AvisoDeCobro = $detalle['AvisoDeCobro'] ?? null;
+                    $pago->folioPoliza = $detalle['folioPoliza'] ?? null;
+                    $pago->folioEndoso = $detalle['folioEndoso'] ?? null;
 
                     try {
                         $pago->save();
                     } catch (\Exception $e) {
+                        DB::rollBack();
+
                         return response()->json([
                             'codigoError' => 500,
                             'error' => 'Error al guardar el pago.',
                             'detalles' => $e->getMessage(),
-                            'IDOperacion' => $idOperacionResult,
                         ], 500);
                     }
 
-                    $operacionesPagos[] = $pago;
+                    $pagosResultado[] = [
+                        'IDOperacion' => $idOperacion,
+                        'IDPago' => $pago->IDOperacionPago,
+                    ];
+                }
+
+                // Análisis individual por operación
+                $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
+                $pagosOperacionArr = $pagosOperacion->map(function ($p) use ($conversionMoneda) {
+                    $arr = $p->toArray();
+                    $arr['IDMonedaInt'] = $conversionMoneda[$arr['IDMoneda']] ?? null;
+
+                    return $arr;
+                })->toArray();
+
+                $resultadoAnalisis = $analisisService->analizarPagos($operacion, $pagosOperacionArr, $clienteAnalisis);
+                $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
+
+                foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
+                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
+                }
+
+                foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
+                    $this->generarReporteRegulatorio($operacion, $reporte);
                 }
             }
 
-            // ANÁLISIS DE PAGOS Y GENERACIÓN DE ALERTAS USANDO EL NUEVO SERVICIO
-            $analisisService = new AnalisisPagosService;
+            DB::commit();
 
-            // Usa la última operación del grupo para análisis (aplica si solo hay 1 operación involucrada)
-            $pagosOperacion = TbOperacionesPagos::where('IDOperacion', $operacion->IDOperacion)->get();
-            $monedaStr = $operacion->IDMoneda;
-            $moneda = \App\Models\CatMonedas::where('IDMoneda', $monedaStr)->first();
-            $conversionMoneda = [
-                'MXN' => 1,
-                'USD' => 2,
-            ];
-            $idMonedaInt = $conversionMoneda[$monedaStr] ?? null;
-
-            $pagosOperacionArr = $pagosOperacion->map(function ($pago) use ($conversionMoneda) {
-                $pagoArr = $pago->toArray();
-                $monedaStr = $pagoArr['IDMoneda'];
-                $pagoArr['IDMonedaInt'] = $conversionMoneda[$monedaStr] ?? null;
-
-                return $pagoArr;
-            })->toArray();
-
-            $resultadoAnalisis = $analisisService->analizarPagos(
-                $operacion,
-                $pagosOperacionArr,
-                $cliente
-            );
-
-            $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
-
-            foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
-                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
-            }
-
-            foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
-                $this->generarReporteRegulatorio($operacion, $reporte);
-            }
-
-            // Código de éxito: 0
-            $mensajeExito = 'Operación ingresada exitosamente';
-            if ($cliente->CoincideEnListasNegras) {
+            $mensajeExito = 'Pagos ingresados exitosamente';
+            $algunaCoincidencia = $clientes->contains(fn ($c) => $c->CoincideEnListasNegras);
+            if ($algunaCoincidencia) {
                 $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
             }
 
             return response()->json([
                 'codigoError' => 0,
                 'error' => $mensajeExito,
-                'IDOperacion' => $idOperacionResult,
+                'Pagos' => $pagosResultado,
             ], 201);
 
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'codigoError' => 500,
                 'error' => 'Error inesperado en el proceso de inserción de pagos',
                 'detalles' => $e->getMessage(),
-                'IDOperacion' => isset($idOperacionResult) ? $idOperacionResult : null,
             ], 500);
         }
     }
@@ -458,78 +423,173 @@ class OperacionesController extends Controller
     }
 
     /**
-     * Revierte los pagos de una operación. Si existen alertas con Estatus = "Generado",
-     * también las elimina junto con sus tbPagosAlertas asociados.
-     * Espera en la request el campo "IDOperacion".
+     * Revierte un pago individual por su IDPago (IDOperacionPago).
+     * Si existen alertas con Estatus = "Generado" vinculadas a ese pago,
+     * también las limpia junto con sus tbPagosAlertas asociados.
+     */
+    /**
+     * Realiza rollback de uno o varios pagos.
+     * Se puede enviar "IDPago" (int, único) o "IDsPagos" (array de IDs).
      */
     public function rollbackPagos(Request $request)
     {
+        // Siempre espera el payload como: { "IDsPagos": [123, 124, ...] }
+        $idsPagos = $request->input('IDsPagos');
+
+        // Valida que IDsPagos exista y sea array no vacío
+        if (! is_array($idsPagos) || empty($idsPagos)) {
+            return response()->json([
+                'codigoError' => 400,
+                'error' => 'Debe proporcionar el campo "IDsPagos" como un arreglo de uno o más IDs para el rollback.',
+            ], 400);
+        }
+
+        // Verifica que TODOS los pagos existen antes de hacer cualquier operación
+        $pagos = TbOperacionesPagos::whereIn('IDOperacionPago', $idsPagos)->get()->keyBy('IDOperacionPago');
+        $pagosFaltantes = array_diff($idsPagos, $pagos->keys()->toArray());
+        if (! empty($pagosFaltantes)) {
+            return response()->json([
+                'codigoError' => 404,
+                'error' => 'Uno o más pagos no fueron encontrados.',
+                'idsNoEncontrados' => array_values($pagosFaltantes),
+            ], 404);
+        }
+
+        $resultados = [];
+        DB::beginTransaction();
         try {
-            $idOperacion = $request->input('IDOperacion');
-            if (! $idOperacion) {
-                return response()->json([
-                    'codigoError' => 400,
-                    'error' => 'IDOperacion es requerido para realizar el rollback de pagos.',
-                ], 400);
-            }
+            foreach ($idsPagos as $idPagoIter) {
+                $pago = $pagos[$idPagoIter];
 
-            $operacion = TbOperaciones::find($idOperacion);
-            if (! $operacion) {
-                return response()->json([
-                    'codigoError' => 404,
-                    'error' => 'No se encontró la operación con el ID proporcionado.',
-                ], 404);
-            }
+                $idOperacion = $pago->IDOperacion;
 
-            $pagos = TbOperacionesPagos::where('IDOperacion', $idOperacion)->get();
-            if ($pagos->isEmpty()) {
-                return response()->json([
-                    'codigoError' => 404,
-                    'error' => 'No se encontraron pagos asociados a la operación proporcionada.',
-                    'IDOperacion' => $idOperacion,
-                ], 404);
-            }
+                $alertasGeneradas = TbAlertas::where('IDOperacion', $idOperacion)
+                    ->where('Estatus', 'Generado')
+                    ->whereHas('pagosAlertas', function ($query) use ($idPagoIter) {
+                        $query->where('IDOperacionPago', $idPagoIter);
+                    })
+                    ->get();
 
-            \DB::beginTransaction();
+                $alertasBorradas = 0;
 
-            // Verificar alertas relacionadas con Estatus = "Generado"
-            $alertasGeneradas = TbAlertas::where('IDOperacion', $idOperacion)
-                ->where('Estatus', 'Generado')
-                ->get();
+                foreach ($alertasGeneradas as $alerta) {
+                    TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
+                        ->where('IDOperacionPago', $idPagoIter)
+                        ->delete();
 
-            foreach ($alertasGeneradas as $alerta) {
-                // Eliminar registros en tbPagosAlertas antes de borrar la alerta
-                TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->delete();
-                $alerta->delete();
-            }
+                    if (! TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->exists()) {
+                        $alerta->delete();
+                        $alertasBorradas++;
+                    }
+                }
 
-            // Copiar pagos al log y eliminarlos
-            foreach ($pagos as $pago) {
                 $logPagoData = $pago->toArray();
                 unset($logPagoData['IDOperacionPago']);
-                $logPagoData['IDOperacion'] = $idOperacion;
 
                 $logPago = new LogOperacionesPagos;
                 $logPago->fill($logPagoData);
                 $logPago->save();
+
+                $pago->delete();
+
+                $resultados[] = [
+                    'IDPago' => $idPagoIter,
+                    'codigoError' => 0,
+                    'mensaje' => 'La operación ha sido revertida y movida correctamente a logOperaciones/logOperacionesPagos.'.($alertasBorradas > 0 ? ' Se eliminaron '.$alertasBorradas.' alerta(s) con estatus "Generado" asociadas a este pago.' : ''),
+                ];
             }
+            DB::commit();
 
-            TbOperacionesPagos::where('IDOperacion', $idOperacion)->delete();
-
-            \DB::commit();
-
+            // Devuelve siempre el arreglo de resultados, aunque sea solo uno por convención de API
             return response()->json([
                 'codigoError' => 0,
-                'mensaje' => 'Los pagos han sido revertidos correctamente.'.($alertasGeneradas->isNotEmpty() ? ' Se eliminaron '.$alertasGeneradas->count().' alerta(s) con estatus "Generado" asociadas.' : ''),
-                'IDOperacion' => $idOperacion,
+                'resultados' => $resultados,
             ]);
-
         } catch (\Exception $e) {
-            \DB::rollBack();
+            DB::rollBack();
 
             return response()->json([
                 'codigoError' => 500,
-                'error' => 'Ocurrió un error al intentar revertir los pagos.',
+                'error' => 'Ocurrió un error al intentar revertir uno o más pagos.',
+                'detalles' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Revierte un solo pago (por su IDOperacionPago de forma individual) y registra el log correspondiente.
+     * Espera en la request el campo "IDOperacionPago".
+     */
+    public function rollbackPagoIndividual(Request $request)
+    {
+        try {
+            $idOperacionPago = $request->input('IDOperacionPago');
+            if (! $idOperacionPago) {
+                return response()->json([
+                    'codigoError' => 400,
+                    'error' => 'IDOperacionPago es requerido para realizar el rollback individual de pago.',
+                ], 400);
+            }
+
+            $pago = TbOperacionesPagos::find($idOperacionPago);
+            if (! $pago) {
+                return response()->json([
+                    'codigoError' => 404,
+                    'error' => 'No se encontró el pago con el ID proporcionado.',
+                    'IDOperacionPago' => $idOperacionPago,
+                ], 404);
+            }
+
+            $idOperacion = $pago->IDOperacion;
+
+            DB::beginTransaction();
+
+            // Verificar alertas relacionadas con Estatus = "Generado" y que tengan referencia a este pago específico en tbPagosAlertas
+            $alertasGeneradas = TbAlertas::where('IDOperacion', $idOperacion)
+                ->where('Estatus', 'Generado')
+                ->whereHas('pagosAlertas', function ($query) use ($idOperacionPago) {
+                    $query->where('IDOperacionPago', $idOperacionPago);
+                })
+                ->get();
+
+            foreach ($alertasGeneradas as $alerta) {
+                // Eliminar registros relacionados en tbPagosAlertas para este pago
+                TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
+                    ->where('IDOperacionPago', $idOperacionPago)
+                    ->delete();
+
+                // Si ya no quedan pagos asociados a la alerta, eliminar la alerta
+                $existenPagosRelacionados = TbPagosAlertas::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->exists();
+                if (! $existenPagosRelacionados) {
+                    $alerta->delete();
+                }
+            }
+
+            // Copiar pago al log y eliminarlo
+            $logPagoData = $pago->toArray();
+            unset($logPagoData['IDOperacionPago']);
+            $logPagoData['IDOperacion'] = $idOperacion;
+
+            $logPago = new LogOperacionesPagos;
+            $logPago->fill($logPagoData);
+            $logPago->save();
+
+            $pago->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'codigoError' => 0,
+                'mensaje' => 'El pago ha sido revertido correctamente.'.($alertasGeneradas->isNotEmpty() ? ' Se eliminaron '.$alertasGeneradas->count().' alerta(s) con estatus "Generado" asociadas a este pago.' : ''),
+                'IDOperacionPago' => $idOperacionPago,
+                'IDOperacion' => $idOperacion,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'codigoError' => 500,
+                'error' => 'Ocurrió un error al intentar revertir el pago individual.',
                 'detalles' => $e->getMessage(),
             ], 500);
         }
@@ -595,7 +655,7 @@ class OperacionesController extends Controller
             }
 
             // Iniciar transacción DB
-            \DB::beginTransaction();
+            DB::beginTransaction();
 
             // Si existen alertas con estatus "Generado", eliminarlas (y sus pagos-alertas relacionados)
             if ($alertas->count() > 0) {
@@ -618,7 +678,7 @@ class OperacionesController extends Controller
             // Eliminar la operación original en tbOperaciones
             $operacion->delete();
 
-            \DB::commit();
+            DB::commit();
 
             return response()->json([
                 'codigoError' => 0,
@@ -627,7 +687,7 @@ class OperacionesController extends Controller
                 'IDOperacion' => $logOperacion->IDOperacion,
             ]);
         } catch (\Exception $e) {
-            \DB::rollBack();
+            DB::rollBack();
 
             return response()->json([
                 'codigoError' => 500,

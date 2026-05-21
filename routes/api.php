@@ -35,6 +35,7 @@ Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOpera
 Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
 Route::post('/operaciones/rollback', [OperacionesController::class, 'rollbackOperacion'])->middleware('auth:sanctum');
 Route::post('/pagos/rollback', [OperacionesController::class, 'rollbackPagos'])->middleware('auth:sanctum');
+Route::post('/pago-individual/rollback', [OperacionesController::class, 'rollbackPagoIndividual'])->middleware('auth:sanctum');
 
 // Ruta para inserción masiva de clientes
 // Route::post('/clientes/masivo', [ClientesControllerApi::class, 'storeMasivo'])->middleware('auth:sanctum');
@@ -151,12 +152,12 @@ Route::post('/storage-link', function () {
                     'message' => "El enlace simbólico 'public/storage' existe pero apunta a '".readlink($storagePath)."', no a '$targetPath'.",
                 ], 500);
             }
+
             return response()->json([
                 'success' => true,
                 'output' => "'public/storage' ya existe y apunta correctamente.",
             ]);
-        }
-        elseif (file_exists($storagePath)) {
+        } elseif (file_exists($storagePath)) {
             // Ya existe una carpeta/archivo (no link)
             return response()->json([
                 'success' => false,
@@ -164,7 +165,7 @@ Route::post('/storage-link', function () {
             ], 500);
         }
 
-        if (!file_exists($targetPath)) {
+        if (! file_exists($targetPath)) {
             return response()->json([
                 'success' => false,
                 'message' => "El directorio target '$targetPath' no existe.",
@@ -177,20 +178,19 @@ Route::post('/storage-link', function () {
         if (is_link($storagePath) && readlink($storagePath) === $targetPath) {
             return response()->json([
                 'success' => true,
-                'output' => "Enlace simbólico creado exitosamente.",
+                'output' => 'Enlace simbólico creado exitosamente.',
             ]);
         } else {
             return response()->json([
                 'success' => false,
-                'message' => "Intento de crear el enlace simbólico falló. Verifica permisos de archivo y rutas.",
+                'message' => 'Intento de crear el enlace simbólico falló. Verifica permisos de archivo y rutas.',
             ], 500);
         }
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
-            'message' => "Excepción: " . $e->getMessage(),
-            'trace'   => $e->getTraceAsString(),
+            'message' => 'Excepción: '.$e->getMessage(),
+            'trace' => $e->getTraceAsString(),
         ], 500);
     }
 });
-
