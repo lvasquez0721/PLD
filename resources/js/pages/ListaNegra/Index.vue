@@ -540,12 +540,12 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-center align-middle">
-                                    <button                                         
+                                    <button 
                                         v-if="item.total_oficios && item.total_oficios > 0" 
                                         @click="verOficios(item)"
                                         class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 transition-all duration-200 ease-out hover:text-blue-500 hover:underline hover:underline-offset-4 dark:text-blue-400 dark:hover:text-blue-300">
                                         <Eye class="h-4 w-4" />
-                                        {{ item.total_oficios }} oficio{{ item.total_oficios > 1 ? 's' : '' }}
+                                            {{ item.total_oficios }} oficio{{ item.total_oficios > 1 ? 's' : '' }}
                                     </button>
                                     <span v-else class="text-xs text-slate-400 dark:text-neutral-500">Sin archivos</span>
                                 </td>

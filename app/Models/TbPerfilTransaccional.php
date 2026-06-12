@@ -47,6 +47,7 @@ class TbPerfilTransaccional extends Model
         'origenRecursos',
         'ValorIngresoEstimado',
         'ValorHaEstimado',
+        'TipoSolicitante',
         'TimeStamp',
     ];
 }

@@ -71,6 +71,7 @@ class PerfilTransaccionalController extends Controller
         try {
             $periodo = $request->input('Periodo');
             $idCliente = $request->input('IDCliente');
+            $poliza = $request->input('Poliza', ''); 
 
             if (empty($periodo) && empty($idCliente)) { // respuesta si no hay parámetros
                 return response()->json([
@@ -118,13 +119,19 @@ class PerfilTransaccionalController extends Controller
                         'mensaje' => 'No se encontró información para el cliente especificado.',
                     ], 404);
                 }
-
-                return response()->json([
-                    //'perfilTransaccionalV' => (float) $registro->Perfil,
+                
+                // Construir la respuesta base
+                $respuesta = [
                     'perfilTransaccional' => (float) $registro->Perfil,
                     'IDRiesgoPerfil' => ((float)$registro->Perfil < 2) ? 1 : 2,
-                    
-                ]);
+                ];
+                
+                // Si viene una póliza, agregar el IDRegistroPerfil
+                if (!empty($poliza)) {
+                    $respuesta['IDRegistroPerfil'] = $registro->IDRegistroPerfil;
+                }
+                
+                return response()->json($respuesta);
             }
 
             // Caso 2: Buscar por periodo (para generar CSV)
@@ -160,7 +167,7 @@ class PerfilTransaccionalController extends Controller
 
             // Encabezado CSV
             fputcsv($archivo, [
-                'IDCliente', 'Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
+                'IDCliente', 'TipoSolicitante', 'Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
                 'EdoDomicilio', 'NivelRiesgoDoc', 'CalculoResidencia',
                 'EdoLabora', 'NivelRiesgoResidencia', 'CalculoLaboral', 'TotalUbicacion',
                 'Origen', 'ORecursos', 'Ingresos', 'PromedioHA', 'TotalEconomico',
@@ -170,6 +177,7 @@ class PerfilTransaccionalController extends Controller
             foreach ($datos as $fila) {
                 fputcsv($archivo, [
                     $fila->IDCliente,
+                    $fila->TipoSolicitante,
                     $fila->Nombre.' '.$fila->ApellidoPaterno.' '.$fila->ApellidoMaterno,
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
@@ -224,4 +232,92 @@ class PerfilTransaccionalController extends Controller
             return redirect()->back()->with('error', 'Error al ejecutar el perfil: '.$e->getMessage());
         }
     }
+    
+    //-------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------------------
+    
+    // Vista para perfil transaccional - cliente
+    public function perfilClienteView()
+    {
+        return Inertia::render('PerfilTransaccional/PerfilTransaccionalCliente');
+    }
+
+    // Buscar clientes para el select2
+    public function buscarClientes(Request $request)
+    {
+        try {
+            $search = $request->input('search');
+            $clientes = TbClientes::select(
+                    'IDCliente',
+                    DB::raw("
+                        CONCAT(
+                            Nombre, ' ',
+                            IFNULL(ApellidoPaterno, ''), ' ',
+                            IFNULL(ApellidoMaterno, '')
+                        ) as NombreCompleto
+                    ")
+                )
+                ->where(function($query) use ($search){
+                    $query->where('Nombre', 'LIKE', "%{$search}%")
+                        ->orWhere('ApellidoPaterno', 'LIKE', "%{$search}%")
+                        ->orWhere('ApellidoMaterno', 'LIKE', "%{$search}%")
+                        ->orWhere('IDCliente', 'LIKE', "%{$search}%");
+                })
+                ->limit(20)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'clientes' => $clientes
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Buscar perfil transaccional de un cliente específico
+    public function buscarPerfilCliente(Request $request)
+    {
+        try {
+            $idCliente = $request->input('IDCliente');
+            if(!$idCliente){
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Debe seleccionar un cliente.'
+                ], 400);
+            }
+
+            // Ejecutar SP
+            DB::select('CALL SP_PerfilTransIndividual(?, ?, ?)', [ $idCliente, 2, '' ]);
+
+            $perfil = TbPerfilTransaccional::select( 'tbPerfilTransaccional.*', 'tbClientes.Nombre', 'tbClientes.ApellidoPaterno', 'tbClientes.ApellidoMaterno' )
+                ->leftJoin( 'tbClientes', 'tbClientes.IDCliente','=','tbPerfilTransaccional.IDCliente')
+                ->where('tbPerfilTransaccional.IDCliente', $idCliente)
+                ->orderByDesc('tbPerfilTransaccional.IDRegistroPerfil')
+                ->first();
+
+            if(!$perfil){
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'No se encontró información.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'perfil' => $perfil
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
