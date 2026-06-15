@@ -22,7 +22,7 @@ class OperacionesController extends Controller
     public function insertarOperacion(Request $request)
     {
         try {
-            // Validación condicional para Nombre/Apellidos o RazonSocialAgente
+            // Reglas de validación base
             $rules = [
                 'IDCliente' => 'required|integer',
                 'FolioPoliza' => 'required|string|max:40',
@@ -33,8 +33,9 @@ class OperacionesController extends Controller
                 'FechaInicioVigencia' => 'required|date',
                 'FechaFinVigencia' => 'required|date',
                 'GastosEmision' => 'required|numeric',
-                'RFCAgente' => 'required|string|max:13',
-                'CURPAgente' => 'required|string|max:18',
+                // Datos del agente ahora completamente opcionales:
+                'RFCAgente' => 'nullable|string|max:13',
+                'CURPAgente' => 'nullable|string|max:18',
                 'NombreAgente' => 'nullable|string|max:100',
                 'APaternoAgente' => 'nullable|string|max:100',
                 'AMaternoAgente' => 'nullable|string|max:100',
@@ -52,23 +53,21 @@ class OperacionesController extends Controller
                 'DetalleBeneficiarios.*.razonSocial' => 'nullable|string|max:300',
                 'DetalleBeneficiarios.*.preferente' => 'nullable|boolean',
                 'DetalleBeneficiarios.*.porcentajeParticipacion' => 'nullable|numeric|min:0|max:100',
-
             ];
 
-            // Aplica reglas de required_if para respetar la lógica: si no hay RazonSocialAgente, son requeridos los nombres; si hay RazonSocialAgente, los nombres no son requeridos
-            $rules['RazonSocialAgente'] .= '|required_without:NombreAgente,APaternoAgente,AMaternoAgente';
-            $rules['NombreAgente'] .= '|required_without:RazonSocialAgente';
-            $rules['APaternoAgente'] .= '|required_without:RazonSocialAgente';
-            $rules['AMaternoAgente'] .= '|required_without:RazonSocialAgente';
+            // IMPORTANTE: No agregamos ninguna required_without ni required_if para los datos de agente.
+            // Los datos de agente pueden omitirse completamente en el request.
 
-            $validatedData = $request->validate($rules);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'codigoError' => 422,
-                'error' => 'Error de validación',
-                'detalles' => $e->errors(),
-            ], 422);
+            try {
+                $validatedData = $request->validate($rules);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                // Respondemos normalmente el error de validación si ocurre por otras reglas
+                return response()->json([
+                    'codigoError' => 422,
+                    'error' => 'Error de validación',
+                    'detalles' => $e->errors(),
+                ], 422);
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'codigoError' => 500,
@@ -94,21 +93,14 @@ class OperacionesController extends Controller
             $operacion->FechaEmision = $validatedData['FechaEmision'];
             $operacion->PrimaTotal = $validatedData['PrimaTotal'];
             $operacion->GastosEmision = $validatedData['GastosEmision'];
-            $operacion->RFCAgente = $validatedData['RFCAgente'];
-            $operacion->CURPAgente = $validatedData['CURPAgente'];
+            $operacion->RFCAgente = $validatedData['RFCAgente'] ?? null;
+            $operacion->CURPAgente = $validatedData['CURPAgente'] ?? null;
 
-            // Si recibo razon social, setear solo ese. Si recibo nombres, setear ellos.
-            if (! empty($validatedData['RazonSocialAgente'])) {
-                $operacion->NombreAgente = null;
-                $operacion->APaternoAgente = null;
-                $operacion->AMaternoAgente = null;
-                $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'];
-            } else {
-                $operacion->NombreAgente = $validatedData['NombreAgente'];
-                $operacion->APaternoAgente = $validatedData['APaternoAgente'];
-                $operacion->AMaternoAgente = $validatedData['AMaternoAgente'];
-                $operacion->RazonSocialAgente = $validatedData['NombreAgente'].' '.$validatedData['APaternoAgente'].' '.$validatedData['AMaternoAgente'];
-            }
+            // Asignar datos del agente si vienen; si no, dejar en null
+            $operacion->NombreAgente = $validatedData['NombreAgente'] ?? null;
+            $operacion->APaternoAgente = $validatedData['APaternoAgente'] ?? null;
+            $operacion->AMaternoAgente = $validatedData['AMaternoAgente'] ?? null;
+            $operacion->RazonSocialAgente = $validatedData['RazonSocialAgente'] ?? null;
 
             $operacion->IDMoneda = $validatedData['IDMoneda'];
             $operacion->FechaInicioVigencia = $validatedData['FechaInicioVigencia'];
@@ -117,9 +109,10 @@ class OperacionesController extends Controller
             $operacion->IDFormaPago = $request->IDFormaPago ?? null;
             $operacion->PagaTercero = $validatedData['PagaTercero'] ?? null;
             $operacion->EsquemaDePago = $validatedData['EsquemaDePago'] ?? null;
+            $operacion->EsEndosoCancelacion = $validatedData['EsEndosoCancelacion'] ?? null;
             $operacion->save();
 
-            $beneficiarios = $validatedData['DetalleBeneficiarios'];
+            $beneficiarios = $validatedData['DetalleBeneficiarios'] ?? [];
             if (! empty($beneficiarios) && is_array($beneficiarios)) {
                 foreach ($beneficiarios as $beneficiario) {
                     $beneficiarioModel = new TbOperacionesBeneficiarios;

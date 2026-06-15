@@ -19,6 +19,9 @@ class ClientesController extends Controller
     {
         $query = $this->buildQuery($request);
 
+        // Ordenar los clientes de forma descendente por el campo 'id' (puedes cambiar a otro campo si se requiere diferente criterio)
+        $query->orderByDesc('id');
+
         $perPage = $request->input('per_page', 10);
         $clientes = $query->paginate($perPage)->withQueryString();
 
