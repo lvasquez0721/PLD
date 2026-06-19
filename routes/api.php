@@ -33,6 +33,7 @@ Route::post('/login', [AuthControllerApi::class, 'login']);
 // Rutas de OperacionesController
 Route::post('/insertar/operacion', [OperacionesController::class, 'insertarOperacion'])->middleware('auth:sanctum');
 Route::post('/insertar/operacion-pago', [OperacionesController::class, 'insertarOperacionPago'])->middleware('auth:sanctum');
+Route::post('/cancelar/operacion', [OperacionesController::class, 'cancelarOperacion'])->middleware('auth:sanctum');
 Route::post('/operaciones/rollback', [OperacionesController::class, 'rollbackOperacion'])->middleware('auth:sanctum');
 Route::post('/pagos/rollback', [OperacionesController::class, 'rollbackPagos'])->middleware('auth:sanctum');
 Route::post('/pago-individual/rollback', [OperacionesController::class, 'rollbackPagoIndividual'])->middleware('auth:sanctum');

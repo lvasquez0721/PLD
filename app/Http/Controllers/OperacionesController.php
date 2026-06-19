@@ -689,4 +689,41 @@ class OperacionesController extends Controller
             ], 500);
         }
     }
+
+    public function cancelarOperacion(Request $request)
+    {
+        try {
+            $idOperacion = $request->input('IDOperacion');
+            if (! $idOperacion) {
+                return response()->json([
+                    'codigoError' => 400,
+                    'error' => 'IDOperacion es requerido para cancelar la operación.',
+                ], 400);
+            }
+
+            $operacion = TbOperaciones::find($idOperacion);
+
+            if (! $operacion) {
+                return response()->json([
+                    'codigoError' => 404,
+                    'error' => 'No se encontró la operación especificada.',
+                ], 404);
+            }
+
+            $operacion->operacionCancelada = true;
+            $operacion->save();
+
+            return response()->json([
+                'codigoError' => 0,
+                'mensaje' => 'La operación fue cancelada exitosamente.',
+                'IDOperacion' => $operacion->IDOperacion,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'codigoError' => 500,
+                'error' => 'Ocurrió un error al intentar cancelar la operación.',
+                'detalles' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

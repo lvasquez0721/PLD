@@ -8,26 +8,22 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * Agrega el campo 'EsEndosoCancelacion' a la tabla 'tbOperaciones'
      */
     public function up(): void
     {
         Schema::table('tbOperaciones', function (Blueprint $table) {
-            $table->boolean('EsEndosoCancelacion')->default(false); // No after('EsEndoso') para evitar error si no existe
+            $table->boolean('operacionCancelada')->default(false)->after('EsquemaDePago');
         });
     }
 
     /**
      * Reverse the migrations.
-     *
-     * Elimina el campo 'EsEndosoCancelacion' de la tabla 'tbOperaciones'
      */
     public function down(): void
     {
         Schema::table('tbOperaciones', function (Blueprint $table) {
-            if (Schema::hasColumn('tbOperaciones', 'EsEndosoCancelacion')) {
-                $table->dropColumn('EsEndosoCancelacion');
+            if (Schema::hasColumn('tbOperaciones', 'operacionCancelada')) {
+                $table->dropColumn('operacionCancelada');
             }
         });
     }

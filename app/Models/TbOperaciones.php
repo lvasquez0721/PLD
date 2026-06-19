@@ -41,6 +41,8 @@ class TbOperaciones extends Model
         // Añadidos de la migración 2026_04_29_213405_add_columns_to_tb_operaciones.php
         'PagaTercero',
         'EsquemaDePago',
+        // Añadido de la migración 2026_06_17_171749_add_columns_to_tb_operaciones.php
+        'operacionCancelada',
     ];
 
     /**
