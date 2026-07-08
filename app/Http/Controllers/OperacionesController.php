@@ -244,26 +244,29 @@ class OperacionesController extends Controller
                 $nuevoPagoTotal = array_sum(array_column($detalles, 'detalleMontoPagado'));
                 $primaTotalOperacion = $operacion->PrimaTotal;
                 $totalTrasEstaPeticion = bcadd((string) $montoTotalPagado, (string) $nuevoPagoTotal, 2);
-                $restante = bcsub((string) $primaTotalOperacion, (string) $totalTrasEstaPeticion, 2);
 
-                if (bccomp((string) ($primaTotalOperacion - $montoTotalPagado), '0', 2) <= 0) {
-                    DB::rollBack();
+                if (bccomp((string) $primaTotalOperacion, '0', 2) != 0) {
+                    $primaAbs = (string) abs($primaTotalOperacion);
 
-                    return response()->json([
-                        'codigoError' => 1,
-                        'error' => 'La póliza / endoso ya se encuentra pagada en su totalidad',
-                        'IDOperacion' => $idOperacion,
-                    ], 200);
-                }
+                    if (bccomp((string) abs($montoTotalPagado), $primaAbs, 2) >= 0) {
+                        DB::rollBack();
 
-                if (bccomp((string) $restante, '0', 2) < 0) {
-                    DB::rollBack();
+                        return response()->json([
+                            'codigoError' => 1,
+                            'error' => 'La póliza / endoso ya se encuentra pagada en su totalidad',
+                            'IDOperacion' => $idOperacion,
+                        ], 200);
+                    }
 
-                    return response()->json([
-                        'codigoError' => 1,
-                        'error' => 'No se permite exceder el pago total de la póliza / endoso',
-                        'IDOperacion' => $idOperacion,
-                    ], 200);
+                    if (bccomp((string) abs($totalTrasEstaPeticion), $primaAbs, 2) > 0) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'codigoError' => 1,
+                            'error' => 'No se permite rebasar el pago total de la póliza / endoso',
+                            'IDOperacion' => $idOperacion,
+                        ], 200);
+                    }
                 }
 
                 foreach ($detalles as $detalle) {
