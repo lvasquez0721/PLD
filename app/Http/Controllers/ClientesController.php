@@ -19,6 +19,9 @@ class ClientesController extends Controller
     {
         $query = $this->buildQuery($request);
 
+        // Ordenar los clientes de forma descendente por el campo 'id' (puedes cambiar a otro campo si se requiere diferente criterio)
+        $query->orderByDesc('IDCliente');
+
         $perPage = $request->input('per_page', 10);
         $clientes = $query->paginate($perPage)->withQueryString();
 
@@ -245,9 +248,23 @@ class ClientesController extends Controller
     {
         $cliente = $id_cliente;
         $domicilios = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
-        $operaciones = TbOperaciones::where('IDCliente', $cliente->IDCliente)
+        $operacionesRaw = TbOperaciones::where('IDCliente', $cliente->IDCliente)
             ->with('pagos')
             ->get();
+
+        $polizas = $operacionesRaw->groupBy('FolioPoliza')->map(function ($ops, $folioPoliza) {
+            $operacionesPrincipales = $ops->filter(fn($op) => empty($op->FolioEndoso))->values();
+            $endosos = $ops->filter(fn($op) => !empty($op->FolioEndoso))->values();
+            $balancePrimaTotal = $ops->sum('PrimaTotal');
+
+            return [
+                'folio_poliza' => $folioPoliza,
+                'operaciones' => $operacionesPrincipales,
+                'endosos' => $endosos,
+                'todas_operaciones' => $ops->values(),
+                'balance_prima_total' => $balancePrimaTotal,
+            ];
+        })->values();
         $alertas = TbAlertas::where('IDCliente', $cliente->IDCliente)->get();
 
         // Buscar en CNSF por RFC O CURP del cliente (algunos registros podrían carecer de uno u otro)
@@ -294,7 +311,8 @@ class ClientesController extends Controller
         return inertia('Clientes/Detalles', [
             'cliente' => $cliente,
             'domicilios' => $domicilios,
-            'operaciones' => $operaciones,
+            'operaciones' => $operacionesRaw,
+            'polizas' => $polizas,
             'alertas' => $alertas,
             'listasNegras' => $listasNegras,
             'perfilTransaccional' => $perfilTransaccional,

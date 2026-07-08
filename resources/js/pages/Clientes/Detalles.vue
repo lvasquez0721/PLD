@@ -26,6 +26,7 @@ const props = defineProps<{
     cliente: any
     domicilios: any[]
     operaciones: any[]
+    polizas: any[]
     alertas: any[]
     listasNegras: any[]
     perfilTransaccional: any
@@ -220,6 +221,22 @@ function formatCurrency(value?: number | string | null): string {
         style: 'currency',
         currency: 'MXN',
     }).format(numberValue)
+}
+
+function tipoOperacionLabel(op: any, isEndoso: boolean = false): { label: string; class: string } | null {
+    const esCancelacion = op.cancelaPoliza === 1 || op.cancelaPoliza === true
+        || op.operacionCancelada === 1 || op.operacionCancelada === true
+        || op.EsEndosoCancelacion === 1 || op.EsEndosoCancelacion === true
+    if (esCancelacion) {
+        return { label: 'Cancelación', class: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' }
+    }
+    if (!isEndoso) {
+        return null
+    }
+    const prima = parseFloat(op.PrimaTotal) || 0
+    if (prima > 0) return { label: 'Aumento', class: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' }
+    if (prima < 0) return { label: 'Disminución', class: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' }
+    return { label: 'Sin cambio', class: 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200' }
 }
 
 function riesgoNombre(n: number): string {
@@ -483,31 +500,109 @@ function riesgoNombre(n: number): string {
                         </section>
 
                         <!-- OPERACIONES -->
-                        <section v-if="activeTab === 'op'" class="space-y-4">
-                             <div v-if="props.operaciones.length" v-for="op in props.operaciones" :key="op.IDOperacion"
-                                class="rounded-xl border border-gray-200/80 bg-white/70 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
-                                <div class="flex flex-wrap items-start justify-between gap-4">
-                                     <div>
-                                         <h3 class="text-base font-bold text-blue-800 dark:text-blue-300">{{ op.FolioPoliza }}</h3>
-                                         <p class="text-sm text-gray-500 dark:text-neutral-400">Endoso: {{ op.FolioEndoso }}</p>
-                                     </div>
+                        <section v-if="activeTab === 'op'" class="space-y-6">
+                             <div v-if="props.polizas.length" v-for="(poliza, pidx) in props.polizas" :key="pidx"
+                                class="rounded-xl border-2 border-blue-200/80 bg-white/70 shadow-lg shadow-blue-200/40 backdrop-blur-lg dark:border-blue-500/20 dark:bg-neutral-950/70 dark:shadow-black/20 overflow-hidden">
 
+                                <!-- Cabecera de la Póliza -->
+                                <div class="bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 px-5 py-4 border-b border-blue-200/60 dark:border-blue-500/20">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-blue-900 dark:text-blue-200">Póliza: {{ poliza.folio_poliza }}</h3>
+                                            <p class="text-xs text-blue-600/70 dark:text-blue-300/70 mt-0.5">
+                                                {{ poliza.todas_operaciones.length }} operación(es) registrada(s)
+                                            </p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs font-medium text-blue-600/70 dark:text-blue-300/70">Balance Prima Total</span>
+                                            <p class="text-xl font-bold" :class="(poliza.balance_prima_total || 0) >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
+                                                {{ formatCurrency(poliza.balance_prima_total) }}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                 <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Prima Total</dt><dd class="mt-1 font-semibold text-gray-900 dark:text-neutral-100">{{ formatCurrency(op.PrimaTotal) }} ({{ op.IDMoneda }})</dd></div>
-                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Fecha Emisión</dt><dd class="mt-1 text-gray-700 dark:text-neutral-300">{{ formatDate(op.FechaEmision) }}</dd></div>
-                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Inicio Vigencia</dt><dd class="mt-1 text-gray-700 dark:text-neutral-300">{{ formatDate(op.FechaInicioVigencia) }}</dd></div>
-                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Fin Vigencia</dt><dd class="mt-1 text-gray-700 dark:text-neutral-300">{{ formatDate(op.FechaFinVigencia) }}</dd></div>
-                                     <div class="sm:col-span-2"><dt class="font-medium text-gray-500 dark:text-neutral-400">Agente</dt><dd class="mt-1 text-gray-700 dark:text-neutral-300">{{ op.NombreAgente }} {{ op.APaternoAgente }} ({{ op.RazonSocialAgente }})</dd></div>
-                                 </dl>
-                                 <div v-if="op.pagos && op.pagos.length" class="mt-4">
-                                     <h4 class="text-sm font-semibold text-gray-700 dark:text-neutral-200">Pagos Registrados</h4>
-                                     <ul class="mt-2 list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-neutral-300">
-                                         <li v-for="p in op.pagos" :key="p.IDOperacionPago">
-                                             {{ formatCurrency(p.Monto) }} {{ p.IDMoneda }} - {{ formatDate(p.FechaPago) }} <span v-if="p.IDFormaPago" class="text-xs text-gray-400 dark:text-neutral-500">(FP: {{ p.IDFormaPago }})</span>
-                                         </li>
-                                     </ul>
-                                 </div>
+
+                                <div class="p-5 space-y-4">
+
+                                    <!-- Operaciones principales (sin endoso) -->
+                                    <div v-if="poliza.operaciones.length">
+                                        <h4 class="text-sm font-semibold text-gray-600 dark:text-neutral-400 uppercase tracking-wider mb-3">Operaciones</h4>
+                                        <div v-for="op in poliza.operaciones" :key="op.IDOperacion"
+                                            class="rounded-lg border border-gray-200/60 bg-gray-50/50 dark:border-neutral-700/60 dark:bg-neutral-900/30 p-4">
+                                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-mono text-gray-400 dark:text-neutral-500">#{{ op.IDOperacion }}</span>
+                                                    <span v-if="tipoOperacionLabel(op, false)" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" :class="tipoOperacionLabel(op, false)!.class">
+                                                        {{ tipoOperacionLabel(op, false)!.label }}
+                                                    </span>
+                                                </div>
+                                                <span class="text-xs text-gray-400 dark:text-neutral-500">{{ formatDate(op.FechaEmision) }}</span>
+                                            </div>
+                                            <dl class="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
+                                                <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Prima Total</dt><dd class="mt-0.5 font-semibold" :class="(op.PrimaTotal || 0) >= 0 ? 'text-gray-900 dark:text-neutral-100' : 'text-red-600 dark:text-red-300'">{{ formatCurrency(op.PrimaTotal) }} {{ op.IDMoneda ? '(' + op.IDMoneda + ')' : '' }}</dd></div>
+                                                <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Gastos Emisión</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatCurrency(op.GastosEmision) }}</dd></div>
+                                                <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Vigencia</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatDate(op.FechaInicioVigencia) }} - {{ formatDate(op.FechaFinVigencia) }}</dd></div>
+                                                <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Agente</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ op.NombreAgente }} {{ op.APaternoAgente }}</dd></div>
+                                            </dl>
+                                            <!-- Pagos de esta operación -->
+                                            <div v-if="op.pagos && op.pagos.length" class="mt-3 border-t border-gray-200/50 dark:border-neutral-700/50 pt-3">
+                                                <h5 class="text-xs font-semibold text-gray-600 dark:text-neutral-400 mb-1">Pagos</h5>
+                                                <ul class="space-y-1">
+                                                    <li v-for="p in op.pagos" :key="p.IDOperacionPago" class="flex flex-wrap items-center justify-between text-xs bg-white/70 dark:bg-neutral-800/50 rounded px-2 py-1">
+                                                        <span class="font-mono font-semibold text-gray-800 dark:text-neutral-200">{{ formatCurrency(p.Monto) }} {{ p.IDMoneda }}</span>
+                                                        <span class="text-gray-500 dark:text-neutral-400">{{ formatDate(p.FechaPago) }} <span v-if="p.IDFormaPago" class="text-gray-400 dark:text-neutral-500">| FP: {{ p.IDFormaPago }}</span></span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            <div v-else class="mt-2 text-xs text-gray-400 dark:text-neutral-500 italic">Sin pagos registrados</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Endosos -->
+                                    <div v-if="poliza.endosos.length">
+                                        <h4 class="text-sm font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            Endosos
+                                            <span class="text-xs font-normal normal-case text-amber-500">({{ poliza.endosos.length }})</span>
+                                        </h4>
+                                        <div class="space-y-3">
+                                            <div v-for="endoso in poliza.endosos" :key="endoso.IDOperacion"
+                                                class="rounded-lg border border-amber-200/60 bg-amber-50/40 dark:border-amber-500/20 dark:bg-amber-900/10 p-4">
+                                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs font-mono text-gray-400 dark:text-neutral-500">#{{ endoso.IDOperacion }}</span>
+                                                        <span class="text-sm font-bold text-amber-800 dark:text-amber-200">No. Endoso: {{ endoso.FolioEndoso }}</span>
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" :class="tipoOperacionLabel(endoso, true)!.class">
+                                                            {{ tipoOperacionLabel(endoso, true)!.label }}
+                                                        </span>
+                                                    </div>
+                                                    <span class="text-xs text-gray-400 dark:text-neutral-500">{{ formatDate(endoso.FechaEmision) }}</span>
+                                                </div>
+                                                <dl class="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
+                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Prima Total</dt><dd class="mt-0.5 font-semibold" :class="(endoso.PrimaTotal || 0) >= 0 ? 'text-gray-900 dark:text-neutral-100' : 'text-red-600 dark:text-red-300'">{{ formatCurrency(endoso.PrimaTotal) }} {{ endoso.IDMoneda ? '(' + endoso.IDMoneda + ')' : '' }}</dd></div>
+                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Gastos Emisión</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatCurrency(endoso.GastosEmision) }}</dd></div>
+                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Vigencia</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatDate(endoso.FechaInicioVigencia) }} - {{ formatDate(endoso.FechaFinVigencia) }}</dd></div>
+                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Agente</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ endoso.NombreAgente }} {{ endoso.APaternoAgente }}</dd></div>
+                                                </dl>
+                                                <!-- Pagos de este endoso -->
+                                                <div v-if="endoso.pagos && endoso.pagos.length" class="mt-3 border-t border-amber-200/50 dark:border-amber-500/20 pt-3">
+                                                    <h5 class="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Pagos</h5>
+                                                    <ul class="space-y-1">
+                                                        <li v-for="p in endoso.pagos" :key="p.IDOperacionPago" class="flex flex-wrap items-center justify-between text-xs bg-white/70 dark:bg-neutral-800/50 rounded px-2 py-1">
+                                                            <span class="font-mono font-semibold text-gray-800 dark:text-neutral-200">{{ formatCurrency(p.Monto) }} {{ p.IDMoneda }}</span>
+                                                            <span class="text-gray-500 dark:text-neutral-400">{{ formatDate(p.FechaPago) }} <span v-if="p.IDFormaPago" class="text-gray-400 dark:text-neutral-500">| FP: {{ p.IDFormaPago }}</span></span>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                                <div v-else class="mt-2 text-xs text-gray-400 dark:text-neutral-500 italic">Sin pagos registrados</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sin operaciones principales ni endosos (caso raro) -->
+                                    <div v-if="!poliza.operaciones.length && !poliza.endosos.length" class="text-center text-gray-400 dark:text-neutral-500 italic py-4">
+                                        Sin operaciones en esta póliza.
+                                    </div>
+                                </div>
                              </div>
                              <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin operaciones registradas.</div>
                         </section>

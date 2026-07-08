@@ -30,7 +30,7 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        },\n        {\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        }\n    ]\n}"
+              "raw": "{\n    \"montoPagado\": 1000,\n    \"IDFormaPago\": \"2\",\n    \"FechaPago\": \"2024-01-02\",\n    \"detallePagos\": [\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        },\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-FRACC-001\",\n            \"folioEndoso\": \"END-FRACC-001\",\n            \"detalleMontoPagado\": 500\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
@@ -67,7 +67,7 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 2000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"1\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        },\n        {\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
+              "raw": "{\n    \"montoPagado\": 2000,\n    \"IDFormaPago\": \"1\",\n    \"FechaPago\": \"2024-01-02\",\n    \"detallePagos\": [\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        },\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-EFEC-001\",\n            \"folioEndoso\": \"END-EFEC-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
@@ -104,7 +104,7 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 12000,\n    \"IDMoneda\": \"USD\",\n    \"IDFormaPago\": \"1\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-RELEV-001\",\n            \"folioEndoso\": \"END-RELEV-001\",\n            \"detalleMontoPagado\": 12000\n        }\n    ]\n}"
+              "raw": "{\n    \"montoPagado\": 12000,\n    \"IDFormaPago\": \"1\",\n    \"FechaPago\": \"2024-01-02\",\n    \"detallePagos\": [\n        {\n            \"IDMoneda\": \"USD\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-RELEV-001\",\n            \"folioEndoso\": \"END-RELEV-001\",\n            \"detalleMontoPagado\": 12000\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
@@ -141,7 +141,7 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"IDCliente\": 2,\n    \"montoPagado\": 1000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-PPE-001\",\n            \"folioEndoso\": \"END-PPE-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
+              "raw": "{\n    \"montoPagado\": 1000,\n    \"IDFormaPago\": \"2\",\n    \"FechaPago\": \"2024-01-02\",\n    \"detallePagos\": [\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 2,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-PPE-001\",\n            \"folioEndoso\": \"END-PPE-001\",\n            \"detalleMontoPagado\": 1000\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/insertar/operacion-pago",
@@ -178,7 +178,7 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"IDCliente\": 1,\n    \"montoPagado\": 600000,\n    \"IDMoneda\": \"MXN\",\n    \"IDFormaPago\": \"2\",\n    \"TipoCambio\": 1,\n    \"FechaPago\": \"2024-01-02\",\n    \"detalleOperaciones\": [\n        {\n            \"folioPoliza\": \"POL-INUSUAL-001\",\n            \"folioEndoso\": \"END-INUSUAL-001\",\n            \"detalleMontoPagado\": 600000\n        }\n    ]\n}"
+              "raw": "{\n    \"montoPagado\": 600000,\n    \"IDFormaPago\": \"2\",\n    \"FechaPago\": \"2024-01-02\",\n    \"detallePagos\": [\n        {\n            \"IDMoneda\": \"MXN\",\n            \"TipoCambio\": 1,\n            \"IDCliente\": 1,\n            \"PagaTercero\": false,\n            \"AvisoDeCobro\": null,\n            \"IDOperacion\": 1,\n            \"folioPoliza\": \"POL-INUSUAL-001\",\n            \"folioEndoso\": \"END-INUSUAL-001\",\n            \"detalleMontoPagado\": 600000\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/insertar/operacion-pago",

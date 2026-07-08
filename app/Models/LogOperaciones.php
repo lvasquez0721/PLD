@@ -22,6 +22,7 @@ class LogOperaciones extends Model
         'IDOperacion',
         'IDCliente',
         'IDMoneda',
+        'IDFormaPago',
         'FechaInicioVigencia',
         'FechaFinVigencia',
         'RazonSocialAgente',

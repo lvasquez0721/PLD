@@ -25,5 +25,9 @@ class LogOperacionesPagos extends Model
         'TipoCambio',
         'FechaPago',
         'TimeStampRegistro',
+        'PagaTercero',
+        'AvisoDeCobro',
+        'folioPoliza',
+        'folioEndoso',
     ];
 }

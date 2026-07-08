@@ -1,7 +1,8 @@
-w<?php
+<?php
 
 namespace App\Services\PLD;
 
+use App\Models\CatMonedas;
 use App\Models\CatTipoOperacion;
 use App\Models\CatTipoReporte;
 use App\Models\Clientes\CatNacionalidad;
@@ -78,9 +79,9 @@ class ReportesRegulatorios
             $domicilioProcesadoStr = '';
         }
 
-        $ocupacion = CatOcupacionesGiros::where('IDOcupacionGiro', $cliente->IDOcupacionGiro)->first()->OcupacionGiro;
-        $tipoOperacion = CatTipoOperacion::where('IDTipoOperacion', 10)->first()->TipoOperacion;
-        $tipoReporteStr = CatTipoReporte::where('IDTipoReporte', $tipoReporte)->first()->TipoReporte;
+        $ocupacion = CatOcupacionesGiros::where('IDOcupacionGiro', $cliente->IDOcupacionGiro)->first()?->OcupacionGiro;
+        $tipoOperacion = CatTipoOperacion::where('IDTipoOperacion', 10)->first()?->TipoOperacion;
+        $tipoReporteStr = CatTipoReporte::where('IDTipoReporte', $tipoReporte)->first()?->TipoReporte;
 
         try {
             $reporte = new TbReporteRegulatorioPLD;
@@ -98,7 +99,9 @@ class ReportesRegulatorios
             $reporte->InstrumentoMonetario = $alertaData->InstrumentoMonetario ?? null;
             $reporte->NoPoliza = $alertaData->Poliza ?? null;
             $reporte->Monto = $alertaData->MontoOperacion ?? null;
-            $reporte->IDMoneda = $operacion->IDMoneda ?? null;
+            $monedaModel = CatMonedas::where('IDMoneda', $operacion->IDMoneda)->first()
+                ?? CatMonedas::where('Moneda', $operacion->IDMoneda)->first();
+            $reporte->IDMoneda = $monedaModel?->IDMoneda;
             $reporte->FechaOperacion = $alertaData->FechaOperacion ?? null;
             $reporte->FechaDeteccion = $alertaData->FechaDeteccion ?? null;
             $reporte->Nacionalidad = $nacionalidad ?? null;
