@@ -43,6 +43,7 @@ class TbClientes extends Model
     ];
 
     protected $casts = [
+        'IDTipoPersona' => 'integer',
         'EsPPEActivo' => 'boolean',
         'Activo' => 'boolean',
         'FechaNacimiento' => 'date',

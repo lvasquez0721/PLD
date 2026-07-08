@@ -66,12 +66,13 @@ class ClientesControllerApi extends Controller
         // Validación de RFC duplicado
         if (! empty($rfc)) {
             if ($rfc !== 'XAXX010101000') {
-                $existeRFC = TbClientes::whereRaw('UPPER(RFC) = ?', [$rfc])->exists();
-                if ($existeRFC) {
+                $clienteExistente = TbClientes::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
+                if ($clienteExistente) {
                     return response()->json([
                         'codigoError' => 2,
                         'message' => 'El RFC ya se encuentra registrado.',
                         'error_code' => 'RFC_DUPLICADO',
+                        'IDCliente' => $clienteExistente->IDCliente,
                     ], 200);
                 }
             } else {
