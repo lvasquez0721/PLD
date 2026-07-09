@@ -119,15 +119,6 @@ class PerfilTransaccionalController extends Controller
                         'mensaje' => 'No se encontró información para el cliente especificado.',
                     ], 404);
                 }
-<<<<<<< HEAD
-
-                return response()->json([
-                    // 'perfilTransaccionalV' => (float) $registro->Perfil,
-                    'perfilTransaccional' => (float) $registro->Perfil,
-                    'IDRiesgoPerfil' => ((float) $registro->Perfil < 2) ? 1 : 2,
-
-                ]);
-=======
                 
                 // Construir la respuesta base
                 $respuesta = [
@@ -141,7 +132,6 @@ class PerfilTransaccionalController extends Controller
                 }
                 
                 return response()->json($respuesta);
->>>>>>> 82fefab (Pagina de busqueda de Perfil Transaccional por Cliente)
             }
 
             // Caso 2: Buscar por periodo (para generar CSV)
