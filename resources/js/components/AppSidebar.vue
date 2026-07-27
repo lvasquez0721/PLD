@@ -75,6 +75,12 @@ const mainNavItems: NavItem[] = [
         badge: null
     },
     {
+        title: 'Perfil Transaccional - Cliente',
+        href: '/perfil-transaccional-cliente',
+        icon: BookOpen,
+        badge: null
+    },
+    {
         title: 'Módulo de Alertas',
         href: '/alertas',
         icon: Bell,

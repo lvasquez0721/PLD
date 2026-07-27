@@ -48,6 +48,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/perfil-transaccional/ejecutar', [PerfilTransaccionalController::class, 'ejecutar'])->name('perfil-transaccional.ejecutar');
 });
 
+Route::get('/perfil-transaccional-cliente', [PerfilTransaccionalController::class, 'perfilClienteView']);
+Route::get('/perfil-transaccional-clientes-search', [PerfilTransaccionalController::class, 'buscarClientes']);
+Route::post('/perfil-transaccional-cliente-buscar', [PerfilTransaccionalController::class, 'buscarPerfilCliente']);
+
 // Alertas
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/alertas', [AlertasController::class, 'index'])->name('alertas.index');
