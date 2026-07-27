@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\ClienteHelper;
 use App\Models\Clientes\CatIDClientesSistema;
+use App\Models\Clientes\CatSistemas;
 use App\Models\Clientes\LogClientes;
 use App\Models\Clientes\LogClientesDomicilio;
 use App\Models\Clientes\TbClientes;
@@ -68,6 +69,52 @@ class ClientesControllerApi extends Controller
             if ($rfc !== 'XAXX010101000') {
                 $clienteExistente = TbClientes::whereRaw('UPPER(RFC) = ?', [$rfc])->first();
                 if ($clienteExistente) {
+                    if (! empty($data['IDSistemaOrigen']) && ! empty($data['NoClienteSistema'])) {
+                        $sistema = CatSistemas::find($data['IDSistemaOrigen']);
+                        $nombreSistema = $sistema ? $sistema->Sistema : 'ID '.$data['IDSistemaOrigen'];
+
+                        $existeRegistroSistema = CatIDClientesSistema::where('IDCliente', $clienteExistente->IDCliente)
+                            ->where('IDSistema', $data['IDSistemaOrigen'])
+                            ->first();
+
+                        if (! $existeRegistroSistema) {
+                            try {
+                                $nuevoIDOrigen = (CatIDClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
+                                CatIDClientesSistema::create([
+                                    'IDOrigenSistema' => $nuevoIDOrigen,
+                                    'IDCliente' => $clienteExistente->IDCliente,
+                                    'IDSistema' => $data['IDSistemaOrigen'],
+                                    'NCliente' => $data['NoClienteSistema'],
+                                ]);
+
+                                return response()->json([
+                                    'codigoError' => 0,
+                                    'message' => 'Cliente registrado correctamente en el sistema '.$nombreSistema,
+                                    'IDCliente' => $clienteExistente->IDCliente,
+                                    'IDSistema' => $data['IDSistemaOrigen'],
+                                    'nombreSistema' => $nombreSistema,
+                                ], 200);
+                            } catch (\Exception $e) {
+                                Log::error('Error al registrar cliente duplicado en CatIDClientesSistema: '.$e->getMessage());
+
+                                return response()->json([
+                                    'codigoError' => 1,
+                                    'message' => 'Error al registrar en CatIDClientesSistema: '.$e->getMessage(),
+                                    'IDCliente' => $clienteExistente->IDCliente,
+                                ], 200);
+                            }
+                        }
+
+                        return response()->json([
+                            'codigoError' => 0,
+                            'message' => 'El cliente ya se encuentra registrado en el sistema '.$nombreSistema,
+                            'IDCliente' => $clienteExistente->IDCliente,
+                            'IDSistema' => $data['IDSistemaOrigen'],
+                            'nombreSistema' => $nombreSistema,
+                            'IDOrigenSistema' => $existeRegistroSistema->IDOrigenSistema,
+                        ], 200);
+                    }
+
                     return response()->json([
                         'codigoError' => 2,
                         'message' => 'El RFC ya se encuentra registrado.',

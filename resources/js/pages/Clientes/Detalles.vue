@@ -31,6 +31,7 @@ const props = defineProps<{
     listasNegras: any[]
     perfilTransaccional: any
     listasUIF: any[]
+    sistemasDelCliente: any[]
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -301,6 +302,19 @@ function riesgoNombre(n: number): string {
                             <span class="w-15 font-semibold">RFC</span>
                             <span v-if="hasRFC" class="font-mono">{{ props.cliente.RFC }}</span>
                             <span v-else class="inline-flex items-center gap-1 rounded bg-yellow-100 text-yellow-800 px-2 py-0.5 font-semibold dark:bg-yellow-900/40 dark:text-yellow-200">No cuenta con RFC</span>
+                        </div>
+                        <div class="flex items-start gap-2 text-gray-600 dark:text-neutral-300">
+                            <span class="w-15 font-semibold shrink-0 pt-0.5">Sistemas</span>
+                            <div class="flex flex-wrap gap-1">
+                                <span v-if="sistemasDelCliente.length === 0"
+                                    class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 font-semibold dark:bg-indigo-900/40 dark:text-indigo-200">
+                                    PLD (Sistema Local)
+                                </span>
+                                <span v-for="sis in sistemasDelCliente" :key="sis.IDOrigenSistema"
+                                    class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 font-semibold dark:bg-indigo-900/40 dark:text-indigo-200">
+                                    {{ sis.sistema?.Sistema ?? 'ID ' + sis.IDSistema }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div v-if="!isClienteActivo" class="mt-3">
