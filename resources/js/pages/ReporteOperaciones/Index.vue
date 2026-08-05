@@ -18,6 +18,7 @@ const opcionesPatron = [
     { value: 'Relevante',    label: 'Relevante' },
     { value: 'Inusual',      label: 'Inusual' },
     { value: 'Preocupante',  label: 'Preocupante' },
+    { value: 'Cancelacion',  label: 'Cancelacion' },
 ];
 
 const opcionesEstatus = [

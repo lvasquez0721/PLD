@@ -8,7 +8,7 @@ use Inertia\Inertia;
 
 class ReporteOperacionesController extends Controller
 {
-    private const PATRONES = ['Relevante', 'Inusual', 'Preocupante'];
+    private const PATRONES = ['Relevante', 'Inusual', 'Preocupante', 'Cancelacion'];
 
     private const ESTATUS = ['Enviado', 'Por reportar'];
 

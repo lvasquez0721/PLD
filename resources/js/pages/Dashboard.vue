@@ -85,6 +85,7 @@ function getPatronColor(patron: string) {
         case 'Relevante':    return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200';
         case 'Inusual':      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200';
         case 'Preocupante':  return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200';
+        case 'Cancelacion':  return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200';
         default:             return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     }
 }
@@ -94,6 +95,7 @@ function getPatronBarColor(patron: string) {
         case 'Relevante':    return 'bg-orange-400';
         case 'Inusual':      return 'bg-red-500';
         case 'Preocupante':  return 'bg-rose-500';
+        case 'Cancelacion':  return 'bg-purple-500';
         default:             return 'bg-gray-400';
     }
 }

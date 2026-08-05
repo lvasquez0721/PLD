@@ -112,6 +112,21 @@ class OperacionesController extends Controller
             $operacion->EsEndosoCancelacion = $validatedData['EsEndosoCancelacion'] ?? null;
             $operacion->save();
 
+            if ($operacion->EsEndosoCancelacion) {
+                $alertaData = [
+                    'patron' => \App\Services\PLD\AnalisisPagosService::PATRON_CANCELACION,
+                    'descripcion' => 'Operación de endoso de cancelación detectada',
+                    'razones' => 'La operación corresponde a un endoso de cancelación de póliza',
+                ];
+                $evidencias = [
+                    'tipo' => 'EndosoCancelacion',
+                    'operacion_id' => $operacion->IDOperacion,
+                    'folio_poliza' => $operacion->FolioPoliza,
+                    'folio_endoso' => $operacion->FolioEndoso,
+                ];
+                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias);
+            }
+
             $beneficiarios = $validatedData['DetalleBeneficiarios'] ?? [];
             if (! empty($beneficiarios) && is_array($beneficiarios)) {
                 foreach ($beneficiarios as $beneficiario) {
@@ -347,7 +362,7 @@ class OperacionesController extends Controller
         }
     }
 
-    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis): void
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null): void
     {
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
@@ -385,9 +400,10 @@ class OperacionesController extends Controller
             'evidencias' => $evidencias,
             'pagos_operacion_count' => count($pagosOperacion),
         ]);
-        // Si en el futuro se restaura la clase, puedes descomentar y usar la siguiente línea:
-        $reportesRegulatoriosService = new ReportesRegulatorios;
-        $reportesRegulatoriosService->insertarReporte($operacion, $cliente, $alerta, $evidencias, $pagosOperacion, $resultadoAnalisis);
+        if ($resultadoAnalisis !== null) {
+            $reportesRegulatoriosService = new ReportesRegulatorios;
+            $reportesRegulatoriosService->insertarReporte($operacion, $cliente, $alerta, $evidencias, $pagosOperacion, $resultadoAnalisis);
+        }
 
         foreach ($pagosOperacion as $pago) {
             $formaPago = CatFormaPagos::find($operacion->IDFormaPago);
@@ -413,6 +429,10 @@ class OperacionesController extends Controller
     {
         if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
             return 'Por reportar';
+        }
+
+        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_CANCELACION) {
+            return 'Generado';
         }
 
         return 'Generado';

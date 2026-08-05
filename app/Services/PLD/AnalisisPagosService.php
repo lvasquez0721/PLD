@@ -22,6 +22,8 @@ class AnalisisPagosService
 
     const PATRON_MONTO_INUSUAL = 'Inusual';
 
+    const PATRON_CANCELACION = 'Cancelacion';
+
     // Constantes para estatus
     const ESTATUS_GENERADO = 'Generado';
 
