@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Clientes\CatIDClientesSistema;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
@@ -308,6 +309,10 @@ class ClientesController extends Controller
             $listasUIF = collect(); // colección vacía si no hay datos con qué buscar
         }
 
+        $sistemasDelCliente = CatIDClientesSistema::where('IDCliente', $cliente->IDCliente)
+            ->with('sistema')
+            ->get();
+
         return inertia('Clientes/Detalles', [
             'cliente' => $cliente,
             'domicilios' => $domicilios,
@@ -317,6 +322,7 @@ class ClientesController extends Controller
             'listasNegras' => $listasNegras,
             'perfilTransaccional' => $perfilTransaccional,
             'listasUIF' => $listasUIF,
+            'sistemasDelCliente' => $sistemasDelCliente,
         ]);
     }
 
