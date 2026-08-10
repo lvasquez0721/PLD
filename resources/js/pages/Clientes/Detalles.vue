@@ -31,6 +31,7 @@ const props = defineProps<{
     listasNegras: any[]
     perfilTransaccional: any
     listasUIF: any[]
+    sistemasDelCliente: any[]
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -109,8 +110,8 @@ const clienteEstatusClass = computed(() =>
         : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
 )
 
-const personaTipo = computed(() => props.cliente.IDTipoPersona === 1 ? 'Persona Física' : 'Persona Moral')
-const personaIcon = computed(() => props.cliente.IDTipoPersona === 1 ? UserCircle : Building)
+const personaTipo = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? 'Persona Física' : 'Persona Moral')
+const personaIcon = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? UserCircle : Building)
 
 const hasRFC = computed(() => !!props.cliente.RFC && String(props.cliente.RFC).trim() !== '')
 
@@ -302,6 +303,19 @@ function riesgoNombre(n: number): string {
                             <span v-if="hasRFC" class="font-mono">{{ props.cliente.RFC }}</span>
                             <span v-else class="inline-flex items-center gap-1 rounded bg-yellow-100 text-yellow-800 px-2 py-0.5 font-semibold dark:bg-yellow-900/40 dark:text-yellow-200">No cuenta con RFC</span>
                         </div>
+                        <div class="flex items-start gap-2 text-gray-600 dark:text-neutral-300">
+                            <span class="w-15 font-semibold shrink-0 pt-0.5">Sistemas</span>
+                            <div class="flex flex-wrap gap-1">
+                                <span v-if="sistemasDelCliente.length === 0"
+                                    class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 font-semibold dark:bg-indigo-900/40 dark:text-indigo-200">
+                                    PLD (Sistema Local)
+                                </span>
+                                <span v-for="sis in sistemasDelCliente" :key="sis.IDOrigenSistema"
+                                    class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 font-semibold dark:bg-indigo-900/40 dark:text-indigo-200">
+                                    {{ sis.sistema?.Sistema ?? 'ID ' + sis.IDSistema }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     <div v-if="!isClienteActivo" class="mt-3">
                         <button
@@ -425,8 +439,8 @@ function riesgoNombre(n: number): string {
                             <div class="rounded-xl border border-gray-200/80 bg-white/70 p-6 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
                                 <h3 class="text-base font-semibold text-gray-800 dark:text-white">Identificación</h3>
                                 <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                                    <div v-if="props.cliente.IDTipoPersona === 2"><dt class="font-medium text-gray-500 dark:text-neutral-400">Razón Social</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.RazonSocial }}</dd></div>
-                                    <div v-if="props.cliente.IDTipoPersona === 1"><dt class="font-medium text-gray-500 dark:text-neutral-400">Nombre Completo</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ fullName }}</dd></div>
+                                    <div v-if="Number(props.cliente.IDTipoPersona) === 2"><dt class="font-medium text-gray-500 dark:text-neutral-400">Razón Social</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.RazonSocial }}</dd></div>
+                                    <div v-if="Number(props.cliente.IDTipoPersona) === 1"><dt class="font-medium text-gray-500 dark:text-neutral-400">Nombre Completo</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ fullName }}</dd></div>
                                     <div>
                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">RFC</dt>
                                         <dd class="mt-1 font-mono text-gray-900 dark:text-neutral-100">
@@ -579,7 +593,7 @@ function riesgoNombre(n: number): string {
                                                 </div>
                                                 <dl class="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
                                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Prima Total</dt><dd class="mt-0.5 font-semibold" :class="(endoso.PrimaTotal || 0) >= 0 ? 'text-gray-900 dark:text-neutral-100' : 'text-red-600 dark:text-red-300'">{{ formatCurrency(endoso.PrimaTotal) }} {{ endoso.IDMoneda ? '(' + endoso.IDMoneda + ')' : '' }}</dd></div>
-                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Gastos Emisión</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatCurrency(endoso.GastosEmision) }}</dd></div>
+                                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Gastos Emisión</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatCurrency((parseFloat(endoso.PrimaTotal) || 0) < 0 ? -(Math.abs(parseFloat(endoso.GastosEmision) || 0)) : endoso.GastosEmision) }}</dd></div>
                                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Vigencia</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatDate(endoso.FechaInicioVigencia) }} - {{ formatDate(endoso.FechaFinVigencia) }}</dd></div>
                                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Agente</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ endoso.NombreAgente }} {{ endoso.APaternoAgente }}</dd></div>
                                                 </dl>

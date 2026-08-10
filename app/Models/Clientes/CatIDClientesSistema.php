@@ -25,4 +25,9 @@ class CatIDClientesSistema extends Model
         'IDSistema',
         'NCliente',
     ];
+
+    public function sistema()
+    {
+        return $this->belongsTo(CatSistemas::class, 'IDSistema', 'IDSistema');
+    }
 }

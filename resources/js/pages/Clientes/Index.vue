@@ -666,8 +666,8 @@ function descargarCSV() {
                                 <td class="px-4 py-3 align-middle">
                                     <span
                                         class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-                                        :class="cliente.IDTipoPersona === 1 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'">
-                                        {{ cliente.IDTipoPersona === 1 ? 'Física' : 'Moral' }}
+                                        :class="Number(cliente.IDTipoPersona) === 1 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'">
+                                        {{ Number(cliente.IDTipoPersona) === 1 ? 'Física' : 'Moral' }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 align-middle">
