@@ -43,6 +43,13 @@ class TbOperaciones extends Model
         'EsquemaDePago',
         // Añadido de la migración 2026_06_17_171749_add_columns_to_tb_operaciones.php
         'operacionCancelada',
+        'EsEndosoCancelacion',
+    ];
+
+    protected $casts = [
+        'EsEndosoCancelacion' => 'boolean',
+        'cancelaPoliza' => 'boolean',
+        'operacionCancelada' => 'boolean',
     ];
 
     /**

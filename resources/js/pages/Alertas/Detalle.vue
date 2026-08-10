@@ -170,7 +170,7 @@ function getEvidenciaPublicUrl(ev: any): string | undefined {
 }
 
 const listaEvidencias = computed(() => {
-    let evs = Array.isArray(evidencias.value?.archivos)
+    const evs = Array.isArray(evidencias.value?.archivos)
         ? evidencias.value.archivos
         : (Array.isArray(evidencias.value) ? evidencias.value : []);
     if (evs.length && typeof evs[0] === 'string') {
@@ -181,10 +181,10 @@ const listaEvidencias = computed(() => {
         }));
     }
     return evs.map((e: any) => {
-        let name =
+        const name =
             e.name || e.filename || e.Nombre || e.FileName || (e.path ? e.path.split('/').pop() : undefined) || 'Archivo';
-        let id = e.id || e.ID || e.Id || e.FileName || e.path || e.url || undefined;
-        let publicUrl = getEvidenciaPublicUrl(e);
+        const id = e.id || e.ID || e.Id || e.FileName || e.path || e.url || undefined;
+        const publicUrl = getEvidenciaPublicUrl(e);
         return {
             name,
             url: publicUrl,

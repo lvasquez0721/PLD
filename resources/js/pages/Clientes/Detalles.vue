@@ -239,6 +239,12 @@ function tipoOperacionLabel(op: any, isEndoso: boolean = false): { label: string
     return { label: 'Sin cambio', class: 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200' }
 }
 
+function esCancelacionEndoso(op: any): boolean {
+    return op.cancelaPoliza === 1 || op.cancelaPoliza === true
+        || op.operacionCancelada === 1 || op.operacionCancelada === true
+        || op.EsEndosoCancelacion === 1 || op.EsEndosoCancelacion === true
+}
+
 function riesgoNombre(n: number): string {
     switch (n) {
         case 1: return 'Bajo'
@@ -583,17 +589,19 @@ function riesgoNombre(n: number): string {
                                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Vigencia</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ formatDate(endoso.FechaInicioVigencia) }} - {{ formatDate(endoso.FechaFinVigencia) }}</dd></div>
                                                     <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Agente</dt><dd class="mt-0.5 text-gray-700 dark:text-neutral-300">{{ endoso.NombreAgente }} {{ endoso.APaternoAgente }}</dd></div>
                                                 </dl>
-                                                <!-- Pagos de este endoso -->
-                                                <div v-if="endoso.pagos && endoso.pagos.length" class="mt-3 border-t border-amber-200/50 dark:border-amber-500/20 pt-3">
-                                                    <h5 class="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Pagos</h5>
-                                                    <ul class="space-y-1">
-                                                        <li v-for="p in endoso.pagos" :key="p.IDOperacionPago" class="flex flex-wrap items-center justify-between text-xs bg-white/70 dark:bg-neutral-800/50 rounded px-2 py-1">
-                                                            <span class="font-mono font-semibold text-gray-800 dark:text-neutral-200">{{ formatCurrency(p.Monto) }} {{ p.IDMoneda }}</span>
-                                                            <span class="text-gray-500 dark:text-neutral-400">{{ formatDate(p.FechaPago) }} <span v-if="p.IDFormaPago" class="text-gray-400 dark:text-neutral-500">| FP: {{ p.IDFormaPago }}</span></span>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                                <div v-else class="mt-2 text-xs text-gray-400 dark:text-neutral-500 italic">Sin pagos registrados</div>
+                                                <!-- Pagos de este endoso (solo si no es cancelación) -->
+                                                <template v-if="!esCancelacionEndoso(endoso)">
+                                                    <div v-if="endoso.pagos && endoso.pagos.length" class="mt-3 border-t border-amber-200/50 dark:border-amber-500/20 pt-3">
+                                                        <h5 class="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Pagos</h5>
+                                                        <ul class="space-y-1">
+                                                            <li v-for="p in endoso.pagos" :key="p.IDOperacionPago" class="flex flex-wrap items-center justify-between text-xs bg-white/70 dark:bg-neutral-800/50 rounded px-2 py-1">
+                                                                <span class="font-mono font-semibold text-gray-800 dark:text-neutral-200">{{ formatCurrency(p.Monto) }} {{ p.IDMoneda }}</span>
+                                                                <span class="text-gray-500 dark:text-neutral-400">{{ formatDate(p.FechaPago) }} <span v-if="p.IDFormaPago" class="text-gray-400 dark:text-neutral-500">| FP: {{ p.IDFormaPago }}</span></span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div v-else class="mt-2 text-xs text-gray-400 dark:text-neutral-500 italic">Sin pagos registrados</div>
+                                                </template>
                                             </div>
                                         </div>
                                     </div>
