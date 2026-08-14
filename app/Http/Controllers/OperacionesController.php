@@ -124,7 +124,7 @@ class OperacionesController extends Controller
                     'folio_poliza' => $operacion->FolioPoliza,
                     'folio_endoso' => $operacion->FolioEndoso,
                 ];
-                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias);
+                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, [], null, $request->IDFormaPago);
             }
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'] ?? [];
@@ -329,7 +329,7 @@ class OperacionesController extends Controller
                 $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
                 foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
-                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
+                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis, $request->IDFormaPago);
                 }
 
                 foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
@@ -362,7 +362,7 @@ class OperacionesController extends Controller
         }
     }
 
-    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null): void
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null, $idFormaPago = null): void
     {
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
@@ -387,6 +387,8 @@ class OperacionesController extends Controller
         $alerta->Razones = $alertaData['razones'];
         $alerta->Evidencias = '';
         $alerta->IDReporteOP = null;
+        $formaPagoAlerta = CatFormaPagos::where('IDFormaPago', $idFormaPago ?? $operacion->IDFormaPago)->first();
+        $alerta->InstrumentoMonetario = $formaPagoAlerta->FormaPago ?? null;
 
         $alerta->save();
 
@@ -406,11 +408,11 @@ class OperacionesController extends Controller
         }
 
         foreach ($pagosOperacion as $pago) {
-            $formaPago = CatFormaPagos::find($operacion->IDFormaPago);
+            $formaPagoPago = CatFormaPagos::where('IDFormaPago', $pago->IDFormaPago ?? $idFormaPago ?? $operacion->IDFormaPago)->first();
             $pagoAlerta = new TbPagosAlertas;
             $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
             $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
-            $pagoAlerta->InstrumentoMonetario = $formaPago->FormaPago ?? 'Desconocido';
+            $pagoAlerta->InstrumentoMonetario = $formaPagoPago->FormaPago ?? null;
             $pagoAlerta->save();
         }
     }
