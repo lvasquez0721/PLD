@@ -169,7 +169,7 @@ class PerfilTransaccionalController extends Controller
             fputcsv($archivo, [
                 'IDCliente', 'TipoSolicitante', 'Nombre', 'EdoNacimiento', 'NivelRiesgoNac', 'CalculoNacimiento',
                 'EdoDomicilio', 'NivelRiesgoDoc', 'CalculoResidencia',
-                /*'EdoLabora',*/ 'NivelRiesgoResidencia', 'CalculoLaboral', 'TotalUbicacion',
+                /*'EdoLabora', 'NivelRiesgoResidencia', 'CalculoLaboral',*/ 'TotalUbicacion',
                 'Origen', 'ORecursos', 'Ingresos', /*'PromedioHA',*/ 'TotalEconomico',
                 'OcupGiro', 'NivelRiesgo', 'CalculoOcupacion', 'Perfil', 'Periodo',
             ]);
@@ -185,9 +185,9 @@ class PerfilTransaccionalController extends Controller
                     $fila->IDEstadoDomicilio,
                     $fila->NivelRiesgoDoc,
                     $fila->CalculoResidencia,
-                    /*$fila->IDEstadoLabora,*/
+                    /*$fila->IDEstadoLabora,
                     $fila->NivelRiesgoResidencia,
-                    $fila->CalculoLaboral,
+                    $fila->CalculoLaboral,*/
                     $fila->TotalUbicacion,
                     $fila->Origen,
                     $fila->ORecursos,
