@@ -18,13 +18,18 @@ class PerfilTransaccionalController extends Controller
         $campos = CatCampos::where('IDModulo', 2)
             ->where('Seccion', 1)
             ->orderBy('Orden')
-            ->get();
+            ->get()
+            ->map(function ($campo) {
+                $campo->Visible = (int) $campo->Visible;
+                $campo->Requerido = (int) $campo->Requerido;
+                return $campo;
+            });
 
         // Periodos disponibles
         $periodos = TbPerfilTransaccional::selectRaw("
-                DISTINCT FechaEjecucción,
-                DATE_FORMAT(FechaEjecucción, '%d/%m/%Y') AS PeriodoFormateado
-            ")
+                    DISTINCT FechaEjecucción,
+                    DATE_FORMAT(FechaEjecucción, '%d/%m/%Y') AS PeriodoFormateado
+                ")
             ->where('IDTipoEjecuccion', 1)
             ->orderByDesc('FechaEjecucción')
             ->get();
@@ -71,7 +76,7 @@ class PerfilTransaccionalController extends Controller
         try {
             $periodo = $request->input('Periodo');
             $idCliente = $request->input('IDCliente');
-            $poliza = $request->input('Poliza', ''); 
+            $poliza = $request->input('Poliza', '');
 
             if (empty($periodo) && empty($idCliente)) { // respuesta si no hay parámetros
                 return response()->json([
@@ -119,18 +124,18 @@ class PerfilTransaccionalController extends Controller
                         'mensaje' => 'No se encontró información para el cliente especificado.',
                     ], 404);
                 }
-                
+
                 // Construir la respuesta base
                 $respuesta = [
                     'perfilTransaccional' => (float) $registro->Perfil,
                     'IDRiesgoPerfil' => ((float)$registro->Perfil < 2) ? 1 : 2,
                 ];
-                
+
                 // Si viene una póliza, agregar el IDRegistroPerfil
                 if (!empty($poliza)) {
                     $respuesta['IDRegistroPerfil'] = $registro->IDRegistroPerfil;
                 }
-                
+
                 return response()->json($respuesta);
             }
 
@@ -232,10 +237,10 @@ class PerfilTransaccionalController extends Controller
             return redirect()->back()->with('error', 'Error al ejecutar el perfil: '.$e->getMessage());
         }
     }
-    
+
     //-------------------------------------------------------------------------------------
     //-------------------------------------------------------------------------------------
-    
+
     // Vista para perfil transaccional - cliente
     public function perfilClienteView()
     {

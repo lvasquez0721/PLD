@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
+use App\Models\CatParametriaPLD;
 use App\Models\Clientes\TbClientes;
 use App\Models\LogOperacionesPagos;
 use App\Models\TbAlertas;
@@ -124,7 +125,7 @@ class OperacionesController extends Controller
                     'folio_poliza' => $operacion->FolioPoliza,
                     'folio_endoso' => $operacion->FolioEndoso,
                 ];
-                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias);
+                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, [], null, $request->IDFormaPago);
             }
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'] ?? [];
@@ -329,7 +330,7 @@ class OperacionesController extends Controller
                 $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
                 foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
-                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis);
+                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis, $request->IDFormaPago);
                 }
 
                 foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
@@ -362,7 +363,7 @@ class OperacionesController extends Controller
         }
     }
 
-    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null): void
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null, $idFormaPago = null): void
     {
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
@@ -382,11 +383,13 @@ class OperacionesController extends Controller
         $alerta->MontoOperacion = $operacion->PrimaTotal;
         $alerta->RFCAgente = $operacion->RFCAgente ?? null;
         $alerta->Agente = $nombreAgente ?? null;
-        $alerta->Estatus = $this->determinarEstatusAlerta($alertaData);
+        $alerta->Estatus = $this->determinarEstatusAlerta($alertaData, $operacion);
         $alerta->Descripcion = $alertaData['descripcion'];
         $alerta->Razones = $alertaData['razones'];
         $alerta->Evidencias = '';
         $alerta->IDReporteOP = null;
+        $formaPagoAlerta = CatFormaPagos::where('IDFormaPago', $idFormaPago ?? $operacion->IDFormaPago)->first();
+        $alerta->InstrumentoMonetario = $formaPagoAlerta->FormaPago ?? null;
 
         $alerta->save();
 
@@ -406,11 +409,11 @@ class OperacionesController extends Controller
         }
 
         foreach ($pagosOperacion as $pago) {
-            $formaPago = CatFormaPagos::find($operacion->IDFormaPago);
+            $formaPagoPago = CatFormaPagos::where('IDFormaPago', $pago->IDFormaPago ?? $idFormaPago ?? $operacion->IDFormaPago)->first();
             $pagoAlerta = new TbPagosAlertas;
             $pagoAlerta->IDOperacionPago = $pago->IDOperacionPago;
             $pagoAlerta->IDRegistroAlerta = $alerta->IDRegistroAlerta;
-            $pagoAlerta->InstrumentoMonetario = $formaPago->FormaPago ?? 'Desconocido';
+            $pagoAlerta->InstrumentoMonetario = $formaPagoPago->FormaPago ?? null;
             $pagoAlerta->save();
         }
     }
@@ -425,17 +428,32 @@ class OperacionesController extends Controller
         ]);
     }
 
-    private function determinarEstatusAlerta($alertaData): string
+    private function determinarEstatusAlerta($alertaData, $operacion = null): string
     {
-        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
+        $patron = $alertaData['patron'] ?? '';
+
+        if ($patron === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
             return 'Por reportar';
         }
 
-        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_CANCELACION) {
-            return 'Generado';
+        if ($patron === AnalisisPagosService::PATRON_CANCELACION) {
+            return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        return 'Generado';
+        if ($patron === AnalisisPagosService::PATRON_PPE) {
+            return AnalisisPagosService::ESTATUS_CERRADO;
+        }
+
+        if ($operacion) {
+            $montoMinimoUSD = CatParametriaPLD::getMontoMinimoAlerta();
+            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
+
+            if ($primaTotalUSD < $montoMinimoUSD) {
+                return AnalisisPagosService::ESTATUS_CERRADO;
+            }
+        }
+
+        return AnalisisPagosService::ESTATUS_GENERADO;
     }
 
     /**
