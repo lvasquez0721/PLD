@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
+use App\Models\CatParametriaPLD;
 use App\Models\Clientes\TbClientes;
 use App\Models\LogOperacionesPagos;
 use App\Models\TbAlertas;
@@ -382,7 +383,7 @@ class OperacionesController extends Controller
         $alerta->MontoOperacion = $operacion->PrimaTotal;
         $alerta->RFCAgente = $operacion->RFCAgente ?? null;
         $alerta->Agente = $nombreAgente ?? null;
-        $alerta->Estatus = $this->determinarEstatusAlerta($alertaData);
+        $alerta->Estatus = $this->determinarEstatusAlerta($alertaData, $operacion);
         $alerta->Descripcion = $alertaData['descripcion'];
         $alerta->Razones = $alertaData['razones'];
         $alerta->Evidencias = '';
@@ -427,17 +428,32 @@ class OperacionesController extends Controller
         ]);
     }
 
-    private function determinarEstatusAlerta($alertaData): string
+    private function determinarEstatusAlerta($alertaData, $operacion = null): string
     {
-        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
+        $patron = $alertaData['patron'] ?? '';
+
+        if ($patron === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
             return 'Por reportar';
         }
 
-        if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_CANCELACION) {
-            return 'Generado';
+        if ($patron === AnalisisPagosService::PATRON_CANCELACION) {
+            return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        return 'Generado';
+        if ($patron === AnalisisPagosService::PATRON_PPE) {
+            return AnalisisPagosService::ESTATUS_CERRADO;
+        }
+
+        if ($operacion) {
+            $montoMinimoUSD = CatParametriaPLD::getMontoMinimoAlerta();
+            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
+
+            if ($primaTotalUSD < $montoMinimoUSD) {
+                return AnalisisPagosService::ESTATUS_CERRADO;
+            }
+        }
+
+        return AnalisisPagosService::ESTATUS_GENERADO;
     }
 
     /**

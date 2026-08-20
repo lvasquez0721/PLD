@@ -254,7 +254,7 @@ class AnalisisPagosService
         }
     }
 
-    private function convertirAUSD(float $monto, $idMoneda): float
+    public function convertirAUSD(float $monto, $idMoneda): float
     {
         // Normalizar a string mayúsculas
         $moneda = strtoupper((string) $idMoneda);
