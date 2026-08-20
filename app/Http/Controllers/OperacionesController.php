@@ -172,7 +172,7 @@ class OperacionesController extends Controller
             try {
                 $request->validate([
                     'montoPagado' => 'required|numeric',
-                    'IDFormaPago' => 'nullable|string',
+                    'IDFormaPago' => 'required|string',
                     'FechaPago' => 'required|date',
                     'detallePagos' => 'required|array|min:1',
                     'detallePagos.*.IDMoneda' => 'required|string',
@@ -442,6 +442,16 @@ class OperacionesController extends Controller
 
         if ($patron === AnalisisPagosService::PATRON_PPE) {
             return AnalisisPagosService::ESTATUS_CERRADO;
+        }
+
+        if ($patron === AnalisisPagosService::PATRON_MONTO_INUSUAL) {
+            $montoPagoUSD = $alertaData['monto_usd'] ?? null;
+
+            if ($montoPagoUSD !== null && $montoPagoUSD < CatParametriaPLD::getMontoMinimoAlerta()) {
+                return AnalisisPagosService::ESTATUS_CERRADO;
+            }
+
+            return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
         if ($operacion) {

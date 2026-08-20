@@ -219,6 +219,7 @@ class AnalisisPagosService
                     'descripcion' => 'Pago inusual detectado',
                     'razones' => $razones,
                     'monto_mxn' => $montoPagoMXN,
+                    'monto_usd' => $this->convertirAUSD($montoPago, $operacion->IDMoneda),
                 ];
 
                 if (isset($pago['IDPago'])) {
