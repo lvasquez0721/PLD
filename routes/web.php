@@ -9,6 +9,7 @@ use App\Http\Controllers\ConsultaInusualidadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ListaNegraController;
 use App\Http\Controllers\ListasUIFController;
+use App\Http\Controllers\LogsController;
 use App\Http\Controllers\ParametriaPLDController;
 use App\Http\Controllers\PerfilTransaccionalController;
 use App\Http\Controllers\ReporteOperacionesController;
@@ -96,6 +97,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/parametria-pld', [ParametriaPLDController::class, 'index'])->name('parametria-pld.index');
     Route::post('/parametria-pld/actualizar', [ParametriaPLDController::class, 'actualizar'])->name('parametria-pld.actualizar');
+});
+
+// Logs de endpoints
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/logs', [LogsController::class, 'index'])->name('logs.index');
 });
 
 // Listas UIF

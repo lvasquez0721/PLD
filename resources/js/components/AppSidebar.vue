@@ -15,7 +15,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users, UserRound, Shield, BarChart3, Settings, Bell, MailWarning, ListX, FileText, Gavel, SearchCheck, User, Download } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Users, UserRound, Shield, BarChart3, Settings, Bell, MailWarning, ListX, FileText, Gavel, SearchCheck, User, Download, ScrollText } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 
@@ -126,6 +126,12 @@ const mainNavItems: NavItem[] = [
         title: 'Reporteador PLD',
         href: '/reporteador-pld',
         icon: BarChart3,
+        badge: null
+    },
+    {
+        title: 'Logs de Endpoints',
+        href: '/logs',
+        icon: ScrollText,
         badge: null
     },
     //{

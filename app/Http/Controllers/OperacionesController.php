@@ -437,6 +437,13 @@ class OperacionesController extends Controller
         }
 
         if ($patron === AnalisisPagosService::PATRON_CANCELACION) {
+            $valorReferenciaUSD = CatParametriaPLD::getOperacionesRelevantes();
+            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
+
+            if ($primaTotalUSD < $valorReferenciaUSD) {
+                return AnalisisPagosService::ESTATUS_CERRADO;
+            }
+
             return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
