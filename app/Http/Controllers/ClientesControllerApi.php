@@ -11,6 +11,7 @@ use App\Models\Clientes\LogDetectClientesListas;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\Clientes\TbClientesPPE;
+use App\Models\CatCategoriaPersonasBloqueadas;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
@@ -346,15 +347,16 @@ class ClientesControllerApi extends Controller
             }
 
             if ($personaBloqueada || $esPPE) {
-                $this->enviarAvisoCumplimiento(
-                    $nombreCompleto,
-                    $cliente->RFC,
-                    $cliente->CURP,
-                    $cliente->IDCliente,
-                    $esPPE,
-                    $listasDetectadas,
-                    $this->detallesAvisoListas($detalleListaBloqueadas, $esPPE)
-                );
+                try {
+                    $this->enviarAvisoCumplimiento(
+                        $cliente,
+                        $esPPE,
+                        $listasDetectadas,
+                        $detalleListaBloqueadas
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Error al enviar aviso de cumplimiento (guardarCliente): '.$e->getMessage());
+                }
             }
 
             return response()->json([
@@ -691,15 +693,16 @@ class ClientesControllerApi extends Controller
         }
 
         if ($coincideEnListasNegras || $esPPE) {
-            $this->enviarAvisoCumplimiento(
-                $nombreCompleto,
-                $cliente->RFC,
-                $cliente->CURP,
-                $cliente->IDCliente,
-                $esPPE,
-                $listasDetectadas,
-                $this->detallesAvisoListas($detalleListaBloqueadas, $esPPE)
-            );
+            try {
+                $this->enviarAvisoCumplimiento(
+                    $cliente,
+                    $esPPE,
+                    $listasDetectadas,
+                    $detalleListaBloqueadas
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Error al enviar aviso de cumplimiento (actualizarCliente): '.$e->getMessage());
+            }
         }
 
         $mensajeExito = 'Cliente actualizado exitosamente';
@@ -718,67 +721,86 @@ class ClientesControllerApi extends Controller
     }
 
     /**
-     * Envía el aviso al oficial de cumplimiento cuando se detecta un cliente
-     * en listas negras o como PPE.
+     * Envía el aviso al oficial de cumplimiento, conservando el formato
+     * original del SIT pero emitiéndose desde el sistema PLD.
      */
     private function enviarAvisoCumplimiento(
-        string $nombre,
-        ?string $rfc,
-        ?string $curp,
-        int $idCliente,
+        TbClientes $cliente,
         bool $esPPE,
-        array $listas,
-        array $detalles
+        array $listasDetectadas,
+        array $detalleListaBloqueadas
     ): void {
-        $motivos = $listas;
-        if ($esPPE) {
-            $motivos[] = 'PPE';
+        $nombreCompleto = trim(
+            ($cliente->Nombre ?? '').
+            ' '.
+            ($cliente->ApellidoPaterno ?? '').
+            ' '.
+            ($cliente->ApellidoMaterno ?? '')
+        );
+        if (empty($nombreCompleto)) {
+            $nombreCompleto = trim($cliente->RazonSocial ?? '');
         }
 
+        $tipo = (int) $cliente->IDTipoPersona === 2 ? 'empresa' : 'persona';
+
+        $registrosEncontrados = count($detalleListaBloqueadas);
+        $nombresDetectados = [];
+        $listasDetectadasFinal = [];
+
+        foreach ($detalleListaBloqueadas as $deteccion) {
+            $nombreDetectado = $deteccion['Nombre'] ?? $deteccion['nombreDetectado'] ?? '';
+            if (! empty($nombreDetectado)) {
+                $nombresDetectados[] = $nombreDetectado;
+            }
+
+            $lista = $deteccion['fuente'] ?? $deteccion['lista'] ?? '';
+            if (! empty($lista)) {
+                $listasDetectadasFinal[] = $lista;
+            }
+        }
+
+        if (empty($listasDetectadasFinal)) {
+            $listasDetectadasFinal = $listasDetectadas;
+        }
+
+        $idCategoria = $esPPE ? 4 : 2;
+        $categoria = $this->obtenerCategoriaTexto($idCategoria);
+        $observaciones = CatCategoriaPersonasBloqueadas::getComentariosDeteccion($idCategoria);
+
         NotificacionCumplimientoService::enviar([
-            'asunto' => 'Detección en listas negras / PPE - Cliente #'.$idCliente,
-            'nombre' => $nombre ?: '—',
-            'rfc' => $rfc ?: '—',
-            'curp' => $curp ?: '—',
-            'idCliente' => $idCliente,
+            'asunto' => 'Aviso de detección en listas - PLD - '.$nombreCompleto,
+            'nombre' => $nombreCompleto ?: '—',
+            'tipo' => $tipo,
+            'fecha' => now()->translatedFormat('d \d\e F \d\e Y'),
+            'hora' => now()->format('H:i'),
+            'registrosEncontrados' => $registrosEncontrados,
+            'nombresDetectados' => implode(', ', array_unique($nombresDetectados)),
+            'listasDetectadas' => implode(', ', array_unique($listasDetectadasFinal)),
+            'categoria' => $categoria,
+            'observaciones' => $observaciones,
             'esPPE' => $esPPE,
-            'listas' => implode(', ', $motivos),
-            'detalles' => $detalles,
-            'fecha' => now()->format('d/m/Y H:i'),
         ]);
     }
 
     /**
-     * Arma la lista de detalles de coincidencias para el correo.
-     *
-     * @param  array  $detalleListaBloqueadas
-     * @param  bool  $esPPE
+     * Devuelve la categoría con su título (ID: título) según la clasificación PLD.
      */
-    private function detallesAvisoListas(array $detalleListaBloqueadas, bool $esPPE): array
+    private function obtenerCategoriaTexto(int $idCategoria): string
     {
-        $detalles = [];
-
-        foreach ($detalleListaBloqueadas as $deteccion) {
-            $tabla = $deteccion['fuente'] ?? $deteccion['lista'] ?? 'Desconocida';
-            $partes = [];
-            foreach (['Nombre', 'nombreDetectado', 'RFC', 'CURP', 'cargo'] as $clave) {
-                if (! empty($deteccion[$clave])) {
-                    $partes[] = $deteccion[$clave];
-                }
+        try {
+            $cat = CatCategoriaPersonasBloqueadas::where('IDCategoria', $idCategoria)->first();
+            if ($cat && ! empty($cat->Categoria)) {
+                return $idCategoria.': '.$cat->Categoria;
             }
-            $detalles[] = [
-                'tabla' => 'Lista '.$tabla,
-                'valor' => implode(' ', $partes) ?: '—',
-            ];
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo leer catCategoriaPersonasBloqueadas, se usa categoría por defecto: '.$e->getMessage());
         }
 
-        if ($esPPE) {
-            $detalles[] = [
-                'tabla' => 'PPE',
-                'valor' => 'Coincidencia de persona expuesta políticamente.',
-            ];
-        }
+        $fallback = [
+            2 => 'Persona / Empresa aparece en listas bloqueadas, necesita revisión',
+            4 => 'Persona detectada en listas políticamente expuestas, necesita revisión',
+        ];
 
-        return $detalles;
+        return $idCategoria.': '.($fallback[$idCategoria] ?? 'Necesita revisión');
     }
 }

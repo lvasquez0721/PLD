@@ -4,80 +4,49 @@
     <meta charset="UTF-8">
     <title>Aviso de Cumplimiento - PLD</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:24px 0;">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
-                    <tr>
-                        <td style="background-color:#1d4ed8;padding:24px 32px;">
-                            <h1 style="margin:0;color:#ffffff;font-size:20px;">Aviso de Cumplimiento - PLD</h1>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding:32px;">
-                            <p style="margin:0 0 16px;color:#334155;font-size:14px;line-height:1.6;">
-                                El siguiente cliente presenta coincidencias que requieren su atención como Oficial de Cumplimiento.
-                            </p>
+<body style="margin:0;padding:0;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#000000;font-size:14px;line-height:1.6;">
+    <div style="padding:24px;">
+        <p style="margin:0 0 16px;">Estimado Usuario:</p>
 
-                            <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;width:40%;">Nombre</td>
-                                    <td style="color:#0f172a;font-size:14px;">{{ $datos['nombre'] ?? '—' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">RFC</td>
-                                    <td style="color:#0f172a;font-size:14px;">{{ $datos['rfc'] ?? '—' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">CURP</td>
-                                    <td style="color:#0f172a;font-size:14px;">{{ $datos['curp'] ?? '—' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">ID Cliente</td>
-                                    <td style="color:#0f172a;font-size:14px;">{{ $datos['idCliente'] ?? '—' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">PPE</td>
-                                    <td style="color:#0f172a;font-size:14px;">
-                                        {{ ! empty($datos['esPPE']) ? 'Sí' : 'No' }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">Listas detectadas</td>
-                                    <td style="color:#0f172a;font-size:14px;">
-                                        {{ $datos['listas'] ?? '—' }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color:#f1f5f9;color:#475569;font-size:13px;font-weight:bold;">Fecha</td>
-                                    <td style="color:#0f172a;font-size:14px;">{{ $datos['fecha'] ?? now()->format('d/m/Y H:i') }}</td>
-                                </tr>
-                            </table>
+        <p style="margin:0 0 16px;">
+            Le informamos que se registró la {{ $datos['tipo'] ?? 'persona' }}
+            <strong>{{ $datos['nombre'] ?? '—' }}</strong> en la base de datos de persona del PLD
+            y fue detectado en listas de Quién es Quién el {{ $datos['fecha'] ?? '' }} a las {{ $datos['hora'] ?? '' }} hrs.
+        </p>
 
-                            @if (! empty($datos['detalles']) && is_array($datos['detalles']))
-                                <p style="margin:24px 0 8px;color:#334155;font-size:14px;font-weight:bold;">Detalle de coincidencias:</p>
-                                <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
-                                    @foreach ($datos['detalles'] as $detalle)
-                                        <tr>
-                                            <td style="background-color:#f8fafc;color:#475569;font-size:13px;font-weight:bold;width:40%;">{{ $detalle['tabla'] ?? 'Lista' }}</td>
-                                            <td style="color:#0f172a;font-size:14px;">{{ $detalle['valor'] ?? '—' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </table>
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;">
-                            <p style="margin:0;color:#94a3b8;font-size:12px;">
-                                Generado automáticamente por el sistema PLD. No responda a este correo.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+        <p style="margin:0 0 16px;">Información detallada:</p>
+
+        <table role="presentation" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Nombre registrado en PLD:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['nombre'] ?? '—' }}</td>
+            </tr>
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Registros encontrados:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['registrosEncontrados'] ?? '0' }}</td>
+            </tr>
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Nombres detectados:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['nombresDetectados'] ?? '—' }}</td>
+            </tr>
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Listas detectadas:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['listasDetectadas'] ?? '—' }}</td>
+            </tr>
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Categoría en PLD:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['categoria'] ?? '—' }}</td>
+            </tr>
+            <tr>
+                <td style="vertical-align:top;white-space:nowrap;">Observaciones:&nbsp;&nbsp;</td>
+                <td style="vertical-align:top;">{{ $datos['observaciones'] ?? '—' }}</td>
+            </tr>
+        </table>
+
+        <p style="margin:24px 0 8px;">Atentamente:</p>
+        <p style="margin:0 0 24px;">PLD - Tláloc Seguros S.A.</p>
+
+        <p style="margin:0;font-size:12px;">Mensaje enviado automáticamente, por favor no responder</p>
+    </div>
 </body>
 </html>
