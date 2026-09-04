@@ -23,12 +23,28 @@ class LogsController extends Controller
                     'estatus' => $log->Estatus,
                     'duracion_ms' => $log->DuracionMs,
                     'fecha' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : null,
-                    'tiene_payload' => ! empty($log->Payload),
+                    'tiene_body' => ! empty($log->Payload),
+                    'tiene_response' => ! empty($log->Respuesta),
                 ];
             });
 
         return Inertia::render('Logs/Index', [
             'logs' => $logs,
+        ]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $log = LogApi::find($id);
+
+        if (! $log) {
+            return response()->json(['success' => false, 'message' => 'Log no encontrado.'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'body' => $log->Payload,
+            'response' => $log->Respuesta,
         ]);
     }
 }

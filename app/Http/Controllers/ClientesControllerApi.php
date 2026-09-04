@@ -7,11 +7,14 @@ use App\Models\Clientes\CatIDClientesSistema;
 use App\Models\Clientes\CatSistemas;
 use App\Models\Clientes\LogClientes;
 use App\Models\Clientes\LogClientesDomicilio;
+use App\Models\Clientes\LogDetectClientesListas;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
+use App\Models\Clientes\TbClientesPPE;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
+use App\Services\NotificacionCumplimientoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -199,7 +202,28 @@ class ClientesControllerApi extends Controller
             }
         }
 
-        $esPPE = false; // No se evalúa aquí, dejar en false
+        // Evaluar coincidencia de persona expuesta políticamente (PPE)
+        $nombreParaBusqueda = trim(
+            ($data['nombre'] ?? '').
+            ' '.($data['apellidoPaterno'] ?? '').
+            ' '.($data['apellidoMaterno'] ?? '')
+        );
+        if (empty($nombreParaBusqueda)) {
+            $nombreParaBusqueda = trim($data['razonSocial'] ?? '');
+        }
+
+        $esPPE = false;
+        if (! empty($nombreParaBusqueda)) {
+            $tokenPPE = ClienteHelper::getTokenPPE();
+            $dataPPE = ClienteHelper::getPPE($tokenPPE, $nombreParaBusqueda);
+            if (
+                isset($dataPPE['data']) &&
+                is_array($dataPPE['data']) &&
+                count($dataPPE['data']) > 0
+            ) {
+                $esPPE = true;
+            }
+        }
 
         // Si el cliente coincide en listas negras, se establece Activo = false; en caso contrario, Activo = true
         $activo = ! $personaBloqueada;
@@ -253,16 +277,16 @@ class ClientesControllerApi extends Controller
                 ]);
             }
 
+            $nombreCompleto = trim(
+                ($cliente->Nombre ?? '').
+                ' '.
+                ($cliente->ApellidoPaterno ?? '').
+                ' '.
+                ($cliente->ApellidoMaterno ?? '')
+            );
+
             // Emitir alerta si coincide en listas negras
             if ($personaBloqueada) {
-                $nombreCompleto = trim(
-                    ($cliente->Nombre ?? '').
-                    ' '.
-                    ($cliente->ApellidoPaterno ?? '').
-                    ' '.
-                    ($cliente->ApellidoMaterno ?? '')
-                );
-
                 $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
                 $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
@@ -290,11 +314,47 @@ class ClientesControllerApi extends Controller
                 ]);
             }
 
+            // Registrar detecciones en listas negras
+            foreach ($detalleListaBloqueadas as $deteccion) {
+                LogDetectClientesListas::create([
+                    'IDCliente' => $cliente->IDCliente,
+                    'Lista' => $deteccion['fuente'] ?? 'Desconocida',
+                    'NombreDetectado' => $deteccion['Nombre'] ?? null,
+                    'Origen' => 'SIT',
+                    'TimeStampDeteccion' => now(),
+                ]);
+            }
+
+            // Registrar detección de PPE
+            if ($esPPE) {
+                TbClientesPPE::create([
+                    'IDCliente' => $cliente->IDCliente,
+                    'Lista' => 'PPE',
+                    'Cargo' => null,
+                    'Estado' => 'Detectado',
+                    'FechaDeteccion' => now()->toDateString(),
+                    'Origen' => 'SIT',
+                    'TimeStampRegistro' => now(),
+                ]);
+            }
+
             DB::commit();
 
             $mensajeExito = 'Cliente ingresado exitosamente';
             if ($personaBloqueada) {
                 $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+            }
+
+            if ($personaBloqueada || $esPPE) {
+                $this->enviarAvisoCumplimiento(
+                    $nombreCompleto,
+                    $cliente->RFC,
+                    $cliente->CURP,
+                    $cliente->IDCliente,
+                    $esPPE,
+                    $listasDetectadas,
+                    $this->detallesAvisoListas($detalleListaBloqueadas, $esPPE)
+                );
             }
 
             return response()->json([
@@ -569,16 +629,16 @@ class ClientesControllerApi extends Controller
         }
         $cliente->save();
 
+        $nombreCompleto = trim(
+            ($cliente->Nombre ?? '').
+            ' '.
+            ($cliente->ApellidoPaterno ?? '').
+            ' '.
+            ($cliente->ApellidoMaterno ?? '')
+        );
+
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
-            $nombreCompleto = trim(
-                ($cliente->Nombre ?? '').
-                ' '.
-                ($cliente->ApellidoPaterno ?? '').
-                ' '.
-                ($cliente->ApellidoMaterno ?? '')
-            );
-
             $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
             $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
@@ -606,6 +666,42 @@ class ClientesControllerApi extends Controller
             ]);
         }
 
+        // Registrar detecciones en listas negras
+        foreach ($detalleListaBloqueadas as $deteccion) {
+            LogDetectClientesListas::create([
+                'IDCliente' => $cliente->IDCliente,
+                'Lista' => $deteccion['lista'] ?? 'Desconocida',
+                'NombreDetectado' => $deteccion['nombreDetectado'] ?? $deteccion['nombre'] ?? null,
+                'Origen' => 'SIT',
+                'TimeStampDeteccion' => now(),
+            ]);
+        }
+
+        // Registrar detección de PPE
+        if ($esPPE) {
+            TbClientesPPE::create([
+                'IDCliente' => $cliente->IDCliente,
+                'Lista' => 'PPE',
+                'Cargo' => null,
+                'Estado' => 'Detectado',
+                'FechaDeteccion' => now()->toDateString(),
+                'Origen' => 'SIT',
+                'TimeStampRegistro' => now(),
+            ]);
+        }
+
+        if ($coincideEnListasNegras || $esPPE) {
+            $this->enviarAvisoCumplimiento(
+                $nombreCompleto,
+                $cliente->RFC,
+                $cliente->CURP,
+                $cliente->IDCliente,
+                $esPPE,
+                $listasDetectadas,
+                $this->detallesAvisoListas($detalleListaBloqueadas, $esPPE)
+            );
+        }
+
         $mensajeExito = 'Cliente actualizado exitosamente';
         if ($coincideEnListasNegras) {
             $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
@@ -619,5 +715,70 @@ class ClientesControllerApi extends Controller
             'personaBloqueada' => $coincideEnListasNegras,
             'detalleListaBloqueadas' => $detalleListaBloqueadas,
         ], 200);
+    }
+
+    /**
+     * Envía el aviso al oficial de cumplimiento cuando se detecta un cliente
+     * en listas negras o como PPE.
+     */
+    private function enviarAvisoCumplimiento(
+        string $nombre,
+        ?string $rfc,
+        ?string $curp,
+        int $idCliente,
+        bool $esPPE,
+        array $listas,
+        array $detalles
+    ): void {
+        $motivos = $listas;
+        if ($esPPE) {
+            $motivos[] = 'PPE';
+        }
+
+        NotificacionCumplimientoService::enviar([
+            'asunto' => 'Detección en listas negras / PPE - Cliente #'.$idCliente,
+            'nombre' => $nombre ?: '—',
+            'rfc' => $rfc ?: '—',
+            'curp' => $curp ?: '—',
+            'idCliente' => $idCliente,
+            'esPPE' => $esPPE,
+            'listas' => implode(', ', $motivos),
+            'detalles' => $detalles,
+            'fecha' => now()->format('d/m/Y H:i'),
+        ]);
+    }
+
+    /**
+     * Arma la lista de detalles de coincidencias para el correo.
+     *
+     * @param  array  $detalleListaBloqueadas
+     * @param  bool  $esPPE
+     */
+    private function detallesAvisoListas(array $detalleListaBloqueadas, bool $esPPE): array
+    {
+        $detalles = [];
+
+        foreach ($detalleListaBloqueadas as $deteccion) {
+            $tabla = $deteccion['fuente'] ?? $deteccion['lista'] ?? 'Desconocida';
+            $partes = [];
+            foreach (['Nombre', 'nombreDetectado', 'RFC', 'CURP', 'cargo'] as $clave) {
+                if (! empty($deteccion[$clave])) {
+                    $partes[] = $deteccion[$clave];
+                }
+            }
+            $detalles[] = [
+                'tabla' => 'Lista '.$tabla,
+                'valor' => implode(' ', $partes) ?: '—',
+            ];
+        }
+
+        if ($esPPE) {
+            $detalles[] = [
+                'tabla' => 'PPE',
+                'valor' => 'Coincidencia de persona expuesta políticamente.',
+            ];
+        }
+
+        return $detalles;
     }
 }

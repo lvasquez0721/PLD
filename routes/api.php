@@ -4,6 +4,7 @@ use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\AuthControllerApi;
 use App\Http\Controllers\CalculoInusualidadPrimaEmitidaController;
 use App\Http\Controllers\ClientesControllerApi;
+use App\Http\Controllers\ConfiguracionCumplimientoApiController;
 use App\Http\Controllers\EstadosController;
 use App\Http\Controllers\IDRRPLDController;
 use App\Http\Controllers\IncisosController;
@@ -77,6 +78,10 @@ Route::post('/listas-negras-uif/masivo', [ListasNegrasUIFController::class, 'bul
 Route::post('/clientes/guardarCliente', [ClientesControllerApi::class, 'guardarCliente'])->middleware(['auth:sanctum']);
 // Ruta para actualizar datos de cliente (PUT /clientes/{id})
 Route::put('/clientes/{id}', [ClientesControllerApi::class, 'actualizarCliente'])->middleware(['auth:sanctum']);
+
+// Configuración del correo del oficial de cumplimiento
+Route::get('/configuracion/cumplimiento', [ConfiguracionCumplimientoApiController::class, 'getConfig'])->middleware(['auth:sanctum']);
+Route::put('/configuracion/cumplimiento', [ConfiguracionCumplimientoApiController::class, 'actualizar'])->middleware(['auth:sanctum']);
 
 // Ruta para obtener el listado de todos los clientes (GET /clientes)
 // Route::get('/clientes', [ClientesControllerApi::class, 'index'])->middleware('auth:sanctum');

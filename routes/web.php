@@ -5,6 +5,7 @@ use App\Http\Controllers\ReporteadorPLDController;
 use App\Http\Controllers\ExportarLayoutController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ConfiguracionCumplimientoController;
 use App\Http\Controllers\ConsultaInusualidadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ListaNegraController;
@@ -99,9 +100,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/parametria-pld/actualizar', [ParametriaPLDController::class, 'actualizar'])->name('parametria-pld.actualizar');
 });
 
+// Configuración del correo del oficial de cumplimiento
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/configuracion-cumplimiento', [ConfiguracionCumplimientoController::class, 'index'])->name('configuracion-cumplimiento.index');
+    Route::post('/configuracion-cumplimiento/actualizar', [ConfiguracionCumplimientoController::class, 'actualizar'])->name('configuracion-cumplimiento.actualizar');
+});
+
 // Logs de endpoints
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/logs', [LogsController::class, 'index'])->name('logs.index');
+    Route::get('/logs/{id}', [LogsController::class, 'show'])->name('logs.show');
 });
 
 // Listas UIF

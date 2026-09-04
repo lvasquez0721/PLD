@@ -111,6 +111,12 @@ const mainNavItems: NavItem[] = [
         badge: null
     },
     {
+        title: 'Configuración de Cumplimiento',
+        href: '/configuracion-cumplimiento',
+        icon: Shield,
+        badge: null
+    },
+    {
         title: 'Listas UIF',
         href: '/listas-uif',
         icon: Gavel,

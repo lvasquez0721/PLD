@@ -27,6 +27,7 @@ class LogApi extends Model
         'Estatus',
         'DuracionMs',
         'Payload',
+        'Respuesta',
     ];
 
     protected $casts = [

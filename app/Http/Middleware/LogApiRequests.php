@@ -16,19 +16,19 @@ class LogApiRequests
         try {
             $response = $next($request);
 
-            $this->registrarLog($request, $start, $response->getStatusCode());
+            $this->registrarLog($request, $start, $response->getStatusCode(), $response);
 
             return $response;
         } catch (\Throwable $e) {
             $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
 
-            $this->registrarLog($request, $start, $status);
+            $this->registrarLog($request, $start, $status, null);
 
             throw $e;
         }
     }
 
-    private function registrarLog(Request $request, float $start, int $estatus): void
+    private function registrarLog(Request $request, float $start, int $estatus, ?Response $response = null): void
     {
         $durationMs = round((microtime(true) - $start) * 1000, 2);
 
@@ -46,6 +46,7 @@ class LogApiRequests
                 'Estatus' => $estatus,
                 'DuracionMs' => $durationMs,
                 'Payload' => $this->payloadSanitizado($request),
+                'Respuesta' => $this->respuestaSanitizada($response),
             ]);
         } catch (\Throwable $e) {
             // El logeo nunca debe romper la respuesta de la petición.
@@ -81,5 +82,29 @@ class LogApiRequests
         }
 
         return $json;
+    }
+
+    private function respuestaSanitizada(?Response $response): ?string
+    {
+        if (! $response) {
+            return null;
+        }
+
+        try {
+            $contenido = $response->getContent();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! is_string($contenido) || $contenido === '') {
+            return null;
+        }
+
+        // Evitar guardar respuestas demasiado grandes (ej. descargas).
+        if (strlen($contenido) > 20000) {
+            return substr($contenido, 0, 20000).'... [TRUNCADO]';
+        }
+
+        return $contenido;
     }
 }
