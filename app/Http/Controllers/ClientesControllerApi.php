@@ -12,6 +12,7 @@ use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\Clientes\TbClientesPPE;
 use App\Models\CatCategoriaPersonasBloqueadas;
+use App\Models\Clientes\CatEstados;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
@@ -38,7 +39,7 @@ class ClientesControllerApi extends Controller
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:255',
             'IDNacionalidad' => 'nullable|string',
-            'IDEstadoNacimiento' => 'nullable|integer',
+            'IDEstadoNacimiento' => 'nullable|string|max:10',
             'Preguntas' => 'nullable|string',
             'ingresosEstimados' => 'nullable|numeric',
 
@@ -67,6 +68,23 @@ class ClientesControllerApi extends Controller
 
         $data = $validator->validated();
         $rfc = isset($data['RFC']) ? strtoupper(trim($data['RFC'])) : null;
+
+        // Resolver IDEstadoNacimiento (acepta "9", "09", clave de entidad o nombre del estado)
+        $idEstadoNacimientoResuelto = null;
+
+        if (! empty($data['IDEstadoNacimiento'])) {
+            $idEstadoNacimientoResuelto = $this->resolveIDEstadoNacimiento($data['IDEstadoNacimiento']);
+
+            if ($idEstadoNacimientoResuelto === null) {
+                return response()->json([
+                    'codigoError' => 1,
+                    'message' => 'El valor de IDEstadoNacimiento no es válido.',
+                    'errors' => [
+                        'IDEstadoNacimiento' => ['El valor "'.$data['IDEstadoNacimiento'].'" no corresponde a ningún estado del catálogo.'],
+                    ],
+                ], 422);
+            }
+        }
 
         // Validación de RFC duplicado
         if (! empty($rfc)) {
@@ -246,7 +264,7 @@ class ClientesControllerApi extends Controller
                 'CoincideEnListasNegras' => $personaBloqueada,
                 'EsPPEActivo' => $esPPE,
                 'IDNacionalidad' => $data['IDNacionalidad'] ?? null,
-                'IDEstadoNacimiento' => $data['IDEstadoNacimiento'] ?? null,
+                'IDEstadoNacimiento' => $idEstadoNacimientoResuelto,
                 'Activo' => $activo,
                 'Preguntas' => $data['Preguntas'] ?? null,
                 'IngresosEstimados' => $data['ingresosEstimados'] ?? null,
@@ -381,6 +399,46 @@ class ClientesControllerApi extends Controller
                 'trace' => $e->getTraceAsString(),
             ], 200);
         }
+    }
+
+    /**
+     * Resuelve el IDEstadoNacimiento recibido como string, aceptando:
+     * - Clave numérica: "9", "09", " 9 " -> 9 (se eliminan ceros a la izquierda)
+     * - Clave de entidad: "NT", "DF", etc.
+     * - Nombre completo del estado: "Nayarit", "Ciudad de México", etc.
+     *
+     * Devuelve el IDEstado (int) si encuentra coincidencia, o null si no existe en el catálogo.
+     */
+    private function resolveIDEstadoNacimiento($valor)
+    {
+        if ($valor === null || trim((string) $valor) === '') {
+            return null;
+        }
+
+        $valor = trim((string) $valor);
+
+        // Caso numérico: "9", "09", "00" -> int (elimina ceros a la izquierda)
+        if (is_numeric($valor)) {
+            $idNumerico = (int) $valor;
+
+            $estado = CatEstados::where('IDEstado', $idNumerico)->first();
+
+            return $estado ? $estado->IDEstado : null;
+        }
+
+        // Caso clave de entidad, ej. "NT", "DF"
+        $estado = CatEstados::whereRaw('UPPER(CveEntidad) = ?', [strtoupper($valor)])->first();
+        if ($estado) {
+            return $estado->IDEstado;
+        }
+
+        // Caso nombre completo, ej. "Nayarit"
+        $estado = CatEstados::whereRaw('UPPER(Estado) = ?', [strtoupper($valor)])->first();
+        if ($estado) {
+            return $estado->IDEstado;
+        }
+
+        return null;
     }
 
     public function actualizarCliente(Request $request, $id)
