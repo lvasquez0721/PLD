@@ -12,6 +12,7 @@ use App\Models\TbOperaciones;
 use App\Models\Clientes\CatNacionalidad;
 use App\Models\Clientes\CatTipoPersona;
 use App\Models\Clientes\CatOcupacionesGiros;
+use App\Services\PLD\ReporteRegulatorioService;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -591,63 +592,6 @@ class AlertasController extends Controller
 
     private function emitirReporteRegulatorio(TbAlertas $alerta): void
     {
-        $yaExiste = TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)
-            ->where('Estatus', 'Enviado')
-            ->exists();
-
-        if ($yaExiste) {
-            return;
-        }
-
-        $cliente = $alerta->IDCliente
-            ? TbClientes::with(['domicilios'])->find($alerta->IDCliente)
-            : null;
-
-        $domicilio = null;
-        $colonia   = null;
-        $ciudad    = null;
-
-        if ($cliente && $cliente->domicilios->isNotEmpty()) {
-            $d        = $cliente->domicilios->first();
-            $domicilio = trim(implode(' ', array_filter([
-                $d->Calle ?? '',
-                $d->NoExterior ? 'No. ' . $d->NoExterior : '',
-                $d->NoInterior ? 'Int. ' . $d->NoInterior : '',
-            ]))) ?: null;
-            $colonia = $d->Colonia ?? null;
-            $ciudad  = $d->Municipio ?? null;
-        }
-
-        $hoy = now()->format('Y-m-d');
-
-        $reporte = new TbReporteRegulatorioPLD();
-        $reporte->IDRegistroAlerta    = $alerta->IDRegistroAlerta;
-        $reporte->TipoReporte         = $alerta->Patron ?? 'Preocupante';
-        $reporte->PeriodoReporte      = now()->format('Ym');
-        $reporte->Folio               = $alerta->Folio;
-        $reporte->TipoOperacion       = $alerta->Patron ?? 'Preocupante';
-        $reporte->InstrumentoMonetario = $alerta->InstrumentoMonetario;
-        $reporte->NoPoliza            = $alerta->Poliza;
-        $reporte->Monto               = $alerta->MontoOperacion;
-        $reporte->IDMoneda            = $alerta->IDMoneda;
-        $reporte->FechaOperacion      = $alerta->FechaOperacion ?? $hoy;
-        $reporte->FechaDeteccion      = $alerta->FechaDeteccion ?? $hoy;
-        $reporte->RazonSocial         = $cliente?->RazonSocial;
-        $reporte->Nombre              = $cliente?->Nombre  ?? $alerta->Cliente;
-        $reporte->APaterno            = $cliente?->ApellidoPaterno;
-        $reporte->AMaterno            = $cliente?->ApellidoMaterno;
-        $reporte->RFC                 = $cliente?->RFC ?? $alerta->RFCAgente;
-        $reporte->CURP                = $cliente?->CURP;
-        $reporte->FechaNacimiento     = $cliente?->FechaNacimiento;
-        $reporte->Domicilio           = $domicilio;
-        $reporte->Colonia             = $colonia;
-        $reporte->Ciudad              = $ciudad;
-        $reporte->Telefono            = $cliente?->Telefono;
-        $reporte->NombreAgente        = $alerta->Agente;
-        $reporte->RFCAgente           = $alerta->RFCAgente;
-        $reporte->Descripcion         = $alerta->Descripcion;
-        $reporte->Razon               = $alerta->Razones;
-        $reporte->Estatus             = 'Enviado';
-        $reporte->save();
+        (new ReporteRegulatorioService())->emitirDesdeAlerta($alerta);
     }
 }

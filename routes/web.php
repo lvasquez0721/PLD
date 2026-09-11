@@ -91,7 +91,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reporte-operaciones', [ReporteOperacionesController::class, 'index'])->name('reporte-operaciones.index');
     Route::get('/reporte-operaciones/obtener', [ReporteOperacionesController::class, 'obtenerReporte'])->name('reporte-operaciones.obtener');
-    Route::get('/reporte-operaciones/exportar', [ReporteOperacionesController::class, 'exportarCSV'])->name('reporte-operaciones.exportar');
+    Route::post('/reporte-operaciones/exportar', [ReporteOperacionesController::class, 'exportarCSV'])->name('reporte-operaciones.exportar');
 });
 
 // Parametria PLD

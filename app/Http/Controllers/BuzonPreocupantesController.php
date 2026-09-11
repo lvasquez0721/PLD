@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\BuzonPreocupante;
-use App\Models\TbAlertas;
 use Illuminate\Http\Request; // el modelo de tu tabla
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia; // el modelo de tu tabla
@@ -31,10 +30,10 @@ class BuzonPreocupantesController extends Controller
             $validated = $request->validate([
                 'ids' => 'required|array',
                 'ids.*' => 'integer',
+                'patron' => 'nullable|string|in:Nuevo,Preocupante',
             ]);
 
-            // Obtener el siguiente ID autoincremental
-            $validated['IDRegistroAlerta'] = (TbAlertas::max('IDRegistroAlerta') ?? 0) + 1;
+            $patron = $validated['patron'] ?? 'Nuevo';
 
             // Convertir los IDs a enteros
             $ids = array_map('intval', $validated['ids']);
@@ -48,10 +47,9 @@ class BuzonPreocupantesController extends Controller
 
             $idsList = implode(',', $ids);
 
-            // Insertar registros en tbalertas
+            // Insertar registros en tbalertas (IDRegistroAlerta se autogenera)
             DB::statement("
             INSERT INTO tbAlertas (
-                IDRegistroAlerta,
                 Patron,
                 FechaDeteccion,
                 HoraDeteccion,
@@ -62,8 +60,7 @@ class BuzonPreocupantesController extends Controller
                 Estatus
             )
             SELECT 
-                {$validated['IDRegistroAlerta']} AS IDRegistroAlerta,
-                'Nuevo' AS Patron,
+                ? AS Patron,
                 DATE(Fecha) AS FechaDeteccion,
                 TIME(Fecha) AS HoraDeteccion,
                 DATE(Fecha) AS FechaOperacion,
@@ -79,7 +76,7 @@ class BuzonPreocupantesController extends Controller
                   FROM tbAlertas AS a 
                   WHERE a.IDReporteOP = r.IDReporteOP
               )
-        ");
+        ", [$patron]);
 
             // Actualizar estatus en tbbuzonpreocupantes
             DB::statement("

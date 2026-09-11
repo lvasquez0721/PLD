@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Select from '@/components/forms/Select.vue';
 import DateInput from '@/components/forms/DateInput.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
 
-const patronFiltro   = ref('');
-const estatusFiltro  = ref('');
-const fechaInicial   = ref<Date | null>(null);
-const fechaFinal     = ref<Date | null>(null);
+const tipoReporteFiltro = ref('');
+const estatusFiltro     = ref('');
+const fechaInicial      = ref<Date | null>(null);
+const fechaFinal        = ref<Date | null>(null);
 
 const page = usePage();
 
-const opcionesPatron = [
+const opcionesTipoReporte = [
     { value: 'Todos',        label: 'Todos' },
     { value: 'Relevante',    label: 'Relevante' },
     { value: 'Inusual',      label: 'Inusual' },
     { value: 'Preocupante',  label: 'Preocupante' },
-    { value: 'Cancelacion',  label: 'Cancelacion' },
 ];
 
 const opcionesEstatus = [
@@ -34,14 +34,22 @@ function toISODate(d: Date) {
     return `${yyyy}-${mm}-${dd}`;
 }
 
+// Parsea "YYYY-MM-DD" como fecha local (evita el desfase de un día por UTC).
+function parseISODateLocal(v: string): Date | null {
+    if (!v) return null;
+    const [y, m, d] = v.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+}
+
 const fechaInicialStr = computed<string>({
     get() { return fechaInicial.value ? toISODate(fechaInicial.value) : ''; },
-    set(v: string) { fechaInicial.value = v ? new Date(v) : null; },
+    set(v: string) { fechaInicial.value = parseISODateLocal(v); },
 });
 
 const fechaFinalStr = computed<string>({
     get() { return fechaFinal.value ? toISODate(fechaFinal.value) : ''; },
-    set(v: string) { fechaFinal.value = v ? new Date(v) : null; },
+    set(v: string) { fechaFinal.value = parseISODateLocal(v); },
 });
 
 interface Alerta {
@@ -113,9 +121,41 @@ const totalPages = computed(() => {
     return Math.ceil(filteredResultados.value.length / perPage.value || 1);
 });
 
+// --- Selección de elementos por reportar ---
+const seleccionados = ref<number[]>([]);
+
+const seleccionables = computed(() =>
+    filteredResultados.value.filter((item) => item.Estatus === 'Por reportar')
+);
+
+const todosSeleccionados = computed<boolean>({
+    get() {
+        const total = seleccionables.value.length;
+        return total > 0 && seleccionados.value.length === total;
+    },
+    set(value: boolean) {
+        seleccionados.value = value ? seleccionables.value.map((i) => i.IDRegistroAlerta) : [];
+    },
+});
+
+const seleccionParcial = computed(() =>
+    seleccionados.value.length > 0 && seleccionados.value.length < seleccionables.value.length
+);
+
+function toggleSeleccion(id: number) {
+    if (seleccionados.value.includes(id)) {
+        seleccionados.value = seleccionados.value.filter((item) => item !== id);
+    } else {
+        seleccionados.value.push(id);
+    }
+}
+
 function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++; }
 function prevPage() { if (currentPage.value > 1) currentPage.value--; }
-watch([search, perPage], () => (currentPage.value = 1));
+watch([search, perPage], () => {
+    currentPage.value = 1;
+    seleccionados.value = [];
+});
 watch(searchInput, (v) => {
     if (searchTimer) window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(() => { search.value = v; }, 250);
@@ -138,10 +178,10 @@ function verDetalleAlerta(alerta: Alerta) {
 
 const buscar = async () => {
     const params = new URLSearchParams({
-        patron:    patronFiltro.value  || '',
-        estatus:   estatusFiltro.value || '',
-        fecha_ini: fechaInicialStr.value || '',
-        fecha_fin: fechaFinalStr.value  || '',
+        tipo_reporte: tipoReporteFiltro.value || '',
+        estatus:      estatusFiltro.value     || '',
+        fecha_ini:    fechaInicialStr.value   || '',
+        fecha_fin:    fechaFinalStr.value     || '',
     });
     isLoading.value = true;
     try {
@@ -151,22 +191,60 @@ const buscar = async () => {
         });
         const data = await res.json();
         resultados.value = (data?.alertas ?? []) as Alerta[];
+        seleccionados.value = [];
         currentPage.value = 1;
     } catch {
         resultados.value = [];
+        seleccionados.value = [];
     } finally {
         isLoading.value = false;
     }
 };
 
-const descargarCSV = () => {
-    const params = new URLSearchParams({
-        patron:    patronFiltro.value  || '',
-        estatus:   estatusFiltro.value || '',
-        fecha_ini: fechaInicialStr.value || '',
-        fecha_fin: fechaFinalStr.value  || '',
-    });
-    window.location.href = `/reporte-operaciones/exportar?${params.toString()}`;
+const descargandoCSV = ref(false);
+
+const descargarCSV = async () => {
+    if (descargandoCSV.value) return;
+    descargandoCSV.value = true;
+
+    const payload = {
+        ids:          seleccionados.value,
+        tipo_reporte: tipoReporteFiltro.value || '',
+        estatus:      estatusFiltro.value     || '',
+        fecha_ini:    fechaInicialStr.value   || '',
+        fecha_fin:    fechaFinalStr.value     || '',
+    };
+
+    try {
+        const res = await axios.post('/reporte-operaciones/exportar', payload, {
+            responseType: 'blob',
+        });
+
+        const blob = res.data as Blob;
+        const url  = window.URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_operaciones_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        await buscar();
+    } catch (error: any) {
+        let mensaje = 'No hay datos para exportar.';
+        try {
+            const data = error?.response?.data;
+            if (data instanceof Blob) {
+                mensaje = JSON.parse(await data.text())?.message ?? mensaje;
+            } else if (data?.message) {
+                mensaje = data.message;
+            }
+        } catch { /* sin cuerpo */ }
+        window.alert(mensaje);
+    } finally {
+        descargandoCSV.value = false;
+    }
 };
 </script>
 
@@ -178,10 +256,10 @@ const descargarCSV = () => {
                     class="mt-6 flex flex-col gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white/90 via-slate-50/70 to-white/90 p-4 shadow-sm backdrop-blur-sm transition-colors duration-200 ease-out focus-within:border-blue-400/80 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:border-neutral-800/80 dark:bg-gradient-to-r dark:from-neutral-950/90 dark:via-neutral-900/80 dark:to-neutral-950/90">
                     <form @submit.prevent="buscar" class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <!-- Patrón -->
+                            <!-- Tipo de reporte -->
                             <div>
-                                <Select id="patron" label="Patrón:" :options="opcionesPatron"
-                                    v-model="patronFiltro" placeholder="Seleccione patrón" />
+                                <Select id="tipo-reporte" label="Tipo de reporte:" :options="opcionesTipoReporte"
+                                    v-model="tipoReporteFiltro" placeholder="Seleccione tipo de reporte" />
                             </div>
 
                             <!-- Estatus -->
@@ -210,13 +288,13 @@ const descargarCSV = () => {
                         </div>
 
                         <div class="mt-4 flex justify-end gap-2">
-                            <button type="button" @click="descargarCSV"
-                                class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800">
+                            <button type="button" @click="descargarCSV" :disabled="descargandoCSV"
+                                class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800">
                                 <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
-                                Descargar CSV
+                                {{ descargandoCSV ? 'Exportando...' : 'Descargar CSV' }}
                             </button>
                             <button type="submit"
                                 class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -258,8 +336,15 @@ const descargarCSV = () => {
                                 <thead>
                                     <tr
                                         class="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 text-xs font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-gradient-to-r dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95 dark:text-neutral-200">
+                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                            <input type="checkbox" v-model="todosSeleccionados"
+                                                :indeterminate.prop="seleccionParcial"
+                                                :disabled="seleccionables.length === 0"
+                                                title="Seleccionar todos los filtrados"
+                                                class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40" />
+                                        </th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Folio</th>
-                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Patrón</th>
+                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Tipo de reporte</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Cliente</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Póliza</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Fecha detección</th>
@@ -272,6 +357,12 @@ const descargarCSV = () => {
                                 <tbody v-if="paginatedResultados.length">
                                     <tr v-for="item in paginatedResultados" :key="item.IDRegistroAlerta"
                                         class="group cursor-pointer border-b border-l-2 border-slate-100 border-l-transparent bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-l-blue-400 hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-neutral-800/60 dark:border-l-transparent dark:bg-neutral-950/40 dark:hover:border-l-blue-500 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)]">
+                                        <td class="px-3 py-2 align-middle">
+                                            <input v-if="item.Estatus === 'Por reportar'" type="checkbox"
+                                                :checked="seleccionados.includes(item.IDRegistroAlerta)"
+                                                @change="toggleSeleccion(item.IDRegistroAlerta)"
+                                                class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                                        </td>
                                         <td class="px-3 py-2 align-middle">{{ item.Folio ?? 'N/A' }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.Patron ?? 'N/A' }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.Cliente ?? 'N/A' }}</td>
@@ -292,7 +383,7 @@ const descargarCSV = () => {
                                 </tbody>
                                 <tbody v-else>
                                     <tr>
-                                        <td colspan="9"
+                                        <td colspan="10"
                                             class="px-3 py-4 text-center text-sm text-slate-500 dark:text-neutral-400">
                                             Sin resultados</td>
                                     </tr>

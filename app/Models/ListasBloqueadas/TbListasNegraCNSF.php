@@ -34,7 +34,8 @@ class TbListasNegraCNSF extends Model
     ];
 
     protected $casts = [
-        'FechaNacimiento' => 'date',
+        // FechaNacimiento es un varchar con datos heterogéneos (texto libre,
+        // rangos, "sin info."); no se castea a fecha para evitar errores de Carbon.
         'TimeStampAlta' => 'datetime',
         'TimeStampModif' => 'datetime',
     ];

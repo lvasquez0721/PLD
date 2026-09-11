@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { FileText } from 'lucide-vue-next';
 import { Label } from '@/components/ui/label';
 import { activeTab, setTab } from "../../../scripts/setTab.js";
 import axios from 'axios';
@@ -28,6 +27,13 @@ defineProps<{
     toast?: string
 }>()
 
+// Patrón con el que se emiten las alertas
+const patronSeleccionado = ref('Nuevo');
+const opcionesPatron = [
+    { value: 'Nuevo', label: 'Nuevo' },
+    { value: 'Preocupante', label: 'Preocupante' },
+];
+
 // IDs seleccionados
 const seleccionados = ref<string[]>([]);
 // Función para marcar/desmarcar
@@ -48,7 +54,8 @@ const pasarAlertas = async () => {
 
     try {
         await axios.post('/buzon-preocupantes/pasar-alertas', {
-            ids: seleccionados.value
+            ids: seleccionados.value,
+            patron: patronSeleccionado.value,
         });
 
         toastMessage.value = 'Alertas generadas correctamente.'
@@ -310,7 +317,19 @@ const breadcrumbs: BreadcrumbItem[] = [
                         </div>
                     </div>
 
-                    <div class="flex justify-end">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-end sm:gap-4">
+                        <div class="flex w-full flex-col gap-1 sm:w-56">
+                            <label for="patron-emision"
+                                class="text-[11px] font-medium uppercase tracking-[0.05em] text-slate-600/85 dark:text-neutral-300/85">
+                                Patrón:
+                            </label>
+                            <select id="patron-emision" v-model="patronSeleccionado"
+                                class="w-full rounded-xl border border-gray-300/80 bg-white px-4 py-3 text-[14px] font-normal text-slate-800 shadow-sm transition-all duration-200 hover:border-gray-400/80 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:border-neutral-700/80 dark:bg-neutral-900 dark:text-slate-100 dark:hover:border-neutral-600 dark:focus:border-blue-400">
+                                <option v-for="opcion in opcionesPatron" :key="opcion.value" :value="opcion.value">
+                                    {{ opcion.label }}
+                                </option>
+                            </select>
+                        </div>
                         <button type="submit" :disabled="seleccionados.length === 0"
                             class="px-7 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[14px] font-semibold tracking-[0.01em] rounded-[14px]
                                 shadow-[0_3px_12px_rgba(59,130,246,0.18)] hover:shadow-[0_5px_18px_rgba(59,130,246,0.26)]

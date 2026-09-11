@@ -132,7 +132,9 @@
     form.value.CURPListaNegra = item.CURP;
     if (item.FechaNacimiento) {
       const fecha = new Date(item.FechaNacimiento);
-      form.value.Fecha_NacimientoListaNegra = fecha.toISOString().split('T')[0];
+      form.value.Fecha_NacimientoListaNegra = isNaN(fecha.getTime())
+        ? ''
+        : fecha.toISOString().split('T')[0];
     } else {
       form.value.Fecha_NacimientoListaNegra = '';
     }
