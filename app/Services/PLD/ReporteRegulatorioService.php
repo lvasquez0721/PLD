@@ -9,6 +9,7 @@ use App\Models\Clientes\CatOcupacionesGiros;
 use App\Models\Clientes\CatTipoPersona;
 use App\Models\Clientes\TbClientes;
 use App\Models\TbAlertas;
+use App\Models\TbOperaciones;
 use App\Models\TbReporteRegulatorioPLD;
 
 class ReporteRegulatorioService
@@ -23,6 +24,10 @@ class ReporteRegulatorioService
             ? TbClientes::with(['domicilios'])->find($alerta->IDCliente)
             : null;
 
+        $operacion = $alerta->IDOperacion
+            ? TbOperaciones::find($alerta->IDOperacion)
+            : null;
+
         $domicilio = null;
         $colonia   = null;
         $ciudad    = null;
@@ -33,8 +38,9 @@ class ReporteRegulatorioService
 
             $domicilio = trim(implode(' ', array_filter([
                 $d->Calle ?? '',
-                $d->NoExterior ? 'No. ' . $d->NoExterior : '',
-                $d->NoInterior ? 'Int. ' . $d->NoInterior : '',
+                $d->NoExterior ?? '',
+                $d->NoInterior ?? '',
+                $d->CP ? 'CP: ' . $d->CP : '',
             ]))) ?: null;
 
             $colonia  = $d->Colonia ?? null;
@@ -54,7 +60,10 @@ class ReporteRegulatorioService
 
         $reporte->TipoReporte         = $tipoReporteNombre;
         $reporte->IDTipoReporte       = $idTipoReporte;
-        $reporte->PeriodoReporte      = now()->format('Ym');
+        // Periodo: AAAAMM para relevantes y AAAAMMDD para inusuales/preocupantes.
+        $reporte->PeriodoReporte      = $idTipoReporte === 1
+            ? now()->format('Ym')
+            : now()->format('Ymd');
         $reporte->Folio               = $alerta->Folio;
         $reporte->OrganoSupervisor    = '001003';
         $reporte->CveSujetoObligado   = '022123';
@@ -65,7 +74,7 @@ class ReporteRegulatorioService
         $reporte->InstrumentoMonetario = $alerta->InstrumentoMonetario;
         $reporte->NoPoliza            = $alerta->Poliza;
         $reporte->Monto               = $alerta->MontoOperacion;
-        $reporte->IDMoneda            = $alerta->IDMoneda;
+        $reporte->IDMoneda            = $alerta->IDMoneda ?: $operacion?->IDMoneda;
         $reporte->FechaOperacion      = $alerta->FechaOperacion ?? $hoy;
         $reporte->FechaDeteccion      = $alerta->FechaDeteccion ?? $hoy;
         $reporte->Nacionalidad        = $cliente?->IDNacionalidad

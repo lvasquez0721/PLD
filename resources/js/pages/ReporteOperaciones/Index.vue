@@ -7,7 +7,7 @@ import Select from '@/components/forms/Select.vue';
 import DateInput from '@/components/forms/DateInput.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
 
-const tipoReporteFiltro = ref('');
+const tipoReporteFiltro = ref('Todos');
 const estatusFiltro     = ref('');
 const fechaInicial      = ref<Date | null>(null);
 const fechaFinal        = ref<Date | null>(null);
@@ -224,7 +224,10 @@ const descargarCSV = async () => {
         const url  = window.URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href = url;
-        a.download = `reporte_operaciones_${new Date().toISOString().slice(0, 10)}.csv`;
+        const disposition = (res.headers?.['content-disposition'] ?? '') as string;
+        const nombreArchivo = /filename="?([^"]+)"?/.exec(disposition)?.[1]
+            ?? `reporte_operaciones_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = nombreArchivo;
         document.body.appendChild(a);
         a.click();
         a.remove();
