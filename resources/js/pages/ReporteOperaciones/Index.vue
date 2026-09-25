@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { usePage, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Select from '@/components/forms/Select.vue';
 import DateInput from '@/components/forms/DateInput.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const tipoReporteFiltro = ref('Todos');
 const estatusFiltro     = ref('');
-const fechaInicial      = ref<Date | null>(null);
-const fechaFinal        = ref<Date | null>(null);
-
-const page = usePage();
+// Usar strings ISO directamente para evitar bugs al teclear año en el input nativo.
+// Antes se usaba Date + computed, lo cual interfería con la edición manual del año.
+const fechaInicialStr   = ref('');
+const fechaFinalStr     = ref('');
 
 const opcionesTipoReporte = [
     { value: 'Todos',        label: 'Todos' },
@@ -26,31 +27,6 @@ const opcionesEstatus = [
     { value: 'Enviado',       label: 'Enviado' },
     { value: 'Por reportar',  label: 'Por reportar' },
 ];
-
-function toISODate(d: Date) {
-    const yyyy = d.getFullYear();
-    const mm   = String(d.getMonth() + 1).padStart(2, '0');
-    const dd   = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
-// Parsea "YYYY-MM-DD" como fecha local (evita el desfase de un día por UTC).
-function parseISODateLocal(v: string): Date | null {
-    if (!v) return null;
-    const [y, m, d] = v.split('-').map(Number);
-    if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d);
-}
-
-const fechaInicialStr = computed<string>({
-    get() { return fechaInicial.value ? toISODate(fechaInicial.value) : ''; },
-    set(v: string) { fechaInicial.value = parseISODateLocal(v); },
-});
-
-const fechaFinalStr = computed<string>({
-    get() { return fechaFinal.value ? toISODate(fechaFinal.value) : ''; },
-    set(v: string) { fechaFinal.value = parseISODateLocal(v); },
-});
 
 interface Alerta {
     IDRegistroAlerta:    number;
@@ -76,8 +52,9 @@ interface Alerta {
     IDMoneda:            string | null;
 }
 
-const resultados  = ref<Alerta[]>(((page.props as any)?.alertas ?? []) as Alerta[]);
+const resultados  = ref<Alerta[]>([]);
 const isLoading   = ref(false);
+const hasBuscado  = ref(false);
 const search      = ref('');
 const searchInput = ref('');
 let searchTimer: number | null = null;
@@ -184,6 +161,7 @@ const buscar = async () => {
         fecha_fin:    fechaFinalStr.value     || '',
     });
     isLoading.value = true;
+    hasBuscado.value = true;
     try {
         const res  = await fetch(`/reporte-operaciones/obtener?${params.toString()}`, {
             method: 'GET',
@@ -202,17 +180,25 @@ const buscar = async () => {
 };
 
 const descargandoCSV = ref(false);
+const showExportModal = ref(false);
+const reportando = ref(false);
 
-const descargarCSV = async () => {
+function abrirModalExportar() {
+    showExportModal.value = true;
+}
+
+const descargarCSV = async (conHeaders = false) => {
     if (descargandoCSV.value) return;
+    showExportModal.value = false;
     descargandoCSV.value = true;
 
-    const payload = {
+    const payload: any = {
         ids:          seleccionados.value,
         tipo_reporte: tipoReporteFiltro.value || '',
         estatus:      estatusFiltro.value     || '',
         fecha_ini:    fechaInicialStr.value   || '',
         fecha_fin:    fechaFinalStr.value     || '',
+        con_headers:  conHeaders,
     };
 
     try {
@@ -233,7 +219,7 @@ const descargarCSV = async () => {
         a.remove();
         window.URL.revokeObjectURL(url);
 
-        await buscar();
+        // Ya no se refresca ni cambia estatus: solo descarga
     } catch (error: any) {
         let mensaje = 'No hay datos para exportar.';
         try {
@@ -247,6 +233,44 @@ const descargarCSV = async () => {
         window.alert(mensaje);
     } finally {
         descargandoCSV.value = false;
+    }
+};
+
+const reportar = async () => {
+    if (reportando.value) return;
+    if (seleccionados.value.length === 0) {
+        window.alert('Seleccione al menos un registro con estatus "Por reportar" para reportar.');
+        return;
+    }
+    reportando.value = true;
+    try {
+        const payload: any = {
+            ids:          seleccionados.value,
+            tipo_reporte: tipoReporteFiltro.value || '',
+            estatus:      estatusFiltro.value     || '',
+            fecha_ini:    fechaInicialStr.value   || '',
+            fecha_fin:    fechaFinalStr.value     || '',
+        };
+        const res = await axios.post('/reporte-operaciones/reportar', payload);
+        const mensaje = (res.data as any)?.message ?? `Se reportaron ${seleccionados.value.length} registro(s).`;
+        window.alert(mensaje);
+        await buscar();
+    } catch (error: any) {
+        let mensaje = 'No se pudo reportar. Verifique los registros seleccionados.';
+        try {
+            const data = error?.response?.data;
+            if (data instanceof Blob) {
+                mensaje = JSON.parse(await data.text())?.message ?? mensaje;
+            } else if (data?.message) {
+                mensaje = data.message;
+            } else if (data?.errors) {
+                const first = Object.values(data.errors as Record<string,string[]>).flat()[0];
+                if (first) mensaje = first as string;
+            }
+        } catch { /* sin cuerpo */ }
+        window.alert(mensaje);
+    } finally {
+        reportando.value = false;
     }
 };
 </script>
@@ -291,13 +315,21 @@ const descargarCSV = async () => {
                         </div>
 
                         <div class="mt-4 flex justify-end gap-2">
-                            <button type="button" @click="descargarCSV" :disabled="descargandoCSV"
+                            <button type="button" @click="abrirModalExportar" :disabled="descargandoCSV"
                                 class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800">
                                 <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
                                 {{ descargandoCSV ? 'Exportando...' : 'Descargar CSV' }}
+                            </button>
+                            <button type="button" @click="reportar" :disabled="reportando || seleccionados.length === 0"
+                                class="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+                                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                {{ reportando ? 'Reportando...' : 'Reportar' }}
                             </button>
                             <button type="submit"
                                 class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -388,7 +420,10 @@ const descargarCSV = async () => {
                                     <tr>
                                         <td colspan="10"
                                             class="px-3 py-4 text-center text-sm text-slate-500 dark:text-neutral-400">
-                                            Sin resultados</td>
+                                            <span v-if="isLoading">Cargando...</span>
+                                            <span v-else-if="!hasBuscado">Seleccione filtros y presione <strong>Buscar</strong> para mostrar registros.</span>
+                                            <span v-else>Sin resultados para los filtros seleccionados.</span>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -416,5 +451,37 @@ const descargarCSV = async () => {
                 </div>
             </div>
         </FadeIn>
+
+        <!-- Modal exportar CSV: con/sin headers -->
+        <Dialog :open="showExportModal" @update:open="(v: boolean) => showExportModal = v">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Descargar CSV</DialogTitle>
+                    <DialogDescription>
+                        Elige el formato de descarga. Por defecto el archivo regulatorio se envía sin títulos (solo data).
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="flex flex-col gap-3 py-2">
+                    <button type="button" @click="descargarCSV(false)" :disabled="descargandoCSV"
+                        class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60">
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Sin headers (solo data) — Recomendado
+                    </button>
+                    <button type="button" @click="descargarCSV(true)" :disabled="descargandoCSV"
+                        class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800 disabled:opacity-60">
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4 4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Con headers (con títulos)
+                    </button>
+                    <button type="button" @click="showExportModal = false"
+                        class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                        Cancelar
+                    </button>
+                </div>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

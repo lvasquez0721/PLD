@@ -87,13 +87,9 @@ class ReporteOperacionesController extends Controller
 
     public function index()
     {
-        $alertas = TbAlertas::whereIn('Patron', self::PATRONES)
-            ->whereIn('Estatus', self::ESTATUS)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
+        // Al cargar no se muestra ningún registro hasta que el usuario filtre y presione Buscar
         return Inertia::render('ReporteOperaciones/Index', [
-            'alertas' => $alertas,
+            'alertas' => [],
         ]);
     }
 
@@ -114,6 +110,7 @@ class ReporteOperacionesController extends Controller
             'ids'          => 'nullable|array',
             'ids.*'        => 'integer',
             'tipo_reporte' => 'required|string|in:Relevante,Inusual,Preocupante,Todos,Todas',
+            'con_headers'  => 'nullable|boolean',
         ]);
 
         $tipo = $validated['tipo_reporte'] === 'Todas' ? 'Todos' : $validated['tipo_reporte'];
@@ -135,6 +132,79 @@ class ReporteOperacionesController extends Controller
 
         $ids = $alertas->pluck('IDRegistroAlerta')->all();
 
+        // Solo descarga: ya no marca como Enviado ni emite reporte regulatorio.
+        // La emisión/cambio a Enviado se hace exclusivamente vía reportar().
+        $reportes = TbReporteRegulatorioPLD::whereIn('IDRegistroAlerta', $ids)
+            ->orderBy('IDReporte')
+            ->get();
+
+        // Si aún no hay reporte regulatorio generado para las alertas filtradas,
+        // generar filas directamente desde las alertas sin emitir (solo exportación)
+        // para no cambiar estatus. Si existen reportes, usarlos.
+        if ($reportes->isEmpty()) {
+            // Fallback: generar CSV directamente desde alertas sin crear registro regulatorio
+            // Para mantener compatibilidad, si no hay reporte previo simplemente exportamos las alertas
+            // mapeando desde alertas como fuente alternativa
+            $filas = $this->mapearFilasDesdeAlertas($alertas);
+            // Usar fecha de alertas para nombre archivo
+            $fileName = $this->nombreArchivoDesdeAlertas($tipo, $alertas);
+        } else {
+            $filas = $this->mapearFilas($reportes);
+            $fileName = $this->nombreArchivo($tipo, $reportes);
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+        ];
+
+        $conHeaders = $request->boolean('con_headers', false);
+
+        $callback = function () use ($filas, $conHeaders) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            if ($conHeaders) {
+                fwrite($file, implode(';', self::LAYOUT_HEADERS)."\r\n");
+            }
+
+            foreach ($filas as $fila) {
+                fwrite($file, implode(';', $fila)."\r\n");
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function reportar(Request $request)
+    {
+        $validated = $request->validate([
+            'ids'          => 'required|array|min:1',
+            'ids.*'        => 'integer',
+            'tipo_reporte' => 'nullable|string|in:Relevante,Inusual,Preocupante,Todos,Todas',
+        ]);
+
+        $tipo = $validated['tipo_reporte'] ?? 'Todos';
+        if ($tipo === 'Todas') {
+            $tipo = 'Todos';
+        }
+
+        $filtros = $request->only(['tipo_reporte', 'estatus', 'fecha_ini', 'fecha_fin']);
+        $filtros['tipo_reporte'] = $tipo;
+
+        $query = $this->construirQuery($filtros);
+        $query->whereIn('IDRegistroAlerta', $validated['ids']);
+        // Solo se pueden reportar los que están Por reportar
+        $query->where('Estatus', 'Por reportar');
+
+        $alertas = $query->get();
+
+        if ($alertas->isEmpty()) {
+            return response()->json(['message' => 'No hay registros por reportar con los criterios seleccionados. Verifique que los registros estén en estatus "Por reportar".'], 422);
+        }
+
         DB::transaction(function () use ($alertas) {
             $servicio = new ReporteRegulatorioService;
 
@@ -148,32 +218,10 @@ class ReporteOperacionesController extends Controller
             }
         });
 
-        $reportes = TbReporteRegulatorioPLD::whereIn('IDRegistroAlerta', $ids)
-            ->orderBy('IDReporte')
-            ->get();
-
-        $filas = $this->mapearFilas($reportes);
-
-        $fileName = $this->nombreArchivo($tipo);
-
-        $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
-        ];
-
-        $callback = function () use ($filas) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            fwrite($file, implode(';', self::LAYOUT_HEADERS)."\r\n");
-
-            foreach ($filas as $fila) {
-                fwrite($file, implode(';', $fila)."\r\n");
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return response()->json([
+            'message' => 'Se reportaron '.count($alertas).' registro(s) correctamente.',
+            'count'   => count($alertas),
+        ]);
     }
 
     private function construirQuery(array $filtros)
@@ -202,9 +250,11 @@ class ReporteOperacionesController extends Controller
 
     /**
      * Nombre del archivo conforme al Anexo 2:
-     * TIPO(1) + CLAVE_SUJETO(6) + PERIODO(4/6) + "." + ORGANO_SUPERVISOR(3).
+     * TIPO(1) + CLAVE_SUJETO(6) + PERIODO(YYMM 4 / YYMMDD 6) + "." + ORGANO_SUPERVISOR(3).
+     * Ej. 2022123260731.003 => 2 022123 260731 .003
+     * Periodo tomado de FechaDeteccion del primer reporte del lote, fallback now().
      */
-    private function nombreArchivo(string $tipo): string
+    private function nombreArchivo(string $tipo, $reportes = null): string
     {
         $prefijo = match ($tipo) {
             'Relevante'   => '1',
@@ -213,36 +263,238 @@ class ReporteOperacionesController extends Controller
             default       => '0',
         };
 
-        $periodo = $tipo === 'Relevante'
-            ? now()->format('ym')
-            : now()->format('ymd');
+        $fechaRef = null;
+        if ($reportes && $reportes->isNotEmpty()) {
+            $first = $reportes->first();
+            $fechaRef = $first->FechaDeteccion ?? $first->FechaOperacion ?? null;
+            if (empty($fechaRef) && ! empty($first->PeriodoReporte)) {
+                // Si no hay fecha pero hay periodo almacenado, usarlo directamente
+                $raw = preg_replace('/\D/', '', (string) $first->PeriodoReporte);
+                if ($tipo === 'Relevante' && strlen($raw) >= 4) {
+                    $periodo = substr($raw, -4);
+                    if (strlen($periodo) === 4) {
+                        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
+                    }
+                } elseif (strlen($raw) >= 6) {
+                    $periodo = substr($raw, -6);
+                    if (strlen($periodo) === 6) {
+                        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
+                    }
+                }
+            }
+        }
+
+        if ($fechaRef) {
+            $ts = strtotime((string) $fechaRef);
+            $periodo = $tipo === 'Relevante'
+                ? ($ts ? date('ym', $ts) : now()->format('ym'))
+                : ($ts ? date('ymd', $ts) : now()->format('ymd'));
+        } else {
+            $periodo = $tipo === 'Relevante'
+                ? now()->format('ym')
+                : now()->format('ymd');
+        }
 
         return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
     }
 
+    private function nombreArchivoDesdeAlertas(string $tipo, $alertas): string
+    {
+        $prefijo = match ($tipo) {
+            'Relevante'   => '1',
+            'Inusual'     => '2',
+            'Preocupante' => '3',
+            default       => '0',
+        };
+        $first = $alertas->first();
+        $fechaRef = $first->FechaDeteccion ?? $first->FechaOperacion ?? $first->created_at ?? null;
+        if ($fechaRef) {
+            $ts = strtotime((string) $fechaRef);
+            $periodo = $tipo === 'Relevante'
+                ? ($ts ? date('ym', $ts) : now()->format('ym'))
+                : ($ts ? date('ymd', $ts) : now()->format('ymd'));
+        } else {
+            $periodo = $tipo === 'Relevante' ? now()->format('ym') : now()->format('ymd');
+        }
+        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
+    }
+
+    private function mapearFilasDesdeAlertas($alertas): array
+    {
+        // Mapeo simplificado desde alertas cuando aún no existe reporte regulatorio.
+        // No crea registro, solo genera filas para descarga sin cambiar estatus.
+        $codigosMoneda = ['MXN' => '001', 'USD' => '002', '001' => '001', '002' => '002', '1' => '001', '2' => '002'];
+        $folio = 0;
+        return $alertas->map(function ($a) use ($codigosMoneda, &$folio) {
+            $folio++;
+            $tipoReporte = match ($a->Patron) {
+                'Relevante'   => '1',
+                'Preocupante' => '3',
+                default       => '2',
+            };
+            $fechaDet = $a->FechaDeteccion ?? $a->FechaOperacion ?? null;
+            $ts = $fechaDet ? strtotime((string) $fechaDet) : null;
+            $periodo = $tipoReporte === '1'
+                ? ($ts ? date('ym', $ts) : '')
+                : ($ts ? date('ymd', $ts) : '');
+            $rawMoneda = strtoupper(trim((string) ($a->IDMoneda ?? '')));
+            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '001');
+            if (! in_array($moneda, ['001','002'], true)) $moneda = '001';
+            $instrumento = trim((string) ($a->InstrumentoMonetario ?? ''));
+            if ($instrumento === '') $instrumento = '01';
+            if (is_numeric($instrumento)) $instrumento = str_pad($instrumento, 2, '0', STR_PAD_LEFT);
+
+            return [
+                $this->limpiar($tipoReporte),
+                $this->limpiar($periodo),
+                $this->limpiar(str_pad((string) $folio, 6, '0', STR_PAD_LEFT)),
+                $this->limpiar('001003'),
+                $this->limpiar('022123'),
+                $this->limpiar('03342009'),
+                $this->limpiar('0'),
+                $this->limpiar('10'),
+                $this->limpiar($instrumento),
+                $this->limpiar($a->Poliza),
+                $this->limpiar(number_format((float) ($a->MontoOperacion ?? 0), 2, '.', '')),
+                $this->limpiar($moneda),
+                $this->limpiar($this->formatearFecha($a->FechaOperacion)),
+                $this->limpiar($this->formatearFecha($a->FechaDeteccion)),
+                $this->limpiar('MX'),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar($a->Cliente),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar($a->RFCAgente),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar($a->Agente),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar($a->RFCAgente),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar(''),
+                $this->limpiar($a->Descripcion),
+                $this->limpiar($a->Razones),
+                $this->limpiar($a->Estatus),
+            ];
+        })->all();
+    }
+
     private function mapearFilas($reportes): array
     {
-        $codigosMoneda = ['MXN' => '001', 'USD' => '002'];
+        $codigosMoneda = ['MXN' => '001', 'USD' => '002', '001' => '001', '002' => '002', '1' => '001', '2' => '002'];
 
         $tiposPersona   = CatTipoPersona::pluck('IDTipoPersona', 'TipoPersona');
         $formasPago     = CatFormaPagos::pluck('IDFormaPago', 'FormaPago');
         $nacionalidades = CatNacionalidad::pluck('IDNacionalidad', 'Nacionalidad');
         $ocupaciones    = CatOcupacionesGiros::pluck('CVE_GIRO', 'OcupacionGiro');
 
+        // Mapas normalizados upper para lookup insensible a mayúsculas
+        $formasPagoUpper = [];
+        foreach ($formasPago as $nombre => $id) {
+            $formasPagoUpper[mb_strtoupper(trim((string) $nombre))] = $id;
+        }
+        $tiposPersonaUpper = [];
+        foreach ($tiposPersona as $nombre => $id) {
+            $tiposPersonaUpper[mb_strtoupper(trim((string) $nombre))] = $id;
+        }
+        $nacionalidadesUpper = [];
+        foreach ($nacionalidades as $nombre => $id) {
+            $nacionalidadesUpper[mb_strtoupper(trim((string) $nombre))] = $id;
+        }
+        $ocupacionesUpper = [];
+        foreach ($ocupaciones as $nombre => $cve) {
+            $ocupacionesUpper[mb_strtoupper(trim((string) $nombre))] = $cve;
+        }
+
         $folio = 0;
 
-        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupaciones, &$folio) {
+        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupaciones, $formasPagoUpper, $tiposPersonaUpper, $nacionalidadesUpper, $ocupacionesUpper, &$folio) {
             $folio++;
 
-            $instrumento = $formasPago[$r->InstrumentoMonetario] ?? $r->InstrumentoMonetario;
-
-            if (is_numeric($instrumento)) {
+            // Instrumento monetario: siempre 2 dígitos, default 01 (Efectivo) si vacío
+            $rawInst = trim((string) ($r->InstrumentoMonetario ?? ''));
+            $keyUpper = mb_strtoupper($rawInst);
+            $instrumento = $formasPago[$rawInst] ?? $formasPagoUpper[$keyUpper] ?? $rawInst;
+            if ($instrumento === '' || $instrumento === null) {
+                $instrumento = '01';
+            } elseif (is_numeric($instrumento)) {
                 $instrumento = str_pad((string) $instrumento, 2, '0', STR_PAD_LEFT);
+            } else {
+                // Si viene texto no mapeado, intentar extraer número
+                if (preg_match('/\d+/', (string) $instrumento, $m)) {
+                    $instrumento = str_pad($m[0], 2, '0', STR_PAD_LEFT);
+                } else {
+                    $instrumento = '01';
+                }
             }
 
             $tipoOperacion = $r->IDTipoOperacion
                 ? str_pad((string) $r->IDTipoOperacion, 2, '0', STR_PAD_LEFT)
                 : '';
+
+            // Moneda nunca en blanco, default 001
+            $rawMoneda = strtoupper(trim((string) ($r->IDMoneda ?? '')));
+            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '001');
+            if (! in_array($moneda, ['001', '002'], true)) {
+                // Si viene texto como "PESOS" o ID numérico desconocido, fallback 001
+                $moneda = $codigosMoneda[$rawMoneda] ?? '001';
+            }
+
+            // Nacionalidad: si viene texto "Mexicana" mapea a "MX", si ya es código deja igual
+            $rawNac = trim((string) ($r->Nacionalidad ?? ''));
+            $nacUpper = mb_strtoupper($rawNac);
+            $nacionalidad = $nacionalidades[$rawNac] ?? $nacionalidadesUpper[$nacUpper] ?? $rawNac;
+            if ($nacionalidad === '' || $nacionalidad === null) {
+                $nacionalidad = 'MX';
+            }
+
+            // Tipo persona: 1 o 2, mapea texto -> id
+            $rawTipo = trim((string) ($r->TipoPersona ?? ''));
+            $tipoUpper = mb_strtoupper($rawTipo);
+            $tipoPersonaVal = $tiposPersona[$rawTipo] ?? $tiposPersonaUpper[$tipoUpper] ?? $rawTipo;
+            // Normalizar nombres comunes
+            if ($tipoUpper === 'PERSONA FISICA' || $tipoUpper === 'FISICA' || $tipoUpper === 'PF') {
+                $tipoPersonaVal = '1';
+            } elseif ($tipoUpper === 'PERSONA MORAL' || $tipoUpper === 'MORAL' || $tipoUpper === 'PM') {
+                $tipoPersonaVal = '2';
+            }
+            if ($tipoPersonaVal === '' || $tipoPersonaVal === null) {
+                $tipoPersonaVal = '';
+            }
+
+            // Ocupacion: clave CVE_GIRO
+            $rawOcup = trim((string) ($r->Ocupacion ?? ''));
+            $ocupUpper = mb_strtoupper($rawOcup);
+            $ocupacion = $ocupaciones[$rawOcup] ?? $ocupacionesUpper[$ocupUpper] ?? $rawOcup;
+
+            // Coherencia PF/PM para columnas Nombre/RazonSocial/CURP (defensa en capa de exportación)
+            $isPF = ((string) $tipoPersonaVal === '1');
+            $isPM = ((string) $tipoPersonaVal === '2');
+            $razonSocial = $r->RazonSocial;
+            $nombre = $r->Nombre;
+            $aPaterno = $r->APaterno;
+            $aMaterno = $r->AMaterno;
+            $curp = $r->CURP;
+            if ($isPF) {
+                $razonSocial = '';
+            } elseif ($isPM) {
+                $nombre = '';
+                $aPaterno = '';
+                $aMaterno = '';
+                $curp = '';
+            }
 
             return [
                 $this->limpiar($r->IDTipoReporte),
@@ -256,23 +508,23 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar($instrumento),
                 $this->limpiar($r->NoPoliza),
                 $this->limpiar(number_format((float) ($r->Monto ?? 0), 2, '.', '')),
-                $this->limpiar($codigosMoneda[$r->IDMoneda] ?? $r->IDMoneda),
+                $this->limpiar($moneda),
                 $this->limpiar($this->formatearFecha($r->FechaOperacion)),
                 $this->limpiar($this->formatearFecha($r->FechaDeteccion)),
-                $this->limpiar($nacionalidades[$r->Nacionalidad] ?? $r->Nacionalidad),
-                $this->limpiar($tiposPersona[$r->TipoPersona] ?? $r->TipoPersona),
-                $this->limpiar($r->RazonSocial),
-                $this->limpiar($r->Nombre),
-                $this->limpiar($r->APaterno),
-                $this->limpiar($r->AMaterno),
+                $this->limpiar($nacionalidad),
+                $this->limpiar($tipoPersonaVal),
+                $this->limpiar($razonSocial),
+                $this->limpiar($nombre),
+                $this->limpiar($aPaterno),
+                $this->limpiar($aMaterno),
                 $this->limpiar($r->RFC),
-                $this->limpiar($r->CURP),
+                $this->limpiar($curp),
                 $this->limpiar($this->formatearFecha($r->FechaNacimiento)),
                 $this->limpiar($r->Domicilio),
                 $this->limpiar($r->Colonia),
                 $this->limpiar($r->Ciudad),
                 $this->limpiar($r->Telefono),
-                $this->limpiar($ocupaciones[$r->Ocupacion] ?? $r->Ocupacion),
+                $this->limpiar($ocupacion),
                 $this->limpiar($r->NombreAgente),
                 $this->limpiar($r->APaternoAgente),
                 $this->limpiar($r->AMaternoAgente),
@@ -294,21 +546,30 @@ class ReporteOperacionesController extends Controller
     private function periodoReporte($r): string
     {
         $tipo    = (int) ($r->IDTipoReporte ?? 1);
-        $periodo = (string) ($r->PeriodoReporte ?? '');
+        $periodo = preg_replace('/\D/', '', (string) ($r->PeriodoReporte ?? ''));
 
         if ($tipo === 1) {
-            if (strlen($periodo) >= 6) {
-                return substr($periodo, 0, 6);
+            // Relevante: YYMM (4) segun ejemplo 2022123260731.003 -> yymm
+            if (strlen($periodo) >= 4) {
+                // Si viene YYYYMM (6) convertir a YYMM
+                if (strlen($periodo) >= 6) {
+                    return substr($periodo, -4);
+                }
+                return substr($periodo, 0, 4);
             }
-
-            return $r->FechaDeteccion ? date('Ym', strtotime((string) $r->FechaDeteccion)) : '';
+            return $r->FechaDeteccion ? date('ym', strtotime((string) $r->FechaDeteccion)) : '';
         }
 
-        if (strlen($periodo) >= 8) {
-            return substr($periodo, 0, 8);
+        // Inusual/Preocupante: YYMMDD (6)
+        if (strlen($periodo) >= 6) {
+            if (strlen($periodo) >= 8) {
+                // YYYYMMDD -> YYMMDD
+                return substr($periodo, -6);
+            }
+            return substr($periodo, 0, 6);
         }
 
-        return $r->FechaDeteccion ? date('Ymd', strtotime((string) $r->FechaDeteccion)) : '';
+        return $r->FechaDeteccion ? date('ymd', strtotime((string) $r->FechaDeteccion)) : '';
     }
 
     private function formatearFecha($fecha): string

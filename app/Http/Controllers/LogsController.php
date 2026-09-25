@@ -11,7 +11,6 @@ class LogsController extends Controller
     public function index(Request $request)
     {
         $logs = LogApi::orderBy('id', 'desc')
-            ->limit(200)
             ->get()
             ->map(function ($log) {
                 return [

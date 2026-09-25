@@ -39,11 +39,21 @@ class ReportesRegulatorios
             return null;
         }
 
-        $fechaAAAAMM = date('Y-m');
+        $fechaDet = $alertaData->FechaDeteccion ?? $alertaData->FechaOperacion ?? now()->format('Y-m-d');
+        $fechaAAAAMM = date('ym', strtotime((string) $fechaDet));
         $folio = str_pad($alertaData['IDRegistroAlerta'], 6, '0', STR_PAD_LEFT);
         $tipoReporte = 1; // Solo relevante
-        $nacionalidad = CatNacionalidad::where('IDNacionalidad', $cliente->IDNacionalidad)->first()?->Nacionalidad ?? null;
-        $tipoPersona = CatTipoPersona::where('IDTipoPersona', $cliente->IDTipoPersona)->first()?->TipoPersona ?? null;
+        $nacionalidad = CatNacionalidad::where('IDNacionalidad', $cliente->IDNacionalidad)->first()?->Nacionalidad ?? 'Mexicana';
+        // Tipo persona numérico 1/2
+        $tipoPersonaRaw = $cliente->IDTipoPersona;
+        if ($tipoPersonaRaw == 1 || $tipoPersonaRaw == 2) {
+            $tipoPersona = (string) $tipoPersonaRaw;
+        } else {
+            $tipoPersona = CatTipoPersona::where('IDTipoPersona', $cliente->IDTipoPersona)->first()?->TipoPersona ?? null;
+            $up = mb_strtoupper(trim((string) $tipoPersona));
+            if (str_contains($up, 'FISICA')) $tipoPersona = '1';
+            elseif (str_contains($up, 'MORAL')) $tipoPersona = '2';
+        }
         $domicilio = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->first();
 
         if ($domicilio) {
@@ -96,31 +106,55 @@ class ReportesRegulatorios
             $reporte->Localidad = '03342009' ?? null;
             $reporte->Sucursal = '0' ?? null;
             $reporte->TipoOperacion = $tipoOperacion ?? null;
-            $reporte->InstrumentoMonetario = $alertaData->InstrumentoMonetario ?? null;
             $reporte->NoPoliza = $alertaData->Poliza ?? null;
             $reporte->Monto = $alertaData->MontoOperacion ?? null;
-            $monedaModel = CatMonedas::where('IDMoneda', $operacion->IDMoneda)->first()
-                ?? CatMonedas::where('Moneda', $operacion->IDMoneda)->first();
-            $reporte->IDMoneda = $monedaModel?->IDMoneda;
+            $monedaRaw = $operacion->IDMoneda ?? 'MXN';
+            if (empty($monedaRaw)) $monedaRaw = 'MXN';
+            $monedaModel = CatMonedas::where('IDMoneda', $monedaRaw)->first()
+                ?? CatMonedas::where('Moneda', $monedaRaw)->first();
+            $reporte->IDMoneda = $monedaModel?->IDMoneda ?? $monedaRaw;
+            // Instrumento default 1 si vacío
+            $instRaw = $alertaData->InstrumentoMonetario ?? $operacion->IDFormaPago ?? '1';
+            if (empty($instRaw)) $instRaw = '1';
+            $reporte->InstrumentoMonetario = $instRaw;
             $reporte->FechaOperacion = $alertaData->FechaOperacion ?? null;
             $reporte->FechaDeteccion = $alertaData->FechaDeteccion ?? null;
-            $reporte->Nacionalidad = $nacionalidad ?? null;
+            $reporte->Nacionalidad = $nacionalidad ?? 'Mexicana';
             $reporte->TipoPersona = $tipoPersona ?? null;
-            $reporte->RazonSocial = $cliente->RazonSocial ?? null;
-            $reporte->Nombre = $cliente->Nombre ?? null;
-            $reporte->APaterno = $cliente->ApellidoPaterno ?? null;
-            $reporte->AMaterno = $cliente->ApellidoMaterno ?? null;
+            $esPF = ((string) $tipoPersona === '1');
+            $esPM = ((string) $tipoPersona === '2');
+            if ($esPF) {
+                $reporte->RazonSocial = null;
+                $reporte->Nombre = $cliente->Nombre ?? null;
+                $reporte->APaterno = $cliente->ApellidoPaterno ?? null;
+                $reporte->AMaterno = $cliente->ApellidoMaterno ?? null;
+                $reporte->CURP = $cliente->CURP ?? null;
+                $reporte->FechaNacimiento = $cliente->FechaNacimiento ?? null;
+            } elseif ($esPM) {
+                $reporte->RazonSocial = $cliente->RazonSocial ?? null;
+                $reporte->Nombre = null;
+                $reporte->APaterno = null;
+                $reporte->AMaterno = null;
+                $reporte->CURP = null;
+                $reporte->FechaNacimiento = $cliente->FechaConstitucion ?? $cliente->FechaNacimiento ?? null;
+            } else {
+                $reporte->RazonSocial = $cliente->RazonSocial ?? null;
+                $reporte->Nombre = $cliente->Nombre ?? null;
+                $reporte->APaterno = $cliente->ApellidoPaterno ?? null;
+                $reporte->AMaterno = $cliente->ApellidoMaterno ?? null;
+                $reporte->CURP = $cliente->CURP ?? null;
+                $reporte->FechaNacimiento = $cliente->FechaNacimiento ?? null;
+            }
             $reporte->RFC = $cliente->RFC ?? null;
-            $reporte->CURP = $cliente->CURP ?? null;
-            $reporte->FechaNacimiento = $cliente->FechaNacimiento ?? null;
             $reporte->Domicilio = $domicilioProcesadoStr ?? null;
             $reporte->Colonia = $domicilio->Colonia ?? null;
             $reporte->Ciudad = $domicilio->Municipio ?? null;
             $reporte->Telefono = $domicilio->Telefono ?? null;
             $reporte->Ocupacion = $ocupacion ?? null;
+            // Agente tal cual (full en NombreAgente)
             $reporte->NombreAgente = $operacion->NombreAgente ?? null;
-            $reporte->APaternoAgente = $operacion->APaternoAgente ?? null;
-            $reporte->AMaternoAgente = $operacion->AMaternoAgente ?? null;
+            $reporte->APaternoAgente = null;
+            $reporte->AMaternoAgente = null;
             $reporte->RFCAgente = $operacion->RFCAgente ?? null;
             $reporte->CURPAgente = $operacion->CURPAgente ?? null;
             $reporte->Cuenta = '' ?? null;

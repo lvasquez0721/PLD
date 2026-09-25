@@ -11,8 +11,10 @@ use App\Models\TbOperaciones;
 use App\Models\TbOperacionesBeneficiarios;
 use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
+use App\Services\NotificacionCumplimientoService;
 use App\Services\PLD\AnalisisPagosService;
 use App\Services\PLD\ReportesRegulatorios;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -86,7 +88,46 @@ class OperacionesController extends Controller
             ], 403);
         }
 
+        // Validación unicidad FolioPoliza / FolioEndoso (aditiva, sin romper formato)
+        // - FolioEndoso vacío (null/'') = emisión: solo 1 emisión por FolioPoliza
+        // - Con FolioEndoso = endoso: par (FolioPoliza, FolioEndoso) único dentro de la póliza
+        $folioPolizaNorm = trim((string) $validatedData['FolioPoliza']);
+        $folioEndosoTmp = $validatedData['FolioEndoso'] ?? null;
+        $folioEndosoNorm = is_string($folioEndosoTmp) ? trim($folioEndosoTmp) : $folioEndosoTmp;
+        if ($folioEndosoNorm === '') {
+            $folioEndosoNorm = null;
+        }
+        $validatedData['FolioPoliza'] = $folioPolizaNorm;
+        $validatedData['FolioEndoso'] = $folioEndosoNorm;
+        $esEmision = empty($folioEndosoNorm);
+
+        if ($esEmision) {
+            $existeEmision = TbOperaciones::where('FolioPoliza', $folioPolizaNorm)
+                ->where(function ($q) {
+                    $q->whereNull('FolioEndoso')->orWhere('FolioEndoso', '');
+                })->exists();
+            if ($existeEmision) {
+                return response()->json([
+                    'codigoError' => 422,
+                    'error' => 'Ya existe una emisión con FolioPoliza "'.$folioPolizaNorm.'". No se permite duplicar FolioPoliza sin FolioEndoso.',
+                    'detalles' => ['FolioPoliza' => $folioPolizaNorm],
+                ], 422);
+            }
+        } else {
+            $existePar = TbOperaciones::where('FolioPoliza', $folioPolizaNorm)
+                ->where('FolioEndoso', $folioEndosoNorm)->exists();
+            if ($existePar) {
+                return response()->json([
+                    'codigoError' => 422,
+                    'error' => 'Ya existe un endoso con FolioPoliza "'.$folioPolizaNorm.'" y FolioEndoso "'.$folioEndosoNorm.'". La combinación debe ser única dentro de la póliza.',
+                    'detalles' => ['FolioPoliza' => $folioPolizaNorm, 'FolioEndoso' => $folioEndosoNorm],
+                ], 422);
+            }
+        }
+
         try {
+            DB::beginTransaction();
+
             $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
             $operacion->FolioPoliza = $validatedData['FolioPoliza'];
@@ -113,19 +154,79 @@ class OperacionesController extends Controller
             $operacion->EsEndosoCancelacion = $validatedData['EsEndosoCancelacion'] ?? null;
             $operacion->save();
 
+            $alertasNuevas = [];
+            $alertaGenerada = false;
+            $pagosAnulados = 0;
+            $motivoCancelacion = null;
+
             if ($operacion->EsEndosoCancelacion) {
-                $alertaData = [
-                    'patron' => \App\Services\PLD\AnalisisPagosService::PATRON_CANCELACION,
-                    'descripcion' => 'Operación de endoso de cancelación detectada',
-                    'razones' => 'La operación corresponde a un endoso de cancelación de póliza',
+                $evaluacion = $this->evaluarReglasCancelacion($operacion);
+
+                $motivoCancelacion = $evaluacion['motivo'] ?? null;
+
+                if ($evaluacion['generarAlerta']) {
+                    $alertaData = [
+                        'patron' => AnalisisPagosService::PATRON_CANCELACION,
+                        'descripcion' => 'Operación de endoso de cancelación detectada',
+                        'razones' => $evaluacion['razones'] ?? 'La operación corresponde a un endoso de cancelación de póliza',
+                    ];
+                    $evidencias = [
+                        'tipo' => 'EndosoCancelacion',
+                        'operacion_id' => $operacion->IDOperacion,
+                        'folio_poliza' => $operacion->FolioPoliza,
+                        'folio_endoso' => $operacion->FolioEndoso,
+                        'operacion_base_id' => $evaluacion['base']->IDOperacion ?? null,
+                        'ultimo_pago_fecha' => $evaluacion['ultimoPago']->FechaPago ?? null,
+                        'dias_desde_ultimo_pago' => $evaluacion['dias'] ?? null,
+                    ];
+                    $alertaN = $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, [], null, $request->IDFormaPago);
+                    $alertasNuevas[] = $alertaN;
+                    $alertaGenerada = true;
+                } else {
+                    \Log::info('[Cancelacion] Alerta omitida', [
+                        'folio_poliza' => $operacion->FolioPoliza,
+                        'operacion_id' => $operacion->IDOperacion,
+                        'motivo' => $evaluacion['motivo'] ?? 'Sin motivo',
+                    ]);
+                }
+
+                // 3.5 Siempre anula pagos de la base si existe y tiene pagos
+                if (! empty($evaluacion['base'])) {
+                    $pagosAnulados = $this->anularPagosBase($evaluacion['base']);
+                    \Log::info('[Cancelacion] Pagos anulados', [
+                        'folio_poliza' => $operacion->FolioPoliza,
+                        'operacion_endoso_id' => $operacion->IDOperacion,
+                        'operacion_base_id' => $evaluacion['base']->IDOperacion,
+                        'pagos_anulados' => $pagosAnulados,
+                        'alerta_generada' => $alertaGenerada,
+                    ]);
+                }
+            }
+
+            // Alerta PPE: 1 por operación, incluso en endosos de cancelación (3.5)
+            $existePPEOperacion = TbAlertas::where('Patron', AnalisisPagosService::PATRON_PPE)
+                ->where('IDOperacion', $operacion->IDOperacion)
+                ->exists();
+            $alertaPPEGenerada = false;
+            if (! $existePPEOperacion && $cliente && $cliente->EsPPEActivo) {
+                $alertaDataPPE = [
+                    'patron' => AnalisisPagosService::PATRON_PPE,
+                    'descripcion' => 'Persona Políticamente Expuesta',
+                    'razones' => 'Operación realizada por cliente PPE (IDCliente '.$cliente->IDCliente.')',
                 ];
-                $evidencias = [
-                    'tipo' => 'EndosoCancelacion',
+                $evidenciasPPE = [
+                    'tipo' => 'PPE_Operacion',
                     'operacion_id' => $operacion->IDOperacion,
-                    'folio_poliza' => $operacion->FolioPoliza,
-                    'folio_endoso' => $operacion->FolioEndoso,
+                    'cliente_id' => $cliente->IDCliente,
+                    'es_ppe' => true,
                 ];
-                $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, [], null, $request->IDFormaPago);
+                $alertaPPE = $this->crearAlerta($operacion, $cliente, $alertaDataPPE, $evidenciasPPE, [], null, $request->IDFormaPago);
+                $alertasNuevas[] = $alertaPPE;
+                $alertaPPEGenerada = true;
+                \Log::info('[PPE] Alerta PPE generada por operación', [
+                    'operacion_id' => $operacion->IDOperacion,
+                    'cliente_id' => $cliente->IDCliente,
+                ]);
             }
 
             $beneficiarios = $validatedData['DetalleBeneficiarios'] ?? [];
@@ -145,7 +246,31 @@ class OperacionesController extends Controller
                 }
             }
 
+            DB::commit();
+
+            // Envío consolidado post-commit de alertas generadas en esta operación
+            if (! empty($alertasNuevas)) {
+                try {
+                    NotificacionCumplimientoService::enviarAlertaConsolidada($alertasNuevas, $operacion, $cliente);
+                } catch (\Throwable $e) {
+                    \Log::error('[Notificacion] Error enviando correo consolidado operación: '.$e->getMessage());
+                }
+            }
+
             $mensajeExito = 'Operación ingresada exitosamente';
+            if ($operacion->EsEndosoCancelacion) {
+                if ($alertaGenerada) {
+                    $mensajeExito .= ' - Alerta de cancelación generada';
+                } else {
+                    $mensajeExito .= ' - Alerta de cancelación omitida: '.$motivoCancelacion;
+                }
+                if ($pagosAnulados > 0) {
+                    $mensajeExito .= " - {$pagosAnulados} pago(s) anulado(s) de la operación base";
+                }
+            }
+            if ($alertaPPEGenerada) {
+                $mensajeExito .= ' - Alerta PPE generada';
+            }
             if ($cliente->CoincideEnListasNegras) {
                 $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
             }
@@ -154,8 +279,40 @@ class OperacionesController extends Controller
                 'codigoError' => 0,
                 'error' => $mensajeExito,
                 'IDOperacion' => $operacion->IDOperacion,
+                'alertaCancelacionGenerada' => $alertaGenerada,
+                'pagosAnulados' => $pagosAnulados,
+                'alertaPPEGenerada' => $alertaPPEGenerada,
             ], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            // Violación de índice único (race condition) -> mapear a 422 mismo formato, sin introducir 409
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'uniq_poliza_endoso_scoped') || $e->getCode() === '23000') {
+                // Determinar si fue emisión o endoso por datos normalizados
+                $isEmisionDup = empty($validatedData['FolioEndoso'] ?? null);
+                if ($isEmisionDup) {
+                    return response()->json([
+                        'codigoError' => 422,
+                        'error' => 'Ya existe una emisión con FolioPoliza "'.$validatedData['FolioPoliza'].'". No se permite duplicar FolioPoliza sin FolioEndoso.',
+                        'detalles' => ['FolioPoliza' => $validatedData['FolioPoliza']],
+                    ], 422);
+                }
+
+                return response()->json([
+                    'codigoError' => 422,
+                    'error' => 'Ya existe un endoso con FolioPoliza "'.$validatedData['FolioPoliza'].'" y FolioEndoso "'.$validatedData['FolioEndoso'].'". La combinación debe ser única dentro de la póliza.',
+                    'detalles' => ['FolioPoliza' => $validatedData['FolioPoliza'], 'FolioEndoso' => $validatedData['FolioEndoso']],
+                ], 422);
+            }
+
+            return response()->json([
+                'codigoError' => 500,
+                'error' => 'Error al insertar la operación o beneficiarios',
+                'detalles' => $e->getMessage(),
+            ], 500);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'codigoError' => 500,
                 'error' => 'Error al insertar la operación o beneficiarios',
@@ -240,6 +397,7 @@ class OperacionesController extends Controller
             $conversionMoneda = ['MXN' => 1, 'USD' => 2];
             $analisisService = new AnalisisPagosService;
             $pagosResultado = [];
+            $alertasConsolidadas = [];
 
             DB::beginTransaction();
 
@@ -330,15 +488,73 @@ class OperacionesController extends Controller
                 $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
                 foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
-                    $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis, $request->IDFormaPago);
+                    $alertaCreada = $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis, $request->IDFormaPago);
+                    $alertasConsolidadas[] = $alertaCreada;
                 }
 
                 foreach ($resultadoAnalisis->reportesRegulatorios as $reporte) {
                     $this->generarReporteRegulatorio($operacion, $reporte);
                 }
+
+                // PPE: 1 alerta por operación, revisa todos los IDCliente involucrados (3.1, 3.3, 3.4)
+                // Incluye titular de la operación + todos los pagadores del grupo
+                $existePPE = TbAlertas::where('Patron', AnalisisPagosService::PATRON_PPE)
+                    ->where('IDOperacion', $idOperacion)
+                    ->exists();
+                if (! $existePPE) {
+                    $idsARevisar = collect($detalles)->pluck('IDCliente')->push($operacion->IDCliente)->unique()->filter();
+                    $clientePPE = null;
+                    foreach ($idsARevisar as $idCli) {
+                        $cli = $clientes->get($idCli);
+                        // Si el titular no está en $clientes (no es pagador), buscarlo
+                        if (! $cli && $idCli == $operacion->IDCliente) {
+                            $cli = TbClientes::find($idCli);
+                        }
+                        if ($cli && $cli->EsPPEActivo) {
+                            $clientePPE = $cli;
+                            break;
+                        }
+                    }
+                    // Fallback: también revisar via Análisis ya generado por servicio (si el servicio detectó PPE pero no se filtró por idempotencia)
+                    // Si no se encontró via IDs pero el servicio ya marcó esPPE, usar clienteAnalisis
+                    if (! $clientePPE && $resultadoAnalisis->esPPE && $clienteAnalisis && $clienteAnalisis->EsPPEActivo) {
+                        $clientePPE = $clienteAnalisis;
+                    }
+                    if ($clientePPE) {
+                        $alertaDataPPE = [
+                            'patron' => AnalisisPagosService::PATRON_PPE,
+                            'descripcion' => 'Persona Políticamente Expuesta',
+                            'razones' => 'Pago realizado por cliente PPE (IDCliente '.$clientePPE->IDCliente.') en operación '.$idOperacion,
+                        ];
+                        $evidenciasPPE = array_merge($evidencias, [
+                            'tipo' => 'PPE_Pago',
+                            'cliente_ppe_id' => $clientePPE->IDCliente,
+                            'operacion_id' => $idOperacion,
+                        ]);
+                        // Si ya se generó PPE vía servicio, no duplicar (existe check arriba ya previene)
+                        $yaGeneradoPorServicio = collect($resultadoAnalisis->alertasGenerar)->contains(fn($a) => ($a['patron'] ?? '') === AnalisisPagosService::PATRON_PPE);
+                        if (! $yaGeneradoPorServicio) {
+                            $alertaPPECreada = $this->crearAlerta($operacion, $clientePPE, $alertaDataPPE, $evidenciasPPE, $pagosOperacion, null, $request->IDFormaPago);
+                            $alertasConsolidadas[] = $alertaPPECreada;
+                            \Log::info('[PPE] Alerta PPE generada por pago', [
+                                'operacion_id' => $idOperacion,
+                                'cliente_ppe_id' => $clientePPE->IDCliente,
+                            ]);
+                        }
+                    }
+                }
             }
 
             DB::commit();
+
+            // Envío consolidado post-commit: un solo correo con todas las alertas generadas en este request
+            if (! empty($alertasConsolidadas)) {
+                try {
+                    NotificacionCumplimientoService::enviarAlertaConsolidada($alertasConsolidadas, null, null);
+                } catch (\Throwable $e) {
+                    \Log::error('[Notificacion] Error enviando correo consolidado pagos: '.$e->getMessage());
+                }
+            }
 
             $mensajeExito = 'Pagos ingresados exitosamente';
             $algunaCoincidencia = $clientes->contains(fn ($c) => $c->CoincideEnListasNegras);
@@ -350,6 +566,7 @@ class OperacionesController extends Controller
                 'codigoError' => 0,
                 'error' => $mensajeExito,
                 'Pagos' => $pagosResultado,
+                'alertasGeneradas' => count($alertasConsolidadas),
             ], 201);
 
         } catch (\Exception $e) {
@@ -363,7 +580,7 @@ class OperacionesController extends Controller
         }
     }
 
-    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null, $idFormaPago = null): void
+    private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null, $idFormaPago = null): TbAlertas
     {
         $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
@@ -416,6 +633,8 @@ class OperacionesController extends Controller
             $pagoAlerta->InstrumentoMonetario = $formaPagoPago->FormaPago ?? null;
             $pagoAlerta->save();
         }
+
+        return $alerta;
     }
 
     private function generarReporteRegulatorio($operacion, $reporte): void
@@ -448,7 +667,7 @@ class OperacionesController extends Controller
         }
 
         if ($patron === AnalisisPagosService::PATRON_PPE) {
-            return AnalisisPagosService::ESTATUS_CERRADO;
+            return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
         if ($patron === AnalisisPagosService::PATRON_MONTO_INUSUAL) {
@@ -783,5 +1002,148 @@ class OperacionesController extends Controller
                 'detalles' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Evalúa si debe generarse alerta de cancelación para un endoso.
+     * Reglas: 1) No duplicar alerta para mismo FolioPoliza en tbAlertas
+     *         2) Debe existir operación base (primer registro con mismo FolioPoliza)
+     *         3) Base debe tener al menos un pago emitido
+     *         4) Diferencia entre FechaEmision del endoso y FechaPago del último pago <=31 días (solo fechas)
+     */
+    private function evaluarReglasCancelacion(TbOperaciones $endoso): array
+    {
+        // 1) Idempotencia: solo TbAlertas, Patrón Cancelacion + misma póliza
+        // Usar lockForUpdate si estamos dentro de transacción para evitar race condition
+        $existeAlerta = TbAlertas::where('Patron', AnalisisPagosService::PATRON_CANCELACION)
+            ->where('Poliza', $endoso->FolioPoliza)
+            ->exists();
+
+        if ($existeAlerta) {
+            // Aún así necesitamos base para anular pagos (3.5 siempre anula)
+            $baseParaAnular = TbOperaciones::where('FolioPoliza', $endoso->FolioPoliza)
+                ->where('IDOperacion', '!=', $endoso->IDOperacion)
+                ->orderBy('IDOperacion', 'asc')
+                ->first();
+
+            return [
+                'generarAlerta' => false,
+                'motivo' => 'DUPLICADO: Ya existe alerta de Cancelación para la póliza '.$endoso->FolioPoliza,
+                'razones' => 'No se genera alerta: ya existe una alerta de Cancelación para esta póliza (idempotencia)',
+                'base' => $baseParaAnular,
+                'ultimoPago' => null,
+                'dias' => null,
+            ];
+        }
+
+        // 2) Localizar operación base: primer registro con mismo FolioPoliza (la póliza original)
+        $base = TbOperaciones::where('FolioPoliza', $endoso->FolioPoliza)
+            ->where('IDOperacion', '!=', $endoso->IDOperacion)
+            ->orderBy('IDOperacion', 'asc')
+            ->first();
+
+        if (! $base) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => 'SIN_BASE: No se encontró operación base para FolioPoliza '.$endoso->FolioPoliza,
+                'razones' => 'No se genera alerta: no existe operación base',
+                'base' => null,
+                'ultimoPago' => null,
+                'dias' => null,
+            ];
+        }
+
+        // 3) Pagos emitidos en la base (aunque parcial)
+        $ultimoPago = TbOperacionesPagos::where('IDOperacion', $base->IDOperacion)
+            ->orderByDesc('FechaPago')
+            ->orderByDesc('IDOperacionPago')
+            ->first();
+
+        if (! $ultimoPago) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => 'SIN_PAGOS: La operación base no tiene pagos emitidos',
+                'razones' => 'No se genera alerta: la operación base no tiene pagos emitidos',
+                'base' => $base,
+                'ultimoPago' => null,
+                'dias' => null,
+            ];
+        }
+
+        // 4) Ventana 31 días: FechaEmision endoso vs FechaPago último pago (solo fechas)
+        try {
+            $fEmision = Carbon::parse($endoso->FechaEmision)->startOfDay();
+            $fPago = Carbon::parse($ultimoPago->FechaPago)->startOfDay();
+        } catch (\Exception $e) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => 'FECHA_INVALIDA: '.$e->getMessage(),
+                'razones' => 'No se genera alerta: fecha inválida',
+                'base' => $base,
+                'ultimoPago' => $ultimoPago,
+                'dias' => null,
+            ];
+        }
+
+        $dias = $fPago->diffInDays($fEmision, false);
+
+        if ($dias < 0) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => "FECHA_ANTERIOR: Endoso {$fEmision->toDateString()} es anterior al último pago {$fPago->toDateString()} ({$dias} días)",
+                'razones' => "No se genera alerta: la fecha de emisión del endoso es anterior a la del último pago",
+                'base' => $base,
+                'ultimoPago' => $ultimoPago,
+                'dias' => $dias,
+            ];
+        }
+
+        if ($dias > 31) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => "VENTANA_EXCEDIDA: {$dias} días >31 desde último pago {$fPago->toDateString()} hasta emisión {$fEmision->toDateString()}",
+                'razones' => "No se genera alerta: el endoso supera 31 días desde el último pago ({$dias} días)",
+                'base' => $base,
+                'ultimoPago' => $ultimoPago,
+                'dias' => $dias,
+            ];
+        }
+
+        return [
+            'generarAlerta' => true,
+            'motivo' => 'OK',
+            'razones' => "Endoso de cancelación válido: último pago hace {$dias} días (≤31) y base con pagos emitidos",
+            'base' => $base,
+            'ultimoPago' => $ultimoPago,
+            'dias' => $dias,
+        ];
+    }
+
+    /**
+     * Anula todos los pagos de la operación base: copia a logOperacionesPagos y borra de tbOperacionesPagos.
+     * Siempre se ejecuta cuando hay endoso de cancelación con base válida (3.5).
+     */
+    private function anularPagosBase(TbOperaciones $base): int
+    {
+        $pagos = TbOperacionesPagos::where('IDOperacion', $base->IDOperacion)->get();
+
+        if ($pagos->isEmpty()) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($pagos as $pago) {
+            $data = $pago->toArray();
+            unset($data['IDOperacionPago']);
+
+            $log = new LogOperacionesPagos;
+            $log->fill($data);
+            $log->save();
+
+            $pago->delete();
+            $count++;
+        }
+
+        return $count;
     }
 }

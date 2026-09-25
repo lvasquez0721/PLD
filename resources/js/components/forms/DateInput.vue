@@ -58,29 +58,38 @@ function onInput(event: Event) {
   emit('update:modelValue', input.value);
 }
 
+function onChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  emit('update:modelValue', input.value);
+}
+
 function handleWrapperClick(event: MouseEvent) {
   if (props.disabled) return;
+  if (!dateInput.value) return;
 
-  if (dateInput.value) {
-    // Si el clic fue directamente en el input y ya tiene el foco,
-    // permitimos que el navegador maneje la interacción con los segmentos del input (teclado).
-    // Esto evita que el showPicker() bloquee la edición manual.
-    if (event.target === dateInput.value && document.activeElement === dateInput.value) {
-      return;
-    }
-
-    // Intentar usar showPicker() si está disponible (navegadores modernos)
-    if ('showPicker' in HTMLInputElement.prototype) {
-      try {
-        dateInput.value.showPicker();
-      } catch (e) {
-        dateInput.value.focus();
-        dateInput.value.click();
-      }
-    } else {
+  // Si el clic fue dentro del input (incluyendo segmentos de fecha como año/mes/día),
+  // no forzar showPicker: dejar que el navegador maneje la edición manual.
+  // Solo enfocar si aún no tiene foco. Esto evita que la escritura del año se interrumpa
+  // al abrir el picker sobre la edición manual.
+  const target = event.target as HTMLElement | null;
+  if (target === dateInput.value || dateInput.value.contains(target)) {
+    if (document.activeElement !== dateInput.value) {
       dateInput.value.focus();
-      dateInput.value.click();
     }
+    return;
+  }
+
+  // Clic en el wrapper fuera del input => abrir calendario
+  if ('showPicker' in HTMLInputElement.prototype) {
+    try {
+      dateInput.value.showPicker();
+    } catch (e) {
+      dateInput.value.focus();
+      try { (dateInput.value as any).showPicker?.(); } catch {}
+    }
+  } else {
+    dateInput.value.focus();
+    dateInput.value.click();
   }
 }
 </script>
@@ -157,6 +166,7 @@ function handleWrapperClick(event: MouseEvent) {
           ref="dateInput"
           :value="value !== undefined ? value : modelValue"
           @input="onInput"
+          @change="onChange"
           :placeholder="placeholder"
           :required="required"
           :disabled="disabled"
