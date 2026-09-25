@@ -65,11 +65,12 @@ const props = defineProps<{
     alerta: any,
     cliente?: any,
     operacion?: any,
+    historialPoliza?: any[],
     reportes?: any[]
 }>();
 
 // Usamos toRefs para mantener la reactividad en el script
-const { alerta, cliente, operacion, reportes } = toRefs(props);
+const { alerta, cliente, operacion, historialPoliza, reportes } = toRefs(props);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Alertas', href: route ? route('alertas.index') : '/alertas' },
@@ -131,6 +132,36 @@ function numberFormat(n: any, moneda: string = 'MXN') {
         minimumFractionDigits: info.decimales,
         maximumFractionDigits: info.decimales
     }).format(Number(n))}`;
+}
+
+function formatCurrencyMXN(n: any) {
+    if (n == null || n === '') return '-';
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n));
+}
+
+// Helpers para detalle de operación (póliza / endoso)
+function tipoOperacionLabelOperacion(op: any, isEndoso: boolean = false): { label: string; class: string } | null {
+    const esCancelacion = op?.cancelaPoliza === 1 || op?.cancelaPoliza === true
+        || op?.operacionCancelada === 1 || op?.operacionCancelada === true
+        || op?.EsEndosoCancelacion === 1 || op?.EsEndosoCancelacion === true;
+    if (esCancelacion) {
+        return { label: 'Cancelación', class: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200 border border-red-200' };
+    }
+    if (!isEndoso) return null;
+    const prima = parseFloat(op?.PrimaTotal) || 0;
+    if (prima > 0) return { label: 'Aumento', class: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200 border border-green-200' };
+    if (prima < 0) return { label: 'Disminución', class: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-200' };
+    return { label: 'Sin cambio', class: 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200 border' };
+}
+function esCancelacionOp(op: any): boolean {
+    return op?.cancelaPoliza === 1 || op?.cancelaPoliza === true
+        || op?.operacionCancelada === 1 || op?.operacionCancelada === true
+        || op?.EsEndosoCancelacion === 1 || op?.EsEndosoCancelacion === true;
+}
+function formaPagoNombre(id: any): string {
+    const map: Record<string,string> = { '1':'Efectivo','2':'Cheque nominativo','3':'Transferencia','4':'Tarjeta de crédito','5':'Monedero electrónico','6':'Dinero electrónico','8':'Vales de despensa','12':'Dación en pago','13':'Pago por subrogación','14':'Pago por consignación','15':'Condonación','17':'Compensación','23':'Novación','24':'Confusión','30':'Aplicación de anticipos','31':'Intermediario pagos' };
+    if (id == null || id === '') return '-';
+    return map[String(id)] || `ID ${id}`;
 }
 
 function parseEvidencias(e: string | null | undefined): any {
@@ -198,6 +229,30 @@ const pagosOperacion = computed(() => {
     return (operacion.value?.pagos || []);
 });
 const detallePagos = computed(() => evidencias.value?.detalle_pagos ?? []);
+const tienePagos = computed(() => {
+    return pagosOperacion.value.length > 0 || detallePagos.value.length > 0;
+});
+const montoPagosTotal = computed(() => {
+    const pagos = pagosOperacion.value.length ? pagosOperacion.value : detallePagos.value;
+    if (!pagos.length) return null;
+    return pagos.reduce((sum: number, p: any) => sum + Number(p.Monto ?? p.monto ?? 0), 0);
+});
+
+// Computed para historial y tipo de operación
+const tieneOperacion = computed(() => !!operacion.value);
+const esEndoso = computed(() => !!(operacion.value?.FolioEndoso && String(operacion.value.FolioEndoso).trim() !== ''));
+const tipoOperacionInfo = computed(() => tipoOperacionLabelOperacion(operacion.value, esEndoso.value));
+const historial = computed(() => Array.isArray(historialPoliza.value) ? historialPoliza.value : []);
+const balancePrimaHistorial = computed(() => {
+    if (!historial.value.length) return null;
+    return historial.value.reduce((s: number, op: any) => s + (parseFloat(op.PrimaTotal) || 0), 0);
+});
+const agenteNombreCompleto = computed(() => {
+    if (!operacion.value) return '-';
+    const op: any = operacion.value;
+    if (op.RazonSocialAgente) return op.RazonSocialAgente;
+    return [op.NombreAgente, op.APaternoAgente, op.AMaternoAgente].filter(Boolean).join(' ') || op.RFCAgente || '-';
+});
 
 const estatus = ref('');
 const evidenciasFormulario = ref<File[] | undefined>(undefined);
@@ -561,6 +616,137 @@ function submitEditarAlerta(e: Event) {
                         </div>
                     </div>
 
+                    <!-- 4. Detalle de la Operación (Póliza / Endoso) -->
+                    <div v-if="tieneOperacion" class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
+                        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                            <div>
+                                <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m-3 3h6a2 2 0 002-2V7a2 2 0 00-2-2H9a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                    Detalle de la Operación
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Información de póliza y endoso asociada a la alerta #{{ alerta.IDRegistroAlerta }}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-mono text-gray-400">ID Op: {{ operacion.IDOperacion }}</span>
+                                <span v-if="tipoOperacionInfo" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="tipoOperacionInfo.class">{{ tipoOperacionInfo.label }}</span>
+                                <span v-else-if="!esEndoso" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 border border-blue-200">Emisión</span>
+                                <span v-else class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200 border">Endoso</span>
+                            </div>
+                        </div>
+
+                        <!-- Grid principal de datos de póliza -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                            <div class="rounded-lg bg-gray-50 dark:bg-neutral-800/50 p-3 border border-gray-100 dark:border-neutral-800">
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Folio Póliza</span>
+                                <span class="font-mono font-bold text-gray-900 dark:text-neutral-100 text-base">{{ operacion.FolioPoliza || '-' }}</span>
+                            </div>
+                            <div class="rounded-lg bg-amber-50/60 dark:bg-amber-900/10 p-3 border border-amber-100 dark:border-amber-900/20">
+                                <span class="block text-[11px] text-amber-700 dark:text-amber-300 uppercase font-semibold tracking-wider mb-1">Folio Endoso</span>
+                                <span class="font-mono font-bold text-amber-900 dark:text-amber-100 text-base">
+                                    {{ operacion.FolioEndoso && String(operacion.FolioEndoso).trim() !== '' ? operacion.FolioEndoso : '— Emisión (sin endoso)' }}
+                                </span>
+                            </div>
+                            <div class="rounded-lg bg-gray-50 dark:bg-neutral-800/50 p-3 border border-gray-100 dark:border-neutral-800">
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Tipo Documento</span>
+                                <span class="font-medium text-gray-900 dark:text-neutral-100">{{ operacion.tipoDocumento || '-' }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Prima Total</span>
+                                <span class="font-bold text-base" :class="(parseFloat(operacion.PrimaTotal)||0) < 0 ? 'text-red-600 dark:text-red-300' : 'text-gray-900 dark:text-neutral-100'">{{ numberFormat(operacion.PrimaTotal, String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }} <span class="text-xs font-normal text-gray-500">({{ operacion.IDMoneda || alerta.IDMoneda || 'MXN' }})</span></span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Gastos de Emisión</span>
+                                <span class="font-semibold text-gray-900 dark:text-neutral-100">{{ numberFormat(operacion.GastosEmision, String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Prima + Gastos</span>
+                                <span class="font-bold text-gray-900 dark:text-neutral-100">{{ numberFormat((parseFloat(operacion.PrimaTotal)||0) + (parseFloat(operacion.GastosEmision)||0), String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Moneda</span>
+                                <span class="inline-flex items-center gap-1.5 font-medium text-gray-900 dark:text-neutral-100">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold">{{ getMonedaInfo(String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')).simbolo }}</span>
+                                    {{ getMonedaInfo(String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')).nombre }} ({{ operacion.IDMoneda || alerta.IDMoneda || 'MXN' }})
+                                </span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Forma de Pago</span>
+                                <span class="font-medium text-gray-900 dark:text-neutral-100">{{ formaPagoNombre(operacion.IDFormaPago) }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Esquema de Pago</span>
+                                <span class="font-mono font-medium text-gray-900 dark:text-neutral-100">{{ operacion.EsquemaDePago || '-' }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Fecha Emisión</span>
+                                <span class="font-medium text-gray-900 dark:text-neutral-100">{{ formatDate(operacion.FechaEmision) }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Vigencia</span>
+                                <span class="font-medium text-gray-900 dark:text-neutral-100">{{ formatDate(operacion.FechaInicioVigencia) }} <span class="text-gray-400">→</span> {{ formatDate(operacion.FechaFinVigencia) }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Paga Tercero</span>
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" :class="operacion.PagaTercero ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200 border border-orange-200' : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300 border'">{{ operacion.PagaTercero ? 'Sí' : 'No' }}</span>
+                            </div>
+                            <div class="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-100 dark:border-neutral-800 mt-1">
+                                <div>
+                                    <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Agente</span>
+                                    <span class="font-medium text-gray-900 dark:text-neutral-100">{{ agenteNombreCompleto }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">RFC Agente</span>
+                                    <span class="font-mono text-sm text-gray-900 dark:text-neutral-100">{{ operacion.RFCAgente || alerta.RFCAgente || '-' }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">CURP Agente</span>
+                                    <span class="font-mono text-sm text-gray-900 dark:text-neutral-100">{{ operacion.CURPAgente || '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Historial de la póliza si hay más de una operación -->
+                        <div v-if="historial.length > 1" class="mt-6">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-neutral-200 flex items-center gap-2">
+                                    Historial de la Póliza
+                                    <span class="text-xs font-normal bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{{ historial.length }} registro(s)</span>
+                                </h4>
+                                <span class="text-xs text-gray-500">Balance Prima: <span class="font-bold" :class="(balancePrimaHistorial||0) >=0 ? 'text-green-700 dark:text-green-300' : 'text-red-600'">{{ formatCurrencyMXN(balancePrimaHistorial) }}</span></span>
+                            </div>
+                            <div class="overflow-auto rounded-lg border border-gray-200 dark:border-neutral-800">
+                                <table class="min-w-full text-xs md:text-sm table-auto border-collapse">
+                                    <thead>
+                                        <tr class="bg-gray-100 dark:bg-neutral-800/70 text-left">
+                                            <th class="px-3 py-2 font-semibold">ID Op</th>
+                                            <th class="px-3 py-2 font-semibold">Folio Endoso</th>
+                                            <th class="px-3 py-2 font-semibold">Tipo</th>
+                                            <th class="px-3 py-2 font-semibold">Fecha Emisión</th>
+                                            <th class="px-3 py-2 font-semibold">Prima Total</th>
+                                            <th class="px-3 py-2 font-semibold">Pagos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="op in historial" :key="op.IDOperacion" :class="op.IDOperacion === operacion.IDOperacion ? 'bg-blue-50 dark:bg-blue-900/20 font-semibold' : 'bg-white dark:bg-neutral-900'" class="border-t border-gray-100 dark:border-neutral-800">
+                                            <td class="px-3 py-2 font-mono">{{ op.IDOperacion }}<span v-if="op.IDOperacion === operacion.IDOperacion" class="ml-1 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded">actual</span></td>
+                                            <td class="px-3 py-2 font-mono">{{ op.FolioEndoso || '—' }}</td>
+                                            <td class="px-3 py-2">
+                                                <span v-if="tipoOperacionLabelOperacion(op, !!op.FolioEndoso)" class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="tipoOperacionLabelOperacion(op, !!op.FolioEndoso)!.class">{{ tipoOperacionLabelOperacion(op, !!op.FolioEndoso)!.label }}</span>
+                                                <span v-else class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold bg-blue-50 text-blue-700 border">Emisión</span>
+                                            </td>
+                                            <td class="px-3 py-2 whitespace-nowrap">{{ formatDate(op.FechaEmision) }}</td>
+                                            <td class="px-3 py-2 whitespace-nowrap" :class="(parseFloat(op.PrimaTotal)||0) <0 ? 'text-red-600' : ''">{{ numberFormat(op.PrimaTotal, String(op.IDMoneda || 'MXN')) }}</td>
+                                            <td class="px-3 py-2">{{ op.pagos ? op.pagos.length : 0 }} pago(s)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 p-4 rounded-2xl text-sm text-yellow-800 dark:text-yellow-200">
+                        No se encontró información de la operación asociada a esta alerta (IDOperacion: {{ alerta.IDOperacion || '—' }}).
+                    </div>
+
                     <!-- 5. Card Exclusivo de Evidencias -->
                     <div class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
                         <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3 flex items-center justify-between">
@@ -627,7 +813,7 @@ function submitEditarAlerta(e: Event) {
                     <!-- 6. Evidencias del sistema -->
                     <div class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
                         <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100 mb-3">Análisis y pagos</div>
-                        <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4" v-if="!esPreocupante && evidencias && !Array.isArray(evidencias)">
+                        <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4" v-if="!esPreocupante && tienePagos && evidencias && !Array.isArray(evidencias)">
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Total de pagos</span>
                                 <span class="text-sm font-bold text-gray-950 dark:text-neutral-100">{{ evidencias?.total_pagos ?? '-' }}</span>
@@ -673,7 +859,7 @@ function submitEditarAlerta(e: Event) {
                                     <tbody>
                                         <tr>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ numberFormat(pagoPreocupante.monto, String(pagoPreocupante.moneda ?? 'MXN')) }}
+                                                {{ tienePagos ? numberFormat(montoPagosTotal, String(pagoPreocupante.moneda ?? 'MXN')) : '—' }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 {{ pagoPreocupante.instrumento || '-' }}
@@ -689,29 +875,34 @@ function submitEditarAlerta(e: Event) {
                                 </table>
                             </template>
                             <template v-else>
-                                <table class="min-w-full text-xs md:text-sm table-auto border-collapse">
-                                    <thead>
-                                        <tr class="bg-gray-100 dark:bg-neutral-800/70">
-                                            <th class="px-3 py-2 font-semibold">Fecha de pago</th>
-                                            <th class="px-3 py-2 font-semibold">Forma de pago</th>
-                                            <th class="px-3 py-2 font-semibold">Monto</th>
-                                            <th class="px-3 py-2 font-semibold">Moneda</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(pago, i) in detallePagos.length ? detallePagos : pagosOperacion" :key="i">
-                                            <td class="px-3 py-2 whitespace-nowrap">{{ pago.fecha_pago ?? pago.FechaPago ?? '-' }}</td>
-                                            <td class="px-3 py-2 whitespace-nowrap">{{ pago.forma_pago ?? '-' }}</td>
-                                            <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ numberFormat(pago.monto ?? pago.Monto, String(pago.moneda ?? pago.IDMoneda ?? 'MXN')) }}
-                                            </td>
-                                            <td class="px-3 py-2 whitespace-nowrap">
-                                                {{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).nombre }}
-                                                <span v-if="pago.moneda || pago.IDMoneda">({{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).simbolo }})</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <template v-if="tienePagos">
+                                    <table class="min-w-full text-xs md:text-sm table-auto border-collapse">
+                                        <thead>
+                                            <tr class="bg-gray-100 dark:bg-neutral-800/70">
+                                                <th class="px-3 py-2 font-semibold">Fecha de pago</th>
+                                                <th class="px-3 py-2 font-semibold">Forma de pago</th>
+                                                <th class="px-3 py-2 font-semibold">Monto</th>
+                                                <th class="px-3 py-2 font-semibold">Moneda</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="(pago, i) in detallePagos.length ? detallePagos : pagosOperacion" :key="i">
+                                                <td class="px-3 py-2 whitespace-nowrap">{{ pago.fecha_pago ?? pago.FechaPago ?? '-' }}</td>
+                                                <td class="px-3 py-2 whitespace-nowrap">{{ pago.forma_pago ?? '-' }}</td>
+                                                <td class="px-3 py-2 whitespace-nowrap">
+                                                    {{ numberFormat(pago.monto ?? pago.Monto, String(pago.moneda ?? pago.IDMoneda ?? 'MXN')) }}
+                                                </td>
+                                                <td class="px-3 py-2 whitespace-nowrap">
+                                                    {{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).nombre }}
+                                                    <span v-if="pago.moneda || pago.IDMoneda">({{ getMonedaInfo(String(pago.moneda ?? pago.IDMoneda ?? 'MXN')).simbolo }})</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template v-else>
+                                    <p class="text-sm text-gray-400 italic py-4 text-center">Sin pagos relacionados — monto no disponible</p>
+                                </template>
                             </template>
                         </div>
                     </div>

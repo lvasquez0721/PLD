@@ -114,6 +114,33 @@ class AlertasController extends Controller
             ->orderBy('HoraDeteccion', 'desc')
             ->paginate(20000000);
 
+        // Enriquecer cada alerta con detalles de operación (póliza/endoso) y monto de pagos
+        // Bulk-fetch para evitar N+1
+        $ids = $alertas->getCollection()->pluck('IDOperacion')->filter()->unique()->values();
+        $opsById = collect();
+        $pagosAggById = collect();
+        if ($ids->isNotEmpty()) {
+            $opsById = TbOperaciones::whereIn('IDOperacion', $ids)
+                ->select(['IDOperacion','FolioPoliza','FolioEndoso','PrimaTotal','GastosEmision','FechaEmision','FechaInicioVigencia','FechaFinVigencia','IDMoneda','IDFormaPago','EsquemaDePago','PagaTercero','tipoDocumento','operacionCancelada','EsEndosoCancelacion','cancelaPoliza'])
+                ->get()->keyBy('IDOperacion');
+            $pagosAggById = \Illuminate\Support\Facades\DB::table('tbOperacionesPagos')
+                ->whereIn('IDOperacion', $ids)
+                ->selectRaw('IDOperacion, SUM(Monto) as total, COUNT(*) as cnt')
+                ->groupBy('IDOperacion')
+                ->get()->keyBy('IDOperacion');
+        }
+
+        $alertas->getCollection()->transform(function ($alerta) use ($opsById, $pagosAggById) {
+            $agg = $pagosAggById->get($alerta->IDOperacion);
+            $alerta->monto_pagos = $agg->total ?? 0;
+            $alerta->tiene_pagos = ($agg->cnt ?? 0) > 0;
+
+            // Adjuntar operación (pocos campos relevantes: póliza/endoso)
+            $op = $opsById->get($alerta->IDOperacion);
+            $alerta->operacion = $op ? $op : null;
+
+            return $alerta;
+        });
 
         return response()->json($alertas);
     }
@@ -164,6 +191,23 @@ class AlertasController extends Controller
         $alertas = $query->orderBy('FechaDeteccion', 'desc')
                          ->orderBy('HoraDeteccion', 'desc')
                          ->get();
+
+        // Añadir monto respecto a pagos también para exportación
+        $alertas->transform(function ($alerta) {
+            $montoPagos = \Illuminate\Support\Facades\DB::table('tbOperacionesPagos')
+                ->where('IDOperacion', $alerta->IDOperacion)
+                ->sum('Monto');
+            $alerta->monto_pagos = $montoPagos;
+            $alerta->tiene_pagos = \Illuminate\Support\Facades\DB::table('tbOperacionesPagos')
+                ->where('IDOperacion', $alerta->IDOperacion)->exists();
+            // Si no tiene pagos, vaciar MontoOperacion para que CSV no muestre PrimaTotal engañoso
+            if (! $alerta->tiene_pagos) {
+                $alerta->MontoOperacion = null;
+            } else {
+                $alerta->MontoOperacion = $montoPagos;
+            }
+            return $alerta;
+        });
 
         $fileName = 'alertas_'.($fechaInicio ?? 'todas').'_a_'.($fechaFin ?? 'todas').'.csv';
 
@@ -551,6 +595,7 @@ class AlertasController extends Controller
 
         if (!$alerta) {
             $operacion = null;
+            $historialPoliza = null;
             $reportes = null;
             $cliente = null;
             $tipoPersona = null;
@@ -571,12 +616,23 @@ class AlertasController extends Controller
                     $tipoPersona = $cliente->tipoPersona; // Es una instancia de CatTipoPersona
                 }
             }
+
+            // Historial completo de la póliza (operación base + endosos) para mostrar detalles de póliza/endoso
+            $historialPoliza = null;
+            if ($operacion && !empty($operacion->FolioPoliza)) {
+                $historialPoliza = TbOperaciones::where('FolioPoliza', $operacion->FolioPoliza)
+                    ->with('pagos')
+                    ->orderBy('FechaEmision')
+                    ->orderBy('IDOperacion')
+                    ->get();
+            }
         }
 
         // return json_encode([
         //     'alerta' => $alerta,
         //     'cliente' => $cliente,
         //     'operacion' => $operacion,
+        //     'historialPoliza' => $historialPoliza,
         //     'reportes' => $reportes,
         //     'tipoPersona' => $tipoPersona,
         // ]);
@@ -585,6 +641,7 @@ class AlertasController extends Controller
             'alerta' => $alerta,
             'cliente' => $cliente,
             'operacion' => $operacion,
+            'historialPoliza' => $historialPoliza,
             'reportes' => $reportes,
             'tipoPersona' => $tipoPersona,
         ]);

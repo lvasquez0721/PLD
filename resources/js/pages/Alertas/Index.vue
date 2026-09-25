@@ -49,6 +49,25 @@ interface EvidenciasFormateadas {
     raw: string;
 }
 
+interface OperacionResumen {
+    IDOperacion: number;
+    FolioPoliza: string | null;
+    FolioEndoso: string | null;
+    PrimaTotal: number | string | null;
+    GastosEmision: number | string | null;
+    FechaEmision: string | null;
+    FechaInicioVigencia: string | null;
+    FechaFinVigencia: string | null;
+    IDMoneda: string | null;
+    IDFormaPago: number | string | null;
+    EsquemaDePago: string | null;
+    PagaTercero: number | boolean | null;
+    tipoDocumento: string | null;
+    operacionCancelada: boolean | null;
+    EsEndosoCancelacion: boolean | null;
+    cancelaPoliza: boolean | null;
+}
+
 interface Alerta {
     IDRegistroAlerta: number;
     Folio: string;
@@ -61,6 +80,9 @@ interface Alerta {
     FechaOperacion: string;
     HoraOperacion: string;
     MontoOperacion: number;
+    monto_pagos?: number | null;
+    tiene_pagos?: boolean;
+    operacion?: OperacionResumen | null;
     InstrumentoMonetario: string;
     IDMoneda: number;
     RFCAgente: string;
@@ -373,7 +395,9 @@ function cumpleFiltroFolio(alerta: Alerta): boolean {
         String(alerta.Folio ?? '').toLowerCase().includes(search) ||
         String(alerta.Cliente ?? '').toLowerCase().includes(search) ||
         String(alerta.IDCliente ?? '').toLowerCase().includes(search) ||
-        String(alerta.Poliza ?? '').toLowerCase().includes(search)
+        String(alerta.Poliza ?? '').toLowerCase().includes(search) ||
+        String(alerta.operacion?.FolioPoliza ?? '').toLowerCase().includes(search) ||
+        String(alerta.operacion?.FolioEndoso ?? '').toLowerCase().includes(search)
     );
 }
 
@@ -652,6 +676,44 @@ const getPatronBadgeClass = (patron: string | null) => {
     return colorFromString(patron);
 };
 
+// Helpers para detalles de operación (póliza/endoso) en tabla
+const MONEDAS_OP: Record<string, { simbolo: string; nombre: string }> = {
+    MXN: { simbolo: '$', nombre: 'Peso mexicano' },
+    USD: { simbolo: 'US$', nombre: 'Dólar' },
+};
+function getMonedaInfoOp(id: string | null | undefined) {
+    if (!id) return MONEDAS_OP['MXN'];
+    const key = String(id).toUpperCase();
+    return MONEDAS_OP[key] || { simbolo: key, nombre: key };
+}
+function formatCurrencyOp(n: any, moneda: string | null | undefined) {
+    if (n == null || n === '') return '—';
+    const info = getMonedaInfoOp(moneda);
+    return `${info.simbolo}${new Intl.NumberFormat('es-MX', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))}`;
+}
+function formatDateOp(d: string | null | undefined) {
+    if (!d) return '—';
+    try {
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return d;
+        return dt.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit' });
+    } catch { return d; }
+}
+function tipoOperacionLabel(op: OperacionResumen | null | undefined): { label: string; class: string } | null {
+    if (!op) return null;
+    const canc = (op as any).cancelaPoliza === true || (op as any).cancelaPoliza === 1 || op.operacionCancelada === true || (op as any).operacionCancelada === 1 || op.EsEndosoCancelacion === true || (op as any).EsEndosoCancelacion === 1;
+    if (canc) return { label: 'Cancelación', class: 'bg-red-100 text-red-700 border-red-200' };
+    const esEndoso = !!(op.FolioEndoso && String(op.FolioEndoso).trim() !== '');
+    if (!esEndoso) return { label: 'Emisión', class: 'bg-blue-100 text-blue-700 border-blue-200' };
+    const prima = parseFloat(String(op.PrimaTotal ?? 0)) || 0;
+    if (prima > 0) return { label: 'Aumento', class: 'bg-green-100 text-green-700 border-green-200' };
+    if (prima < 0) return { label: 'Disminución', class: 'bg-amber-100 text-amber-700 border-amber-200' };
+    return { label: 'Endoso', class: 'bg-gray-100 text-gray-700 border-gray-200' };
+}
+function esEndosoOp(op: OperacionResumen | null | undefined): boolean {
+    return !!(op?.FolioEndoso && String(op.FolioEndoso).trim() !== '');
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Módulo de Alertas',
@@ -771,8 +833,8 @@ const breadcrumbs: BreadcrumbItem[] = [
                                             <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                                 Cliente
                                             </th>
-                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
-                                                Póliza
+                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 min-w-[180px]">
+                                                Operación (Póliza / Endoso)
                                             </th>
                                             <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                                 Fecha Detección
@@ -780,14 +842,14 @@ const breadcrumbs: BreadcrumbItem[] = [
                                             <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                                 Hora Detección
                                             </th>
-                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
-                                                Fecha Operación
+                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 min-w-[170px]">
+                                                Vigencia / F. Emisión
                                             </th>
                                             <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                                 Hora Operación
                                             </th>
-                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
-                                                Monto
+                                            <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 min-w-[140px]">
+                                                Prima / Monto
                                             </th>
                                             <th scope="col" class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                                 Instrumento
@@ -857,8 +919,14 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-gray-900 dark:text-neutral-100">
                                                     {{ alerta.Cliente }}
                                                 </td>
-                                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
-                                                    {{ alerta.Poliza }}
+                                                <td class="px-5 py-3 text-sm">
+                                                    <div class="flex flex-col gap-0.5 min-w-[160px]">
+                                                        <span class="font-mono font-bold text-gray-900 dark:text-neutral-100 leading-tight">{{ alerta.operacion?.FolioPoliza ?? alerta.Poliza ?? '—' }}</span>
+                                                        <span class="text-xs leading-tight" :class="esEndosoOp(alerta.operacion) ? 'text-amber-700 dark:text-amber-300 font-medium' : 'text-gray-400 dark:text-neutral-500'">
+                                                            {{ esEndosoOp(alerta.operacion) ? 'Endoso: ' + alerta.operacion.FolioEndoso : 'Emisión (sin endoso)' }}
+                                                        </span>
+                                                        <span v-if="tipoOperacionLabel(alerta.operacion)" class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold mt-0.5" :class="tipoOperacionLabel(alerta.operacion)!.class">{{ tipoOperacionLabel(alerta.operacion)!.label }}</span>
+                                                    </div>
                                                 </td>
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
                                                     {{ alerta.FechaDeteccion }}
@@ -866,14 +934,27 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-500 dark:text-neutral-400">
                                                     {{ alerta.HoraDeteccion }}
                                                 </td>
-                                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
-                                                    {{ alerta.FechaOperacion }}
+                                                <td class="px-5 py-3 text-sm">
+                                                    <div class="flex flex-col gap-0.5 min-w-[150px]">
+                                                        <span class="font-medium text-gray-900 dark:text-neutral-100 text-xs">
+                                                            {{ alerta.operacion?.FechaInicioVigencia && alerta.operacion?.FechaFinVigencia ? formatDateOp(alerta.operacion.FechaInicioVigencia) + ' → ' + formatDateOp(alerta.operacion.FechaFinVigencia) : (formatDateOp(alerta.FechaOperacion) !== '—' ? formatDateOp(alerta.FechaOperacion) : '—') }}
+                                                        </span>
+                                                        <span class="text-[11px] text-gray-500 dark:text-neutral-400">F. Emisión: {{ alerta.operacion?.FechaEmision ? formatDateOp(alerta.operacion.FechaEmision) : formatDateOp(alerta.FechaOperacion) }}</span>
+                                                        <span v-if="alerta.operacion?.EsquemaDePago" class="text-[10px] font-mono text-gray-400">{{ alerta.operacion.EsquemaDePago }}</span>
+                                                    </div>
                                                 </td>
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-500 dark:text-neutral-400">
                                                     {{ alerta.HoraOperacion }}
                                                 </td>
-                                                <td class="whitespace-nowrap px-5 py-4 text-sm font-semibold text-gray-900 dark:text-neutral-100">
-                                                    {{ alerta.MontoOperacion }}
+                                                <td class="px-5 py-3 text-sm">
+                                                    <div class="flex flex-col gap-0.5 min-w-[120px]">
+                                                        <span class="font-bold text-gray-900 dark:text-neutral-100" :class="parseFloat(String(alerta.operacion?.PrimaTotal ?? '')) < 0 ? 'text-red-600 dark:text-red-400' : ''">
+                                                            {{ alerta.operacion ? formatCurrencyOp(alerta.operacion.PrimaTotal, alerta.operacion.IDMoneda ?? String(alerta.IDMoneda)) : (alerta.tiene_pagos ? (alerta.monto_pagos ?? alerta.MontoOperacion) : '—') }}
+                                                        </span>
+                                                        <span class="text-[11px] text-gray-500 dark:text-neutral-400">
+                                                            {{ getMonedaInfoOp(alerta.operacion?.IDMoneda ?? String(alerta.IDMoneda)).nombre }} <span v-if="alerta.operacion?.GastosEmision" class="text-gray-400">+ {{ formatCurrencyOp(alerta.operacion.GastosEmision, alerta.operacion.IDMoneda) }} gastos</span>
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-neutral-300">
                                                     {{ alerta.InstrumentoMonetario }}
