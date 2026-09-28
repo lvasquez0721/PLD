@@ -582,14 +582,14 @@ class OperacionesController extends Controller
 
     private function crearAlerta($operacion, $cliente, $alertaData, $evidencias, $pagosOperacion = [], $resultadoAnalisis = null, $idFormaPago = null): TbAlertas
     {
-        $nombreCliente = $cliente ? ($cliente->Nombre.' '.$cliente->ApellidoPaterno.' '.$cliente->ApellidoMaterno) : null;
+        $nombreCliente = TbAlertas::nombreParaCliente($cliente);
         $nombreAgente = $operacion->NombreAgente.' '.$operacion->APaternoAgente.' '.$operacion->AMaternoAgente;
 
         $alerta = new TbAlertas;
         //
         $alerta->Folio = null;
         $alerta->Patron = $alertaData['patron'];
-        $alerta->IDCliente = $operacion->IDCliente;
+        $alerta->IDCliente = $cliente?->IDCliente ?? $operacion->IDCliente;
         $alerta->Cliente = $nombreCliente;
         $alerta->Poliza = $operacion->FolioPoliza ?? null;
         $alerta->FechaDeteccion = now();

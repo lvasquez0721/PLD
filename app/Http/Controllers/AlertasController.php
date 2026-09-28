@@ -117,8 +117,10 @@ class AlertasController extends Controller
         // Enriquecer cada alerta con detalles de operación (póliza/endoso) y monto de pagos
         // Bulk-fetch para evitar N+1
         $ids = $alertas->getCollection()->pluck('IDOperacion')->filter()->unique()->values();
+        $clienteIds = $alertas->getCollection()->pluck('IDCliente')->filter()->unique()->values();
         $opsById = collect();
         $pagosAggById = collect();
+        $clientesById = collect();
         if ($ids->isNotEmpty()) {
             $opsById = TbOperaciones::whereIn('IDOperacion', $ids)
                 ->select(['IDOperacion','FolioPoliza','FolioEndoso','PrimaTotal','GastosEmision','FechaEmision','FechaInicioVigencia','FechaFinVigencia','IDMoneda','IDFormaPago','EsquemaDePago','PagaTercero','tipoDocumento','operacionCancelada','EsEndosoCancelacion','cancelaPoliza'])
@@ -129,8 +131,13 @@ class AlertasController extends Controller
                 ->groupBy('IDOperacion')
                 ->get()->keyBy('IDOperacion');
         }
+        if ($clienteIds->isNotEmpty()) {
+            $clientesById = TbClientes::whereIn('IDCliente', $clienteIds)
+                ->select(['IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial'])
+                ->get()->keyBy('IDCliente');
+        }
 
-        $alertas->getCollection()->transform(function ($alerta) use ($opsById, $pagosAggById) {
+        $alertas->getCollection()->transform(function ($alerta) use ($opsById, $pagosAggById, $clientesById) {
             $agg = $pagosAggById->get($alerta->IDOperacion);
             $alerta->monto_pagos = $agg->total ?? 0;
             $alerta->tiene_pagos = ($agg->cnt ?? 0) > 0;
@@ -138,6 +145,15 @@ class AlertasController extends Controller
             // Adjuntar operación (pocos campos relevantes: póliza/endoso)
             $op = $opsById->get($alerta->IDOperacion);
             $alerta->operacion = $op ? $op : null;
+
+            // Fallback: si Cliente viene vacío (alertas históricas de persona moral),
+            // resolver al vuelo desde tbClientes con prioridad a RazonSocial.
+            if (trim((string) ($alerta->Cliente ?? '')) === '' && $alerta->IDCliente) {
+                $cli = $clientesById->get($alerta->IDCliente);
+                if ($cli) {
+                    $alerta->Cliente = TbAlertas::nombreParaCliente($cli) ?? $alerta->Cliente;
+                }
+            }
 
             return $alerta;
         });
@@ -193,7 +209,15 @@ class AlertasController extends Controller
                          ->get();
 
         // Añadir monto respecto a pagos también para exportación
-        $alertas->transform(function ($alerta) {
+        // Bulk-fetch de clientes para resolver Cliente vacío (históricos de persona moral)
+        $clientesByIdCsv = collect();
+        $clienteIdsCsv = $alertas->pluck('IDCliente')->filter()->unique()->values();
+        if ($clienteIdsCsv->isNotEmpty()) {
+            $clientesByIdCsv = TbClientes::whereIn('IDCliente', $clienteIdsCsv)
+                ->select(['IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial'])
+                ->get()->keyBy('IDCliente');
+        }
+        $alertas->transform(function ($alerta) use ($clientesByIdCsv) {
             $montoPagos = \Illuminate\Support\Facades\DB::table('tbOperacionesPagos')
                 ->where('IDOperacion', $alerta->IDOperacion)
                 ->sum('Monto');
@@ -205,6 +229,12 @@ class AlertasController extends Controller
                 $alerta->MontoOperacion = null;
             } else {
                 $alerta->MontoOperacion = $montoPagos;
+            }
+            if (trim((string) ($alerta->Cliente ?? '')) === '' && $alerta->IDCliente) {
+                $cli = $clientesByIdCsv->get($alerta->IDCliente);
+                if ($cli) {
+                    $alerta->Cliente = TbAlertas::nombreParaCliente($cli) ?? $alerta->Cliente;
+                }
             }
             return $alerta;
         });

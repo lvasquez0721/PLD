@@ -98,7 +98,7 @@ class ReporteOperacionesController extends Controller
         $filtros = $request->only(['tipo_reporte', 'estatus', 'fecha_ini', 'fecha_fin']);
 
         $alertas = $this->construirQuery($filtros)
-            ->orderBy('created_at', 'desc')
+            ->orderBy('a.created_at', 'desc')
             ->get();
 
         return response()->json(['alertas' => $alertas]);
@@ -121,10 +121,10 @@ class ReporteOperacionesController extends Controller
         $query = $this->construirQuery($filtros);
 
         if (! empty($validated['ids'])) {
-            $query->whereIn('IDRegistroAlerta', $validated['ids']);
+            $query->whereIn('a.IDRegistroAlerta', $validated['ids']);
         }
 
-        $alertas = $query->orderBy('created_at', 'desc')->get();
+        $alertas = $query->orderBy('a.created_at', 'desc')->get();
 
         if ($alertas->isEmpty()) {
             return response()->json(['message' => 'No hay datos para exportar'], 404);
@@ -195,9 +195,9 @@ class ReporteOperacionesController extends Controller
         $filtros['tipo_reporte'] = $tipo;
 
         $query = $this->construirQuery($filtros);
-        $query->whereIn('IDRegistroAlerta', $validated['ids']);
+        $query->whereIn('a.IDRegistroAlerta', $validated['ids']);
         // Solo se pueden reportar los que están Por reportar
-        $query->where('Estatus', 'Por reportar');
+        $query->where('a.Estatus', 'Por reportar');
 
         $alertas = $query->get();
 
@@ -226,23 +226,48 @@ class ReporteOperacionesController extends Controller
 
     private function construirQuery(array $filtros)
     {
-        $query = TbAlertas::whereIn('Patron', self::PATRONES)
-            ->whereIn('Estatus', self::ESTATUS);
+        $query = TbAlertas::from('tbAlertas as a')
+            ->leftJoin('tbOperaciones as op', 'op.IDOperacion', '=', 'a.IDOperacion')
+            ->whereIn('a.Patron', self::PATRONES)
+            ->whereIn('a.Estatus', self::ESTATUS)
+            ->select([
+                'a.*',
+                'op.FolioEndoso as OperacionFolioEndoso',
+                'op.PrimaTotal as OperacionPrimaTotal',
+                'op.GastosEmision as OperacionGastosEmision',
+                'op.IDMoneda as OperacionIDMoneda',
+                'op.IDFormaPago as OperacionIDFormaPago',
+                'op.FechaEmision as OperacionFechaEmision',
+                'op.FechaInicioVigencia as OperacionFechaInicioVigencia',
+                'op.FechaFinVigencia as OperacionFechaFinVigencia',
+                'op.tipoDocumento as OperacionTipoDocumento',
+                'op.EsquemaDePago as OperacionEsquemaDePago',
+                'op.PagaTercero as OperacionPagaTercero',
+                'op.operacionCancelada as OperacionCancelada',
+                'op.EsEndosoCancelacion as OperacionEsEndosoCancelacion',
+                'op.cancelaPoliza as OperacionCancelaPoliza',
+                'op.NombreAgente as OperacionNombreAgente',
+                'op.APaternoAgente as OperacionAPaternoAgente',
+                'op.AMaternoAgente as OperacionAMaternoAgente',
+                'op.RazonSocialAgente as OperacionRazonSocialAgente',
+                'op.RFCAgente as OperacionRFCAgente',
+                'op.FolioPoliza as OperacionFolioPoliza',
+            ]);
 
         $tipo = $filtros['tipo_reporte'] ?? '';
 
         if (! empty($tipo) && $tipo !== 'Todos' && isset(self::TIPOS_REPORTE[$tipo])) {
-            $query->whereIn('Patron', self::TIPOS_REPORTE[$tipo]);
+            $query->whereIn('a.Patron', self::TIPOS_REPORTE[$tipo]);
         }
 
         if (! empty($filtros['estatus']) && $filtros['estatus'] !== 'Todos') {
-            $query->where('Estatus', $filtros['estatus']);
+            $query->where('a.Estatus', $filtros['estatus']);
         }
 
         if (! empty($filtros['fecha_ini']) && ! empty($filtros['fecha_fin'])) {
             $inicio = $filtros['fecha_ini'].' 00:00:00';
             $fin = $filtros['fecha_fin'].' 23:59:59';
-            $query->whereBetween('created_at', [$inicio, $fin]);
+            $query->whereBetween('a.created_at', [$inicio, $fin]);
         }
 
         return $query;

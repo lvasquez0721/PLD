@@ -55,6 +55,16 @@ class TbClientes extends Model
         return $this->hasMany(TbClientesDomicilio::class, 'IDCliente', 'IDCliente');
     }
 
+    public function idsSistema()
+    {
+        return $this->hasMany(CatIDClientesSistema::class, 'IDCliente', 'IDCliente');
+    }
+
+    public function operaciones()
+    {
+        return $this->hasMany(\App\Models\TbOperaciones::class, 'IDCliente', 'IDCliente');
+    }
+
     public function tipoPersona()
     {
         return $this->belongsTo(CatTipoPersona::class, 'IDTipoPersona', 'IDTipoPersona');

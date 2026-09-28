@@ -3,7 +3,7 @@
 // Optimizado para UX/UI experto con microtipografía y detalles refinados
 // Versión responsive mejorada - OPTIMIZADO PARA RENDIMIENTO
 
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, shallowRef, watchEffect } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, watchEffect } from 'vue';
 import FadeIn from '../animation/fadeIn.vue';
 import "primeicons/primeicons.css";
 
@@ -46,6 +46,7 @@ const props = defineProps<{
   rowActions?: RowAction[];
   virtualScrolling?: boolean;
   virtualScrollThreshold?: number;
+  serverSide?: boolean;
 }>();
 
 // Emits para eventos personalizados
@@ -66,8 +67,8 @@ const search = ref('');
 const isSearchFocused = ref(false);
 const searchTimeout = ref<number | null>(null);
 
-// Filtros avanzados - usando shallowRef para mejor rendimiento
-const advancedFilters = shallowRef<Record<string, string | null>>({});
+// Filtros avanzados - ref (no shallowRef) para que v-model anidado sea reactivo
+const advancedFilters = ref<Record<string, string | null>>({});
 const showAdvancedFilters = ref(false);
 
 // Cache para filtros inicializados
@@ -111,7 +112,9 @@ const perPageOptions = [5, 10, 25, 50, 100];
 const perPage = ref(perPageOptions[1]);
 
 // Reiniciar página si búsqueda o filtros cambian - optimizado
+// En modo serverSide la paginación la controla el padre, no resetear aquí.
 watchEffect(() => {
+  if (props.serverSide) return;
   // Solo resetear página si realmente cambió algo relevante
   if (search.value || Object.values(advancedFilters.value).some(v => v && v.trim() !== '')) {
     page.value = 1;
@@ -187,7 +190,9 @@ const filterCache = new Map<string, Record<string, any>[]>();
 const lastFilterKey = ref<string>('');
 
 // Función optimizada para filtrado con cache
+// En modo serverSide el filtrado lo hace el backend: devolver filas tal cual.
 const filteredRows = computed(() => {
+  if (props.serverSide) return props.rows;
   const q = normalizeString(search.value).trim();
   const columns = props.columns;
   const filters = advancedFilters.value;
@@ -276,6 +281,7 @@ const sortCache = new Map<string, Record<string, any>[]>();
 const lastSortKey = ref<string>('');
 
 const sortedRows = computed(() => {
+  if (props.serverSide) return filteredRows.value;
   const rows = filteredRows.value;
   const currentSortKey = `${sortKey.value}-${sortAsc.value}`;
 
@@ -339,7 +345,12 @@ const rowHeight = 60; // Altura estimada por fila
 const bufferSize = 5; // Filas adicionales para renderizar
 
 // Filas visibles con virtualización
+// En modo serverSide el backend ya pagina: mostrar filas tal cual.
 const virtualRows = computed(() => {
+  if (props.serverSide) {
+    return sortedRows.value;
+  }
+
   if (!shouldUseVirtualScrolling.value) {
     // Paginación normal
     const start = (page.value - 1) * perPage.value;
@@ -449,14 +460,14 @@ function clearAllFilters() {
   emit('filter', {} as Record<string, string>);
 }
 
-// Watch optimizado para emitir cambios de filtros
+// Watch para emitir cambios de filtros (deep para detectar v-model anidado)
 watch(advancedFilters, (newFilters) => {
   // Solo emitir si hay filtros activos
   const activeFilters = Object.fromEntries(
     Object.entries(newFilters).filter(([_, value]) => value && value.trim() !== '')
   );
   emit('filter', activeFilters as Record<string, string>);
-}, { flush: 'post' });
+}, { flush: 'post', deep: true });
 
 // Watch optimizado para emitir cambios de búsqueda
 watch(search, (newSearch) => {
@@ -662,8 +673,8 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
         </div>
       </transition>
 
-      <!-- Buscador global mejorado -->
-      <div class="w-full md:w-auto flex-1 md:max-w-md">
+      <!-- Buscador global mejorado (oculto en modo serverSide: el padre provee su barra) -->
+      <div v-if="!props.serverSide" class="w-full md:w-auto flex-1 md:max-w-md">
         <div class="relative group">
 
           <!-- Icono con mejor contraste -->
@@ -700,7 +711,7 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
 
       <!-- Filtros avanzados y botón de pantalla completa -->
       <div class="flex flex-wrap gap-2.5 items-center">
-        <template v-for="column in props.columns" :key="'filter-'+column.key">
+        <template v-if="!props.serverSide" v-for="column in props.columns" :key="'filter-'+column.key">
           <template v-if="column.filterType === 'text'">
             <div class="relative group">
               <div
@@ -734,11 +745,11 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
           </template>
         </template>
 
-        <!-- Botón limpiar filtros mejorado -->
+        <!-- Botón limpiar filtros mejorado (solo modo cliente) -->
         <transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-75"
           enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-150"
           leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-75">
-          <button v-if="hasActiveFilters" @click="clearAllFilters"
+          <button v-if="!props.serverSide && hasActiveFilters" @click="clearAllFilters"
             class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 via-blue-100/90 to-blue-50 dark:from-blue-900/40 dark:via-blue-800/30 dark:to-blue-900/40 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 dark:hover:from-blue-900/50 dark:hover:via-blue-800/40 dark:hover:to-blue-900/50 px-4 py-2.5 rounded-xl text-blue-700 dark:text-blue-300 text-sm font-semibold border border-blue-200/80 dark:border-blue-700/50 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 active:scale-95 tracking-tight"
             type="button" aria-label="Limpiar filtros avanzados">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
@@ -905,7 +916,9 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
                   'px-6 py-4 text-gray-700 dark:text-gray-200 max-w-xs truncate group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-150 font-medium tracking-tight leading-relaxed',
                   column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'
                 ]" data-expert="datatable-cell">
-                  {{ formatValue((row as Record<string, any>)[column.key], column.format) }}
+                  <slot :name="`cell-${column.key}`" :row="row" :value="(row as Record<string, any>)[column.key]">
+                    {{ formatValue((row as Record<string, any>)[column.key], column.format) }}
+                  </slot>
                 </td>
                 <!-- Celda de acciones si hay acciones definidas -->
                 <td v-if="props.rowActions && props.rowActions.length > 0" class="px-6 py-4 text-center"
@@ -968,8 +981,8 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
       </transition>
     </div>
 
-    <!-- CONTROLES DE PAGINACIÓN FIJOS ABAJO EN CARD BLANCO -->
-    <div v-if="!shouldUseVirtualScrolling && (totalPages > 1 || totalRows > 0)" :class="[
+    <!-- CONTROLES DE PAGINACIÓN FIJOS ABAJO EN CARD BLANCO (ocultos en serverSide) -->
+    <div v-if="!props.serverSide && !shouldUseVirtualScrolling && (totalPages > 1 || totalRows > 0)" :class="[
       'z-30 mx-4 mb-4',
       isFullscreen ? 'fixed bottom-4 left-4 right-4' : 'sticky bottom-4'
     ]">

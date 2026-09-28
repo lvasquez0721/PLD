@@ -23,7 +23,10 @@ class ClientesController extends Controller
         // Ordenar los clientes de forma descendente por el campo 'id' (puedes cambiar a otro campo si se requiere diferente criterio)
         $query->orderByDesc('IDCliente');
 
-        $perPage = $request->input('per_page', 10);
+        $perPage = (int) $request->input('per_page', 10);
+        if (! in_array($perPage, [5, 10, 20, 50, 100], true)) {
+            $perPage = 10;
+        }
         $clientes = $query->paginate($perPage)->withQueryString();
 
         // Obtener TODOS los RFCs (únicamente) de la lista negra, a mayúsculas y sin espacios
@@ -112,17 +115,71 @@ class ClientesController extends Controller
     {
         $query = TbClientes::query();
 
-        // Filtro por búsqueda
+        // Búsqueda exhaustiva: AND por palabras, insensible a mayúsculas/acentos
+        // (collation utf8mb4_unicode_ci) y sin que se escape ningún registro.
         if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('Nombre', 'like', "%{$search}%")
-                    ->orWhere('ApellidoPaterno', 'like', "%{$search}%")
-                    ->orWhere('ApellidoMaterno', 'like', "%{$search}%")
-                    ->orWhere('RFC', 'like', "%{$search}%")
-                    ->orWhere('CURP', 'like', "%{$search}%")
-                    ->orWhere('RazonSocial', 'like', "%{$search}%");
-            });
+            $raw = trim((string) $request->input('search'));
+            // Colapsar espacios múltiples / tabs / saltos de línea.
+            $raw = (string) preg_replace('/\s+/u', ' ', $raw);
+            $raw = mb_substr($raw, 0, 100);
+
+            if ($raw !== '') {
+                $tokens = preg_split('/\s+/u', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $tokens = array_slice($tokens, 0, 8);
+                $isNumericSearch = ctype_digit($raw);
+
+                $query->where(function ($outer) use ($tokens, $isNumericSearch, $raw) {
+                    // Grupo AND: cada palabra debe aparecer en ALGÚN campo.
+                    $outer->where(function ($and) use ($tokens) {
+                        foreach ($tokens as $token) {
+                            // Escapar comodines de LIKE para que "%" o "_" literales no rompan el filtro.
+                            $escaped = addcslashes($token, '%_\\');
+                            $like = "%{$escaped}%";
+
+                            // Cada palabra debe aparecer en ALGÚN campo (AND entre palabras, OR dentro).
+                            $and->where(function ($q) use ($like) {
+                                $q->where('Nombre', 'like', $like)
+                                    ->orWhere('ApellidoPaterno', 'like', $like)
+                                    ->orWhere('ApellidoMaterno', 'like', $like)
+                                    ->orWhere('RazonSocial', 'like', $like)
+                                    ->orWhere('RFC', 'like', $like)
+                                    ->orWhere('CURP', 'like', $like)
+                                    // RFC/CURP robustos a espacios en BD.
+                                    ->orWhereRaw("TRIM(RFC) LIKE ? ESCAPE '\\\\'", [$like])
+                                    ->orWhereRaw("TRIM(CURP) LIKE ? ESCAPE '\\\\'", [$like])
+                                    // Nombre completo repartido en varias columnas.
+                                    ->orWhereRaw("CONCAT_WS(' ', Nombre, ApellidoPaterno, ApellidoMaterno) LIKE ? ESCAPE '\\\\'", [$like])
+                                    ->orWhereRaw("CONCAT_WS(' ', ApellidoPaterno, ApellidoMaterno, Nombre) LIKE ? ESCAPE '\\\\'", [$like])
+                                    // Domicilio / teléfono.
+                                    ->orWhereHas('domicilios', function ($d) use ($like) {
+                                        $d->where('Calle', 'like', $like)
+                                            ->orWhere('Colonia', 'like', $like)
+                                            ->orWhere('CP', 'like', $like)
+                                            ->orWhere('Municipio', 'like', $like)
+                                            ->orWhere('Localidad', 'like', $like)
+                                            ->orWhere('Telefono', 'like', $like)
+                                            ->orWhere('NoExterior', 'like', $like)
+                                            ->orWhere('NoInterior', 'like', $like);
+                                    })
+                                    // NCliente en sistemas origen.
+                                    ->orWhereHas('idsSistema', function ($s) use ($like) {
+                                        $s->where('NCliente', 'like', $like);
+                                    })
+                                    // Pólizas / endosos.
+                                    ->orWhereHas('operaciones', function ($o) use ($like) {
+                                        $o->where('FolioPoliza', 'like', $like)
+                                            ->orWhere('FolioEndoso', 'like', $like);
+                                    });
+                            });
+                        }
+                    });
+
+                    // Búsqueda directa por IDCliente exacto (ej. "6633") como alternativa OR.
+                    if ($isNumericSearch) {
+                        $outer->orWhere('IDCliente', (int) $raw);
+                    }
+                });
+            }
         }
 
         // Filtro por tipo de persona
@@ -148,20 +205,30 @@ class ClientesController extends Controller
         // Filtro por categoría PLD
         if ($request->filled('category') && $request->input('category') !== 'todos') {
             $categories = $request->input('category');
-            if (!is_array($categories)) {
+            if (! is_array($categories)) {
                 $categories = [$categories];
             }
+            $categories = array_values(array_intersect($categories, [
+                'sin-coincidencia', 'coincidencia-revision', 'ppe-revision',
+                'autorizada-listas', 'fuera-categoria', 'listas-internas',
+            ]));
 
-            $query->where(function ($q) use ($categories) {
+            // Subquery SQL (sin traer miles de RFCs a PHP): UPPER(TRIM(RFC)) no vacíos.
+            $cnsfRfcSubquery = fn () => TbListasNegraCNSF::select(DB::raw('UPPER(TRIM(RFC))'))
+                ->whereNotNull('RFC')
+                ->whereRaw("TRIM(RFC) != ''");
+
+            $query->where(function ($q) use ($categories, $cnsfRfcSubquery) {
                 foreach ($categories as $category) {
                     switch ($category) {
                         case 'sin-coincidencia':
-                            $q->orWhere(function ($subQuery) {
+                            $q->orWhere(function ($subQuery) use ($cnsfRfcSubquery) {
                                 $subQuery->where('CoincideEnListasNegras', 0)
-                                    ->where(function ($q2) {
+                                    ->where(function ($q2) use ($cnsfRfcSubquery) {
                                         $q2->whereNull('RFC')
                                             ->orWhere('RFC', '')
-                                            ->orWhereNotIn(DB::raw('UPPER(TRIM(RFC))'), TbListasNegraCNSF::pluck('RFC')->map(fn ($rfc) => strtoupper(trim($rfc ?? '')))->filter(fn ($rfc) => $rfc !== ''));
+                                            ->orWhereRaw("TRIM(RFC) = ''")
+                                            ->orWhereNotIn(DB::raw('UPPER(TRIM(RFC))'), $cnsfRfcSubquery());
                                     });
                             });
                             break;
@@ -192,7 +259,7 @@ class ClientesController extends Controller
                             });
                             break;
                         case 'listas-internas':
-                            $q->orWhereIn(DB::raw('UPPER(TRIM(RFC))'), TbListasNegraCNSF::pluck('RFC')->map(fn ($rfc) => strtoupper(trim($rfc ?? '')))->filter(fn ($rfc) => $rfc !== ''));
+                            $q->orWhereIn(DB::raw('UPPER(TRIM(RFC))'), $cnsfRfcSubquery());
                             break;
                     }
                 }

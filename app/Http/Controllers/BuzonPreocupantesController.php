@@ -34,6 +34,7 @@ class BuzonPreocupantesController extends Controller
             ]);
 
             $patron = $validated['patron'] ?? 'Nuevo';
+            $estatus = $patron === 'Preocupante' ? 'Por reportar' : 'Generado';
 
             // Convertir los IDs a enteros
             $ids = array_map('intval', $validated['ids']);
@@ -67,7 +68,7 @@ class BuzonPreocupantesController extends Controller
                 TIME(Fecha) AS HoraOperacion,
                 Descripcion,
                 IDReporteOP,
-                'Generado' AS Estatus
+                ? AS Estatus
             FROM tbBuzonPreocupantes AS r
             WHERE r.Estatus IS NULL
               AND r.IDReporteOP IN ($idsList)
@@ -76,7 +77,7 @@ class BuzonPreocupantesController extends Controller
                   FROM tbAlertas AS a 
                   WHERE a.IDReporteOP = r.IDReporteOP
               )
-        ", [$patron]);
+        ", [$patron, $estatus]);
 
             // Actualizar estatus en tbbuzonpreocupantes
             DB::statement("

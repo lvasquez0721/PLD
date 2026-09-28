@@ -50,4 +50,29 @@ class TbAlertas extends Model
     {
         return $this->hasMany(TbPagosAlertas::class, 'IDRegistroAlerta', 'IDRegistroAlerta');
     }
+
+    /**
+     * Nombre a guardar/mostrar en tbAlertas.Cliente.
+     * Prioridad: RazonSocial (persona moral) sobre Nombre+Apellidos.
+     */
+    public static function nombreParaCliente($cliente): ?string
+    {
+        if (! $cliente) {
+            return null;
+        }
+        $razon = trim((string) ($cliente->RazonSocial ?? ''));
+        if ($razon !== '') {
+            return $razon;
+        }
+        $nombre = trim(implode(' ', array_filter([
+            $cliente->Nombre ?? null,
+            $cliente->ApellidoPaterno ?? null,
+            $cliente->ApellidoMaterno ?? null,
+        ])));
+        if ($nombre !== '') {
+            return $nombre;
+        }
+
+        return $razon !== '' ? $razon : null;
+    }
 }

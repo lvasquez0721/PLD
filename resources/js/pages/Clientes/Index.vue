@@ -77,67 +77,64 @@ if (initialCategories === 'todos') {
 const filtroCategoriaPLD = ref<string[]>(defaultFiltroCategoriaPLD.value);
 
 const listaScrollRef = ref<HTMLElement | null>(null)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const isSearching = ref(false)
 
 const itemsPerPage = ref(Number(props.filters?.per_page) || 10)
 const itemsPerPageOptions = [5, 10, 20, 50, 100]
 
-// Watchers para búsqueda y filtros con debounce manual para la búsqueda
-let searchTimeout: any = null
-watch(busqueda, (val) => {
-    if (searchTimeout) clearTimeout(searchTimeout)
-    searchTimeout = setTimeout(() => {
-        let categoriesToSend: string[] | string | undefined;
-
-        if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
-            // Si todas las categorías están seleccionadas, mandamos 'todos'
-            categoriesToSend = 'todos';
-        } else if (filtroCategoriaPLD.value.length > 0) {
-            // Si hay algunas seleccionadas, mandamos ese subconjunto
-            categoriesToSend = filtroCategoriaPLD.value;
-        } else {
-            // Si no hay ninguna, no mandamos el parámetro
-            categoriesToSend = undefined;
-        }
-
-        router.get('/clientes', {
-            search: val,
-            tipo: filtroTipoPersona.value,
-            estatus: filtroEstatus.value,
-            per_page: itemsPerPage.value,
-            category: categoriesToSend
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true
-        })
-    }, 300)
-})
-
-watch([filtroTipoPersona, filtroEstatus, itemsPerPage, filtroCategoriaPLD], () => {
-    let categoriesToSend: string[] | string | undefined;
-
+function getCategoriesToSend(): string[] | string | undefined {
     if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
-        // If all categories are selected in the UI, send 'todos' to maintain original behavior
-        categoriesToSend = 'todos';
-    } else if (filtroCategoriaPLD.value.length > 0) {
-        // If some categories are selected, send them
-        categoriesToSend = filtroCategoriaPLD.value;
-    } else {
-        // If no categories are selected, send undefined
-        categoriesToSend = undefined;
+        return 'todos'
     }
+    if (filtroCategoriaPLD.value.length > 0) {
+        return [...filtroCategoriaPLD.value]
+    }
+    // 0 seleccionadas = sin filtro (equivale a "todas") para no vaciar la tabla por error.
+    return undefined
+}
 
-    router.get('/clientes', {
-        search: busqueda.value,
+function buildParams(page?: number): Record<string, any> {
+    const params: Record<string, any> = {
+        search: busqueda.value.trim(),
         tipo: filtroTipoPersona.value,
         estatus: filtroEstatus.value,
         per_page: itemsPerPage.value,
-        category: categoriesToSend // Now sends 'todos', array of categories, or undefined
-    }, {
+        category: getCategoriesToSend(),
+    }
+    if (typeof page === 'number') params.page = page
+    // Limpiar vacíos para URLs cortas y paginación predecible.
+    if (!params.search) delete params.search
+    if (params.tipo === 'todos') delete params.tipo
+    if (params.estatus === 'todos') delete params.estatus
+    if (params.category === undefined) delete params.category
+    return params
+}
+
+function fetchClientes(page?: number, replace = true) {
+    isSearching.value = true
+    router.get('/clientes', buildParams(page), {
         preserveState: true,
         preserveScroll: true,
-        replace: true
+        replace,
+        onFinish: () => { isSearching.value = false },
     })
+}
+
+function scrollListaToTop() {
+    listaScrollRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Watchers para búsqueda y filtros con debounce manual para la búsqueda
+let searchTimeout: any = null
+watch(busqueda, () => {
+    if (searchTimeout) clearTimeout(searchTimeout)
+    isSearching.value = true
+    searchTimeout = setTimeout(() => fetchClientes(1), 400)
+})
+
+watch([filtroTipoPersona, filtroEstatus, itemsPerPage, filtroCategoriaPLD], () => {
+    fetchClientes(1)
 }, { deep: true });
 
 const clientesFiltrados = computed(() => props.clientes.data)
@@ -188,31 +185,34 @@ function prevPage() {
 }
 
 function goToPage(page: number) {
-    let categoriesToSend: string[] | string | undefined;
-
-    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
-        // Si todas las categorías están seleccionadas, mandamos 'todos'
-        categoriesToSend = 'todos';
-    } else if (filtroCategoriaPLD.value.length > 0) {
-        // Si hay algunas seleccionadas, mandamos ese subconjunto
-        categoriesToSend = filtroCategoriaPLD.value;
-    } else {
-        // Si no hay ninguna, no mandamos el parámetro
-        categoriesToSend = undefined;
-    }
-
-    router.get('/clientes', {
-        search: busqueda.value,
-        tipo: filtroTipoPersona.value,
-        estatus: filtroEstatus.value,
-        per_page: itemsPerPage.value,
-        page: page,
-        category: categoriesToSend
-    }, {
-        preserveState: true,
-        preserveScroll: true
-    })
+    const safePage = Math.min(Math.max(1, Math.floor(page) || 1), Math.max(1, totalPages.value))
+    fetchClientes(safePage, false)
+    scrollListaToTop()
 }
+
+function clearSearch() {
+    busqueda.value = ''
+    searchInputRef.value?.focus()
+}
+
+function clearAllFilters() {
+    busqueda.value = ''
+    filtroTipoPersona.value = 'todos'
+    filtroEstatus.value = 'todos'
+    filtroCategoriaPLD.value = pldCategoryOptions.map(opt => opt.value)
+    itemsPerPage.value = 10
+}
+
+function removeCategory(cat: string) {
+    filtroCategoriaPLD.value = filtroCategoriaPLD.value.filter(c => c !== cat)
+}
+
+const hasActiveFilters = computed(() =>
+    busqueda.value.trim() !== '' ||
+    filtroTipoPersona.value !== 'todos' ||
+    filtroEstatus.value !== 'todos' ||
+    (filtroCategoriaPLD.value.length !== pldCategoryOptions.length && filtroCategoriaPLD.value.length !== 0)
+)
 
 // Redirigir a la ruta de detalle de cliente
 function irADetalleCliente(cliente: any) {
@@ -280,14 +280,21 @@ function handleScrollOrResize() {
 
 onMounted(() => {
     document.addEventListener('click', handleDocumentClick);
+    document.addEventListener('keydown', handleKeydown);
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
+    // Si viene sin categoría (primera carga), mostrar todas seleccionadas.
+    if (!props.filters?.category) {
+        filtroCategoriaPLD.value = pldCategoryOptions.map(opt => opt.value)
+    }
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', handleDocumentClick);
+    document.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('scroll', handleScrollOrResize, true);
     window.removeEventListener('resize', handleScrollOrResize);
+    if (searchTimeout) clearTimeout(searchTimeout)
 });
 
 const selectAllCategoriesComputed = computed<boolean>({
@@ -320,21 +327,24 @@ function handleDocumentClick(event: MouseEvent) {
     }
 }
 
-function descargarCSV() {
-    let categoriesToSend: string[] | string | undefined;
-
-    if (filtroCategoriaPLD.value.length === pldCategoryOptions.length) {
-        categoriesToSend = 'todos';
-    } else if (filtroCategoriaPLD.value.length > 0) {
-        categoriesToSend = filtroCategoriaPLD.value;
-    } else {
-        categoriesToSend = undefined;
+function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && showCategoryDropdown.value) {
+        showCategoryDropdown.value = false;
     }
+    // Ctrl/Cmd + K enfoca el buscador.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        searchInputRef.value?.focus()
+    }
+}
 
+function descargarCSV() {
     const params = new URLSearchParams();
-    if (busqueda.value) params.append('search', busqueda.value);
-    if (filtroTipoPersona.value !== 'todos') params.append('tipo', filtroTipoPersona.value);
-    if (filtroEstatus.value !== 'todos') params.append('estatus', filtroEstatus.value);
+    const built = buildParams()
+    if (built.search) params.append('search', built.search);
+    if (built.tipo) params.append('tipo', built.tipo);
+    if (built.estatus) params.append('estatus', built.estatus);
+    const categoriesToSend = getCategoriesToSend()
     if (categoriesToSend) {
         if (Array.isArray(categoriesToSend)) {
             categoriesToSend.forEach(cat => params.append('category[]', cat));
@@ -469,32 +479,38 @@ function descargarCSV() {
                     <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-500">
                         Explorador de clientes
                     </p>
-                    <p class="mt-1 text-sm text-gray-700 dark:text-neutral-300 ">
-                        {{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados'
-                        }}
+                    <p class="mt-1 flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-300">
+                        <span v-if="isSearching" class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" aria-hidden="true"></span>
+                        <span v-if="isSearching">Buscando…</span>
+                        <span v-else>{{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados' }}</span>
                     </p>
-                    <p v-if="busqueda || filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos' || displayCategoryFilters"
-                        class="mt-1.5 text-xs text-gray-500 dark:text-neutral-400 mb-2">
-                        Filtrando por:
-                        <span v-if="busqueda" class="font-semibold text-gray-800 dark:text-neutral-200">“{{ busqueda
-                            }}”</span>
-                        <span v-if="busqueda && (filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos' || displayCategoryFilters)"> · </span>
-                        <span v-if="filtroTipoPersona === 'fisica'"
-                            class="font-semibold text-gray-800 dark:text-neutral-200">Personas
-                            Físicas</span>
-                        <span v-else-if="filtroTipoPersona === 'moral'"
-                            class="font-semibold text-gray-800 dark:text-neutral-200">Personas Morales</span>
-                        <span v-if="(busqueda || filtroTipoPersona !== 'todos') && filtroEstatus !== 'todos'"
-                            class="font-semibold text-gray-800 dark:text-neutral-200"> · </span>
-                        <span v-if="filtroEstatus === 'activo'"
-                            class="font-semibold text-gray-800 dark:text-neutral-200">Activos</span>
-                        <span v-else-if="filtroEstatus === 'inactivo'"
-                            class="font-semibold text-gray-800 dark:text-neutral-200">Inactivos</span>
-                        <span v-if="(busqueda || filtroTipoPersona !== 'todos' || filtroEstatus !== 'todos') && displayCategoryFilters"
-                            class="font-semibold text-gray-800 dark:text-neutral-200"> · </span>
-                        <span v-if="displayCategoryFilters" class="font-semibold text-gray-800 dark:text-neutral-200">{{
-                            displayCategoryFilters }}</span>
+                    <p class="mb-1 mt-0.5 text-[11px] text-gray-400 dark:text-neutral-500">
+                        La búsqueda es por palabras (en cualquier orden) e incluye nombre, RFC, CURP, ID, domicilio, NCliente y póliza.
                     </p>
+                    <!-- Chips de filtros activos -->
+                    <div v-if="hasActiveFilters" class="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span v-if="busqueda.trim()" class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30">
+                            “{{ busqueda.trim() }}”
+                            <button @click="clearSearch" type="button" class="ml-0.5 font-bold hover:text-blue-900 dark:hover:text-blue-100" aria-label="Quitar búsqueda">×</button>
+                        </span>
+                        <span v-if="filtroTipoPersona !== 'todos'" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30">
+                            {{ filtroTipoPersona === 'fisica' ? 'Personas Físicas' : 'Personas Morales' }}
+                            <button @click="filtroTipoPersona = 'todos'" type="button" class="ml-0.5 font-bold hover:text-emerald-900" aria-label="Quitar filtro tipo">×</button>
+                        </span>
+                        <span v-if="filtroEstatus !== 'todos'" class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
+                            {{ filtroEstatus === 'activo' ? 'Activos' : 'Inactivos' }}
+                            <button @click="filtroEstatus = 'todos'" type="button" class="ml-0.5 font-bold hover:text-amber-900" aria-label="Quitar filtro estatus">×</button>
+                        </span>
+                        <template v-if="filtroCategoriaPLD.length !== pldCategoryOptions.length && filtroCategoriaPLD.length > 0">
+                            <span v-for="cat in filtroCategoriaPLD" :key="cat" class="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700 ring-1 ring-inset ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30">
+                                {{ categoryDisplayNames[cat] || cat }}
+                                <button @click="removeCategory(cat)" type="button" class="ml-0.5 font-bold hover:text-violet-900" :aria-label="`Quitar ${cat}`">×</button>
+                            </span>
+                        </template>
+                        <button @click="clearAllFilters" type="button" class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline dark:text-neutral-400 dark:hover:text-white">
+                            Limpiar todo
+                        </button>
+                    </div>
                 </div>
 
 
@@ -504,18 +520,25 @@ function descargarCSV() {
                     <div class="relative w-full md:col-span-2 lg:col-span-2">
                         <span
                             class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-gray-400 dark:text-neutral-500">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <svg v-if="!isSearching" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M15.5 15.5 20 20m-3-9a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
                             </svg>
+                            <span v-else class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></span>
                         </span>
-                        <input v-model="busqueda" type="text"
-                            class="w-full rounded-lg border border-gray-300/80 bg-gray-50/50 py-2.5 pl-10 pr-3 text-sm text-gray-900 placeholder-gray-400 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70"
-                            placeholder="Buscar por nombre, RFC, CURP..." />
+                        <input ref="searchInputRef" v-model="busqueda" type="search" role="search" aria-label="Buscar clientes"
+                            @keydown.escape="clearSearch"
+                            class="w-full rounded-lg border border-gray-300/80 bg-gray-50/50 py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70"
+                            placeholder="Buscar por nombre, RFC, CURP, ID, póliza… (Ctrl+K)" />
+                        <button v-if="busqueda" @click="clearSearch" type="button" aria-label="Limpiar búsqueda"
+                            class="absolute inset-y-0 right-2.5 flex items-center rounded-full px-1.5 text-lg leading-none text-gray-400 transition-colors hover:text-gray-700 dark:text-neutral-500 dark:hover:text-white">
+                            ×
+                        </button>
                     </div>
 
                     <!-- Tipo de persona select -->
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="filtro-tipo-persona" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Tipo persona</label>
                         <select id="filtro-tipo-persona" v-model="filtroTipoPersona"
                             class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
                             <option value="todos">Todas las personas</option>
@@ -525,7 +548,8 @@ function descargarCSV() {
                     </div>
 
                     <!-- Estatus del cliente select -->
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="filtro-estatus-cliente" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Estatus</label>
                         <select id="filtro-estatus-cliente" v-model="filtroEstatus"
                             class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
                             <option value="todos">Todos los estatus</option>
@@ -536,22 +560,25 @@ function descargarCSV() {
 
                     <!-- Categoría PLD checkboxes grouped -->
                     <div class="relative md:col-span-2 lg:col-span-1" ref="categoryDropdownRef">
+                        <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Categoría PLD</span>
                         <!-- Dropdown Button -->
                         <button id="pld-category-dropdown-button" ref="dropdownButtonRef"
-                            @click="toggleCategoryDropdown" type="button"
+                            @click="toggleCategoryDropdown" type="button" :aria-expanded="showCategoryDropdown"
                             class="flex w-full items-center justify-between rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
-                            <span>Categoría PLD</span>
-                            <span v-if="selectedCategoryCount > 0"
-                                class="ml-2 flex h-5 w-5 items-center justify-center bg-blue-500 text-white rounded-full text-[10px] font-bold">
-                                {{ selectedCategoryCount }}
+                            <span class="truncate">{{ displayCategoryFilters || 'Todas' }}</span>
+                            <span class="ml-2 flex items-center gap-1.5">
+                                <span v-if="selectedCategoryCount !== pldCategoryOptions.length"
+                                    class="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1.5 text-white text-[10px] font-bold">
+                                    {{ selectedCategoryCount }}/{{ pldCategoryOptions.length }}
+                                </span>
+                                <svg class="h-4 w-4 text-gray-400 dark:text-neutral-500 transition-transform duration-200"
+                                    :class="{ 'rotate-180': showCategoryDropdown }" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7">
+                                    </path>
+                                </svg>
                             </span>
-                            <svg class="h-4 w-4 text-gray-400 dark:text-neutral-500 transition-transform duration-200"
-                                :class="{ 'rotate-180': showCategoryDropdown }" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 9l-7 7-7-7">
-                                </path>
-                            </svg>
                         </button>
                     </div>
 
@@ -585,7 +612,7 @@ function descargarCSV() {
                                 <input type="checkbox" v-model="selectAllCategoriesComputed"
                                     class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:checked:bg-blue-600">
                                 <span class="ml-2 text-xs font-semibold text-gray-800 dark:text-white">Seleccionar
-                                    todas</span>
+                                    todas ({{ selectedCategoryCount }}/{{ pldCategoryOptions.length }})</span>
                             </label>
                         </div>
                         <div class="grid grid-cols-1 gap-1">
@@ -596,6 +623,10 @@ function descargarCSV() {
                                 <span class="ml-2">{{ option.label }}</span>
                             </label>
                         </div>
+                        <div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 dark:border-neutral-700">
+                            <button @click="filtroCategoriaPLD = []" type="button" class="text-[11px] font-semibold text-gray-500 hover:text-gray-800 hover:underline dark:text-neutral-400 dark:hover:text-white">Limpiar</button>
+                            <button @click="showCategoryDropdown = false" type="button" class="rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700">Aplicar</button>
+                        </div>
                     </div>
                 </div>
             </Teleport>
@@ -603,6 +634,9 @@ function descargarCSV() {
             <!-- Listado de clientes -->
             <div
                 class="mt-8 overflow-hidden rounded-2xl border border-gray-200/70 bg-white/60 shadow-xl shadow-gray-200/50 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20">
+                <div v-if="isSearching" class="h-0.5 w-full overflow-hidden bg-blue-100 dark:bg-blue-950">
+                    <div class="h-full w-1/3 animate-[loading-bar_1s_ease-in-out_infinite] bg-blue-500"></div>
+                </div>
                 <div class="max-h-[32rem] overflow-y-auto" ref="listaScrollRef">
                     <table class="min-w-full border-collapse text-sm text-gray-800 dark:text-neutral-200">
                         <thead class="sticky top-0 z-10">
@@ -635,10 +669,23 @@ function descargarCSV() {
                             </tr>
                         </thead>
                         <TransitionGroup tag="tbody" name="list" appear>
-                            <tr v-if="!clientesFiltrados.length" key="no-results">
+                            <tr v-if="isSearching && !clientesFiltrados.length" key="loading">
+                                <td colspan="6" class="px-4 py-6">
+                                    <div class="space-y-2" aria-hidden="true">
+                                        <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800"></div>
+                                    </div>
+                                    <p class="mt-3 text-center text-xs text-gray-400">Buscando clientes…</p>
+                                </td>
+                            </tr>
+                            <tr v-else-if="!clientesFiltrados.length" key="no-results">
                                 <td colspan="6"
                                     class="border-t border-dashed border-gray-200/80 px-4 py-16 text-center text-sm text-gray-500 dark:border-neutral-800 dark:text-neutral-400">
-                                    No se encontraron clientes con los filtros actuales.
+                                    <p class="text-sm font-semibold text-gray-700 dark:text-neutral-200">Sin resultados para los filtros actuales</p>
+                                    <p class="mx-auto mt-1 max-w-md text-xs">Prueba con menos palabras, revisa la ortografía o quita algún filtro. La búsqueda ignora mayúsculas, acentos y el orden de las palabras.</p>
+                                    <div class="mt-4 flex items-center justify-center gap-2">
+                                        <button @click="clearAllFilters" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">Limpiar filtros</button>
+                                        <button @click="clearSearch" type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">Solo quitar búsqueda</button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-for="(cliente, index) in clientesFiltrados" :key="cliente.IDCliente"
@@ -731,17 +778,17 @@ function descargarCSV() {
 
                 <!-- Page navigation controls -->
                 <div class="flex items-center space-x-2">
-                    <button @click="prevPage" :disabled="currentPage === 1"
+                    <button @click="prevPage" :disabled="currentPage === 1 || isSearching"
                         class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
                         Anterior
                     </button>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-gray-600 dark:text-neutral-300">Página</span>
-                        <input type="number" v-model.number="currentPage" min="1" :max="totalPages"
+                        <input type="number" v-model.number="currentPage" min="1" :max="Math.max(1, totalPages)" :disabled="isSearching"
                             class="w-16 rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2 text-center text-xs text-gray-900 outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
-                        <span class="text-xs text-gray-600 dark:text-neutral-300">de {{ totalPages }}</span>
+                        <span class="text-xs text-gray-600 dark:text-neutral-300">de {{ Math.max(1, totalPages) }}</span>
                     </div>
-                    <button @click="nextPage" :disabled="currentPage === totalPages"
+                    <button @click="nextPage" :disabled="currentPage === totalPages || totalPages === 0 || isSearching"
                         class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
                         Siguiente
                     </button>
@@ -830,5 +877,10 @@ function descargarCSV() {
     100% {
         background-position: 10% 10%;
     }
+}
+
+@keyframes loading-bar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
 }
 </style>

@@ -39,7 +39,7 @@ class ClientesControllerApi extends Controller
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:255',
             'IDNacionalidad' => 'nullable|string',
-            'IDEstadoNacimiento' => 'nullable|string|max:10',
+            'IDEstadoNacimiento' => 'nullable',
             'Preguntas' => 'nullable|string',
             'ingresosEstimados' => 'nullable|numeric',
 
@@ -49,7 +49,7 @@ class ClientesControllerApi extends Controller
             'domicilios.*.noInterior' => 'nullable|string|max:255',
             'domicilios.*.colonia' => 'required|string|max:255',
             'domicilios.*.CP' => 'required|string|max:10',
-            'domicilios.*.IDEstado' => 'required|integer',
+            'domicilios.*.IDEstado' => 'required',
             'domicilios.*.municipio' => 'required|string|max:255',
             'domicilios.*.localidad' => 'nullable|string|max:255',
             'domicilios.*.telefono' => 'nullable|string|max:20',
@@ -69,11 +69,11 @@ class ClientesControllerApi extends Controller
         $data = $validator->validated();
         $rfc = isset($data['RFC']) ? strtoupper(trim($data['RFC'])) : null;
 
-        // Resolver IDEstadoNacimiento (acepta "9", "09", clave de entidad o nombre del estado)
+        // Resolver IDEstadoNacimiento (acepta "9", "09", clave de entidad o nombre del estado) - tolera string o int
         $idEstadoNacimientoResuelto = null;
 
         if (! empty($data['IDEstadoNacimiento'])) {
-            $idEstadoNacimientoResuelto = $this->resolveIDEstadoNacimiento($data['IDEstadoNacimiento']);
+            $idEstadoNacimientoResuelto = $this->resolveIDEstado($data['IDEstadoNacimiento']);
 
             if ($idEstadoNacimientoResuelto === null) {
                 return response()->json([
@@ -83,6 +83,24 @@ class ClientesControllerApi extends Controller
                         'IDEstadoNacimiento' => ['El valor "'.$data['IDEstadoNacimiento'].'" no corresponde a ningún estado del catálogo.'],
                     ],
                 ], 422);
+            }
+        }
+
+        // Resolver IDEstado de cada domicilio (acepta string "9"/"09"/"Nayarit"/"Ciudad de México" o int 9)
+        if (! empty($data['domicilios']) && is_array($data['domicilios'])) {
+            foreach ($data['domicilios'] as $idx => $dom) {
+                $valorEstado = $dom['IDEstado'] ?? null;
+                $resuelto = $this->resolveIDEstado($valorEstado);
+                if ($resuelto === null) {
+                    return response()->json([
+                        'codigoError' => 1,
+                        'message' => 'El valor de IDEstado en domicilios no es válido.',
+                        'errors' => [
+                            "domicilios.$idx.IDEstado" => ['El valor "'.$valorEstado.'" no corresponde a ningún estado del catálogo.'],
+                        ],
+                    ], 422);
+                }
+                $data['domicilios'][$idx]['IDEstado'] = $resuelto;
             }
         }
 
@@ -296,13 +314,7 @@ class ClientesControllerApi extends Controller
                 ]);
             }
 
-            $nombreCompleto = trim(
-                ($cliente->Nombre ?? '').
-                ' '.
-                ($cliente->ApellidoPaterno ?? '').
-                ' '.
-                ($cliente->ApellidoMaterno ?? '')
-            );
+            $nombreCompleto = TbAlertas::nombreParaCliente($cliente);
 
             // Emitir alerta si coincide en listas negras
             if ($personaBloqueada) {
@@ -402,14 +414,11 @@ class ClientesControllerApi extends Controller
     }
 
     /**
-     * Resuelve el IDEstadoNacimiento recibido como string, aceptando:
-     * - Clave numérica: "9", "09", " 9 " -> 9 (se eliminan ceros a la izquierda)
-     * - Clave de entidad: "NT", "DF", etc.
-     * - Nombre completo del estado: "Nayarit", "Ciudad de México", etc.
-     *
-     * Devuelve el IDEstado (int) si encuentra coincidencia, o null si no existe en el catálogo.
+     * Resuelve IDEstado genérico (usado para domicilios.IDEstado y IDEstadoNacimiento).
+     * Acepta int o string: "9", "09", " 9 ", CveEntidad o nombre completo.
+     * Devuelve IDEstado (int) si existe en catEstados, null si no.
      */
-    private function resolveIDEstadoNacimiento($valor)
+    private function resolveIDEstado($valor)
     {
         if ($valor === null || trim((string) $valor) === '') {
             return null;
@@ -426,19 +435,27 @@ class ClientesControllerApi extends Controller
             return $estado ? $estado->IDEstado : null;
         }
 
-        // Caso clave de entidad, ej. "NT", "DF"
+        // Caso clave de entidad, ej. "09", "DF" (CveEntidad en catEstados)
         $estado = CatEstados::whereRaw('UPPER(CveEntidad) = ?', [strtoupper($valor)])->first();
         if ($estado) {
             return $estado->IDEstado;
         }
 
-        // Caso nombre completo, ej. "Nayarit"
+        // Caso nombre completo, ej. "Nayarit", "Ciudad de México"
         $estado = CatEstados::whereRaw('UPPER(Estado) = ?', [strtoupper($valor)])->first();
         if ($estado) {
             return $estado->IDEstado;
         }
 
         return null;
+    }
+
+    /**
+     * Alias para compatibilidad: resuelve IDEstadoNacimiento.
+     */
+    private function resolveIDEstadoNacimiento($valor)
+    {
+        return $this->resolveIDEstado($valor);
     }
 
     public function actualizarCliente(Request $request, $id)
@@ -456,7 +473,7 @@ class ClientesControllerApi extends Controller
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:255',
             'IDNacionalidad' => 'nullable|string',
-            'IDEstadoNacimiento' => 'nullable|integer',
+            'IDEstadoNacimiento' => 'nullable',
             'Preguntas' => 'nullable|string',
             'ingresosEstimados' => 'nullable|numeric',
 
@@ -466,7 +483,7 @@ class ClientesControllerApi extends Controller
             'domicilios.*.noInterior' => 'nullable|string|max:255',
             'domicilios.*.colonia' => 'required|string|max:255',
             'domicilios.*.CP' => 'required|string|max:10',
-            'domicilios.*.IDEstado' => 'required|integer',
+            'domicilios.*.IDEstado' => 'required',
             'domicilios.*.municipio' => 'required|string|max:255',
             'domicilios.*.localidad' => 'nullable|string|max:255',
             'domicilios.*.telefono' => 'nullable|string|max:20',
@@ -485,6 +502,39 @@ class ClientesControllerApi extends Controller
         }
 
         $validated = $validator->validated();
+
+        // Resolver IDEstadoNacimiento si viene (acepta int 9 o string "09"/"Nayarit")
+        if (array_key_exists('IDEstadoNacimiento', $validated) && $validated['IDEstadoNacimiento'] !== null && trim((string) $validated['IDEstadoNacimiento']) !== '') {
+            $resueltoNac = $this->resolveIDEstado($validated['IDEstadoNacimiento']);
+            if ($resueltoNac === null) {
+                return response()->json([
+                    'codigoError' => 1,
+                    'message' => 'El valor de IDEstadoNacimiento no es válido.',
+                    'errors' => [
+                        'IDEstadoNacimiento' => ['El valor "'.$validated['IDEstadoNacimiento'].'" no corresponde a ningún estado del catálogo.'],
+                    ],
+                ], 422);
+            }
+            $validated['IDEstadoNacimiento'] = $resueltoNac;
+        }
+
+        // Resolver IDEstado de cada domicilio (tolerante a string o int, con lookup en catEstados)
+        if (! empty($validated['domicilios']) && is_array($validated['domicilios'])) {
+            foreach ($validated['domicilios'] as $idx => $dom) {
+                $valorEstado = $dom['IDEstado'] ?? null;
+                $resuelto = $this->resolveIDEstado($valorEstado);
+                if ($resuelto === null) {
+                    return response()->json([
+                        'codigoError' => 1,
+                        'message' => 'El valor de IDEstado en domicilios no es válido.',
+                        'errors' => [
+                            "domicilios.$idx.IDEstado" => ['El valor "'.$valorEstado.'" no corresponde a ningún estado del catálogo.'],
+                        ],
+                    ], 422);
+                }
+                $validated['domicilios'][$idx]['IDEstado'] = $resuelto;
+            }
+        }
 
         $cliente = TbClientes::find($id);
 
@@ -689,13 +739,7 @@ class ClientesControllerApi extends Controller
         }
         $cliente->save();
 
-        $nombreCompleto = trim(
-            ($cliente->Nombre ?? '').
-            ' '.
-            ($cliente->ApellidoPaterno ?? '').
-            ' '.
-            ($cliente->ApellidoMaterno ?? '')
-        );
+        $nombreCompleto = TbAlertas::nombreParaCliente($cliente);
 
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {

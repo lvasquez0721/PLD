@@ -50,6 +50,27 @@ interface Alerta {
     Evidencias:          string | null;
     IDReporteOP:         number | null;
     IDMoneda:            string | null;
+    // --- Operación base (tbOperaciones) ---
+    OperacionFolioEndoso?:          string | null;
+    OperacionPrimaTotal?:           number | null;
+    OperacionGastosEmision?:        number | null;
+    OperacionIDMoneda?:             string | null;
+    OperacionIDFormaPago?:          string | number | null;
+    OperacionFechaEmision?:         string | null;
+    OperacionFechaInicioVigencia?:  string | null;
+    OperacionFechaFinVigencia?:     string | null;
+    OperacionTipoDocumento?:        string | null;
+    OperacionEsquemaDePago?:        string | null;
+    OperacionPagaTercero?:          number | boolean | null;
+    OperacionCancelada?:            number | boolean | null;
+    OperacionEsEndosoCancelacion?:  number | boolean | null;
+    OperacionCancelaPoliza?:        number | boolean | null;
+    OperacionNombreAgente?:         string | null;
+    OperacionAPaternoAgente?:       string | null;
+    OperacionAMaternoAgente?:       string | null;
+    OperacionRazonSocialAgente?:    string | null;
+    OperacionRFCAgente?:            string | null;
+    OperacionFolioPoliza?:          string | null;
 }
 
 const resultados  = ref<Alerta[]>([]);
@@ -125,6 +146,36 @@ function toggleSeleccion(id: number) {
     } else {
         seleccionados.value.push(id);
     }
+}
+
+function formatFechaCorta(fecha: string | null | undefined): string {
+    if (!fecha) return '—';
+    try {
+        const d = new Date(fecha);
+        if (isNaN(d.getTime())) return String(fecha).slice(0,10);
+        return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+    } catch { return String(fecha).slice(0,10); }
+}
+function formatMonto(n: number | null | undefined): string {
+    if (n == null || n === '') return '—';
+    const num = Number(n);
+    if (isNaN(num)) return '—';
+    return num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function formaPagoLabel(id: any): string {
+    const map: Record<string,string> = { '1':'Efectivo','2':'Cheque','3':'Transferencia','4':'Tarjeta','5':'Monedero','6':'Dinero electrónico' };
+    if (id == null || id === '') return '—';
+    return map[String(id)] || `ID ${id}`;
+}
+function agenteOperacionNombre(a: Alerta): string {
+    if (a.OperacionRazonSocialAgente) return a.OperacionRazonSocialAgente;
+    const partes = [a.OperacionNombreAgente, a.OperacionAPaternoAgente, a.OperacionAMaternoAgente].filter(Boolean);
+    if (partes.length) return partes.join(' ');
+    if (a.OperacionRFCAgente) return a.OperacionRFCAgente;
+    return a.Agente || '—';
+}
+function esCancelada(a: Alerta): boolean {
+    return !!(a.OperacionCancelada == 1 || (a.OperacionCancelada as any) === true || a.OperacionEsEndosoCancelacion == 1 || (a.OperacionEsEndosoCancelacion as any) === true || a.OperacionCancelaPoliza == 1 || (a.OperacionCancelaPoliza as any) === true);
 }
 
 function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++; }
@@ -371,41 +422,86 @@ const reportar = async () => {
                                 <thead>
                                     <tr
                                         class="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 text-xs font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-gradient-to-r dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95 dark:text-neutral-200">
-                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">
+                                        <th class="sticky left-0 z-20 border-b border-r border-slate-200 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800 dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95">
                                             <input type="checkbox" v-model="todosSeleccionados"
                                                 :indeterminate.prop="seleccionParcial"
                                                 :disabled="seleccionables.length === 0"
                                                 title="Seleccionar todos los filtrados"
                                                 class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40" />
                                         </th>
+                                        <th class="sticky left-[46px] z-20 border-b border-r border-slate-200 bg-gradient-to-r from-slate-50 via-slate-50/95 to-blue-50/60 px-3 py-2 text-left align-middle text-[11px] font-bold tracking-wider dark:border-neutral-800 dark:from-neutral-900/95 dark:via-neutral-900/95 dark:to-slate-900/95">Estatus</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Folio</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Tipo de reporte</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Cliente</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Póliza</th>
+                                        <!-- Operación base -->
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100" title="Folio del endoso (vacío = emisión)">Folio endoso</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Prima total</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Moneda</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">F. emisión</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Vigencia</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Forma pago</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Agente (op.)</th>
+                                        <th class="border-b border-slate-200 bg-amber-50/70 px-3 py-2 text-left align-middle text-[11px] font-semibold text-amber-900 dark:border-neutral-800 dark:bg-amber-900/20 dark:text-amber-100">Flags</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Fecha detección</th>
-                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Monto</th>
+                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Monto alerta</th>
                                         <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Instrumento monetario</th>
-                                        <th class="border-b border-slate-200 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800">Estatus</th>
                                         <th class="sticky right-0 z-20 border-b border-l border-slate-200 bg-slate-50 px-3 py-2 text-left align-middle text-[11px] font-semibold dark:border-neutral-800 dark:bg-neutral-900">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody v-if="paginatedResultados.length">
                                     <tr v-for="item in paginatedResultados" :key="item.IDRegistroAlerta"
-                                        class="group cursor-pointer border-b border-l-2 border-slate-100 border-l-transparent bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-l-blue-400 hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-neutral-800/60 dark:border-l-transparent dark:bg-neutral-950/40 dark:hover:border-l-blue-500 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)]">
-                                        <td class="px-3 py-2 align-middle">
+                                        :class="item.Estatus === 'Por reportar' ? 'border-l-amber-400 dark:border-l-amber-500' : item.Estatus === 'Enviado' ? 'border-l-emerald-400 dark:border-l-emerald-500' : 'border-l-transparent'"
+                                        class="group cursor-pointer border-b border-l-2 bg-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:bg-gradient-to-r hover:from-white hover:via-slate-50/80 hover:to-blue-50/40 hover:shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:bg-neutral-950/40 dark:hover:bg-gradient-to-r dark:hover:from-neutral-950/90 dark:hover:via-neutral-900/90 dark:hover:to-slate-800/90 dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.75)] border-slate-100 dark:border-neutral-800/60">
+                                        <td class="sticky left-0 z-10 border-r border-slate-100 bg-white px-3 py-2 align-middle group-hover:bg-blue-50 dark:border-neutral-800/60 dark:bg-neutral-950 dark:group-hover:bg-neutral-900">
                                             <input v-if="item.Estatus === 'Por reportar'" type="checkbox"
                                                 :checked="seleccionados.includes(item.IDRegistroAlerta)"
                                                 @change="toggleSeleccion(item.IDRegistroAlerta)"
                                                 class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                                         </td>
+                                        <td class="sticky left-[46px] z-10 border-r border-slate-100 bg-white px-2 py-2 align-middle group-hover:bg-blue-50 dark:border-neutral-800/60 dark:bg-neutral-950 dark:group-hover:bg-neutral-900">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none shadow-sm"
+                                                :class="item.Estatus === 'Por reportar' ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700' : item.Estatus === 'Enviado' ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700'">
+                                                <span class="h-1.5 w-1.5 rounded-full"
+                                                    :class="item.Estatus === 'Por reportar' ? 'bg-amber-500' : item.Estatus === 'Enviado' ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+                                                {{ item.Estatus ?? 'N/A' }}
+                                            </span>
+                                        </td>
                                         <td class="px-3 py-2 align-middle">{{ item.Folio ?? 'N/A' }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.Patron ?? 'N/A' }}</td>
-                                        <td class="px-3 py-2 align-middle">{{ item.Cliente ?? 'N/A' }}</td>
-                                        <td class="px-3 py-2 align-middle">{{ item.Poliza ?? 'N/A' }}</td>
-                                        <td class="px-3 py-2 align-middle">{{ item.FechaDeteccion ?? 'N/A' }}</td>
-                                        <td class="px-3 py-2 align-middle">{{ item.MontoOperacion != null ? item.MontoOperacion.toLocaleString() : 'N/A' }}</td>
+                                        <td class="px-3 py-2 align-middle max-w-[14rem] truncate" :title="item.Cliente ?? ''">{{ item.Cliente ?? 'N/A' }}</td>
+                                        <td class="px-3 py-2 align-middle font-mono text-xs">{{ item.Poliza ?? 'N/A' }}</td>
+                                        <!-- Operación base -->
+                                        <td class="px-3 py-2 align-middle">
+                                            <span v-if="item.OperacionFolioEndoso && String(item.OperacionFolioEndoso).trim() !== ''" class="font-mono text-xs">{{ item.OperacionFolioEndoso }}</span>
+                                            <span v-else class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">Emisión</span>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle text-right font-mono text-xs">
+                                            <span :class="(Number(item.OperacionPrimaTotal)||0) < 0 ? 'text-red-600 dark:text-red-300 font-semibold' : ''">{{ item.OperacionPrimaTotal != null ? formatMonto(item.OperacionPrimaTotal) : '—' }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle text-center">
+                                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">{{ item.OperacionIDMoneda || item.IDMoneda || '—' }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle whitespace-nowrap text-xs">{{ formatFechaCorta(item.OperacionFechaEmision) }}</td>
+                                        <td class="px-3 py-2 align-middle whitespace-nowrap text-xs">
+                                            <span v-if="item.OperacionFechaInicioVigencia || item.OperacionFechaFinVigencia" :title="`${formatFechaCorta(item.OperacionFechaInicioVigencia)} → ${formatFechaCorta(item.OperacionFechaFinVigencia)}`">{{ formatFechaCorta(item.OperacionFechaInicioVigencia) }} <span class="text-slate-400">→</span> {{ formatFechaCorta(item.OperacionFechaFinVigencia) }}</span>
+                                            <span v-else class="text-slate-400">—</span>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle text-xs">
+                                            <span :title="item.OperacionEsquemaDePago ? `Esquema: ${item.OperacionEsquemaDePago}` : ''">{{ formaPagoLabel(item.OperacionIDFormaPago) }}</span>
+                                            <span v-if="item.OperacionEsquemaDePago" class="ml-1 text-[10px] text-slate-400">({{ item.OperacionEsquemaDePago }})</span>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle max-w-[12rem] truncate text-xs" :title="agenteOperacionNombre(item)">{{ agenteOperacionNombre(item) }}</td>
+                                        <td class="px-3 py-2 align-middle">
+                                            <div class="flex flex-wrap gap-1">
+                                                <span v-if="esCancelada(item)" class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-200">Cancelada</span>
+                                                <span v-if="item.OperacionPagaTercero == 1 || (item.OperacionPagaTercero as any) === true" class="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-200">Paga 3º</span>
+                                                <span v-if="!esCancelada(item) && !(item.OperacionPagaTercero == 1 || (item.OperacionPagaTercero as any) === true)" class="text-slate-300 text-[10px]">—</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2 align-middle whitespace-nowrap text-xs">{{ item.FechaDeteccion ?? 'N/A' }}</td>
+                                        <td class="px-3 py-2 align-middle text-right font-mono text-xs">{{ item.MontoOperacion != null ? formatMonto(item.MontoOperacion) : 'N/A' }}</td>
                                         <td class="px-3 py-2 align-middle">{{ item.InstrumentoMonetario ?? 'N/A' }}</td>
-                                        <td class="px-3 py-2 align-middle">{{ item.Estatus ?? 'N/A' }}</td>
                                         <td
                                             class="sticky right-0 z-10 border-l border-slate-100 bg-white px-3 py-2 align-middle group-hover:bg-blue-50 dark:border-neutral-800/60 dark:bg-neutral-950 dark:group-hover:bg-neutral-900">
                                             <button type="button"
@@ -418,7 +514,7 @@ const reportar = async () => {
                                 </tbody>
                                 <tbody v-else>
                                     <tr>
-                                        <td colspan="10"
+                                        <td colspan="18"
                                             class="px-3 py-4 text-center text-sm text-slate-500 dark:text-neutral-400">
                                             <span v-if="isLoading">Cargando...</span>
                                             <span v-else-if="!hasBuscado">Seleccione filtros y presione <strong>Buscar</strong> para mostrar registros.</span>
