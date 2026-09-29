@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Helpers\ClienteHelper;
 use App\Models\Clientes\CatIDClientesSistema;
 use App\Models\Clientes\CatSistemas;
+use App\Models\Clientes\CatTipoPersona;
 use App\Models\Clientes\LogClientes;
 use App\Models\Clientes\LogClientesDomicilio;
 use App\Models\Clientes\LogDetectClientesListas;
@@ -27,18 +28,18 @@ class ClientesControllerApi extends Controller
     public function guardarCliente(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'RFC' => 'nullable|string|max:18',
+            'RFC' => 'required|string|max:18',
             'nombre' => 'sometimes|nullable|string|max:255',
             'apellidoPaterno' => 'sometimes|nullable|string|max:255',
             'apellidoMaterno' => 'sometimes|nullable|string|max:255',
             'razonSocial' => 'nullable|string|max:255',
-            'IDTipoPersona' => 'required|integer',
+            'IDTipoPersona' => 'required|integer|exists:catTipoPersona,IDTipoPersona',
             'CURP' => 'sometimes|nullable|string|max:18',
             'IDOcupacionGiro' => 'nullable|integer',
             'fechaNacimiento' => 'nullable|date',
             'fechaConstitucion' => 'nullable|date',
             'folioMercantil' => 'nullable|string|max:255',
-            'IDNacionalidad' => 'nullable|string',
+            'IDNacionalidad' => 'required|string',
             'IDEstadoNacimiento' => 'nullable',
             'Preguntas' => 'nullable|string',
             'ingresosEstimados' => 'nullable|numeric',
@@ -182,8 +183,6 @@ class ClientesControllerApi extends Controller
                 }
             }
             $data['RFC'] = $rfc;
-        } else {
-            $data['RFC'] = null;
         }
 
         // Validar si el RFC existe en listas negras (UIF y CNSF)
@@ -466,7 +465,7 @@ class ClientesControllerApi extends Controller
             'apellidoPaterno' => 'nullable|string|max:255',
             'apellidoMaterno' => 'nullable|string|max:255',
             'razonSocial' => 'nullable|string|max:255',
-            'IDTipoPersona' => 'required|integer',
+            'IDTipoPersona' => 'required|integer|exists:catTipoPersona,IDTipoPersona',
             'CURP' => 'nullable|string|max:18',
             'IDOcupacionGiro' => 'nullable|integer',
             'fechaNacimiento' => 'nullable|date',
@@ -500,8 +499,30 @@ class ClientesControllerApi extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
-
         $validated = $validator->validated();
+
+        // RFC e IDNacionalidad son NOT NULL en tbClientes: en PUT parcial la clave
+        // puede omitirse (se conserva el valor actual), pero un null explícito
+        // reventaría con 1048 al guardar. Se rechaza con 422.
+        if (array_key_exists('RFC', $validated) && trim((string) ($validated['RFC'] ?? '')) === '') {
+            return response()->json([
+                'codigoError' => 1,
+                'message' => 'El RFC no puede ser nulo ni vacío.',
+                'errors' => [
+                    'RFC' => ['El RFC es obligatorio y no puede ser nulo.'],
+                ],
+            ], 422);
+        }
+        if (array_key_exists('IDNacionalidad', $validated) && trim((string) ($validated['IDNacionalidad'] ?? '')) === '') {
+            return response()->json([
+                'codigoError' => 1,
+                'message' => 'El IDNacionalidad no puede ser nulo ni vacío.',
+                'errors' => [
+                    'IDNacionalidad' => ['El IDNacionalidad es obligatorio y no puede ser nulo.'],
+                ],
+            ], 422);
+        }
+
 
         // Resolver IDEstadoNacimiento si viene (acepta int 9 o string "09"/"Nayarit")
         if (array_key_exists('IDEstadoNacimiento', $validated) && $validated['IDEstadoNacimiento'] !== null && trim((string) $validated['IDEstadoNacimiento']) !== '') {
@@ -545,27 +566,44 @@ class ClientesControllerApi extends Controller
             ], 404);
         }
 
-        // Guardar el estado actual del cliente en el log antes de la actualización
-        LogClientes::create([
-            'IDCliente' => $cliente->IDCliente,
-            'RfcAnterior' => $cliente->RFC,
-            'Nombre' => $cliente->Nombre,
-            'ApellidoPaterno' => $cliente->ApellidoPaterno,
-            'ApellidoMaterno' => $cliente->ApellidoMaterno,
-            'RazonSocial' => $cliente->RazonSocial,
-            'IDTipoPersona' => $cliente->IDTipoPersona,
-            'CURP' => $cliente->CURP,
-            'IDOcupacionGiro' => $cliente->IDOcupacionGiro,
-            'FechaNacimiento' => $cliente->FechaNacimiento,
-            'FechaConstitucion' => $cliente->FechaConstitucion,
-            'FolioMercantil' => $cliente->FolioMercantil,
-            'CoincideEnListasNegras' => $cliente->CoincideEnListasNegras,
-            'EsPPEActivo' => $cliente->EsPPEActivo,
-            'IDNacionalidad' => $cliente->IDNacionalidad,
-            'IDEstadoNacimiento' => $cliente->IDEstadoNacimiento,
-            'Activo' => $cliente->Activo,
-            'TimeStampLog' => now(),
-        ]);
+        // Normalizar IDTipoPersona histórico: tbClientes no tiene FK y puede
+        // contener valores legacy inválidos (p. ej. 0). logClientes sí tiene FK
+        // a catTipoPersona, así que un valor inexistente provoca 1452.
+        // Se guarda NULL en el log cuando el valor no existe en el catálogo.
+        $tipoPersonaLog = null;
+        if ($cliente->IDTipoPersona !== null && CatTipoPersona::where('IDTipoPersona', $cliente->IDTipoPersona)->exists()) {
+            $tipoPersonaLog = $cliente->IDTipoPersona;
+        } else {
+            Log::warning('actualizarCliente: IDTipoPersona histórico inválido, se guarda NULL en log.', [
+                'IDCliente' => $cliente->IDCliente,
+                'IDTipoPersona' => $cliente->IDTipoPersona,
+            ]);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Guardar el estado actual del cliente en el log antes de la actualización
+            LogClientes::create([
+                'IDCliente' => $cliente->IDCliente,
+                'RfcAnterior' => $cliente->RFC,
+                'Nombre' => $cliente->Nombre,
+                'ApellidoPaterno' => $cliente->ApellidoPaterno,
+                'ApellidoMaterno' => $cliente->ApellidoMaterno,
+                'RazonSocial' => $cliente->RazonSocial,
+                'IDTipoPersona' => $tipoPersonaLog,
+                'CURP' => $cliente->CURP,
+                'IDOcupacionGiro' => $cliente->IDOcupacionGiro,
+                'FechaNacimiento' => $cliente->FechaNacimiento,
+                'FechaConstitucion' => $cliente->FechaConstitucion,
+                'FolioMercantil' => $cliente->FolioMercantil,
+                'CoincideEnListasNegras' => $cliente->CoincideEnListasNegras,
+                'EsPPEActivo' => $cliente->EsPPEActivo,
+                'IDNacionalidad' => $cliente->IDNacionalidad,
+                'IDEstadoNacimiento' => $cliente->IDEstadoNacimiento,
+                'Activo' => $cliente->Activo,
+                'TimeStampLog' => now(),
+            ]);
 
         // Guardar el estado actual de los domicilios del cliente en el log antes de la actualización
         $domiciliosOriginales = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
@@ -733,11 +771,25 @@ class ClientesControllerApi extends Controller
             }
         }
 
-        $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
-        if ($coincideEnListasNegras) {
-            $cliente->Activo = 0;
+            $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
+            if ($coincideEnListasNegras) {
+                $cliente->Activo = 0;
+            }
+            $cliente->save();
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error en actualizarCliente: '.$e->getMessage(), [
+                'IDCliente' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'codigoError' => 1,
+                'message' => 'Error al actualizar el cliente: '.$e->getMessage(),
+            ], 500);
         }
-        $cliente->save();
 
         $nombreCompleto = TbAlertas::nombreParaCliente($cliente);
 

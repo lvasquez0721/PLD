@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { BookOpen, Folder, LayoutGrid, Users, UserRound, Shield, BarChart3, Settings, Bell, MailWarning, ListX, FileText, Gavel, SearchCheck, User, Download, ScrollText } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
@@ -49,7 +49,16 @@ onUnmounted(() => {
     document.body.style.overflow = '';
 });
 
-const mainNavItems: NavItem[] = [
+// Roles del usuario autenticado (compartidos vía HandleInertiaRequests).
+// El rol Depurador solo debe ver el módulo de Logs de Endpoints.
+const page = usePage();
+const userRoles = computed<string[]>(() => {
+    const auth = page.props.auth as unknown as { roles?: unknown };
+    return Array.isArray(auth?.roles) ? (auth.roles as string[]) : [];
+});
+const isDepurador = computed(() => userRoles.value.includes('Depurador'));
+
+const allNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -146,8 +155,16 @@ const mainNavItems: NavItem[] = [
     //    icon: SearchCheck,
     //   badge: null,
     //    description: 'Consulta de inusualidades'
-   // },
+    // },
 ];
+
+// El Depurador solo ve Logs; el resto ve el menú completo.
+const mainNavItems = computed<NavItem[]>(() =>
+    isDepurador.value ? allNavItems.filter((item) => item.href === '/logs') : allNavItems,
+);
+
+// El logo del Depurador apunta a /logs en lugar del dashboard.
+const logoHref = computed(() => (isDepurador.value ? '/logs' : dashboard()));
 
 const footerNavItems: NavItem[] = [
     // {
@@ -181,7 +198,7 @@ const footerNavItems: NavItem[] = [
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child
                         class="group relative overflow-hidden transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98]">
-                        <Link :href="dashboard()"
+                        <Link :href="logoHref"
                             class="flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/50 focus:outline-none focus:ring-2 focus:ring-sidebar-accent/20 sidebar-logo-link"
                             :class="{
                                 'justify-center': isCollapsed,
