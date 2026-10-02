@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/configuracion-cumplimiento', [ConfiguracionCumplimientoController::class, 'index'])->name('configuracion-cumplimiento.index');
     Route::post('/configuracion-cumplimiento/actualizar', [ConfiguracionCumplimientoController::class, 'actualizar'])->name('configuracion-cumplimiento.actualizar');
+    Route::post('/configuracion-cumplimiento/entorno-desarrollo', [ConfiguracionCumplimientoController::class, 'actualizarEntorno'])->name('configuracion-cumplimiento.entorno');
 });
 
 // Logs de endpoints

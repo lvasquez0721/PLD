@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -54,6 +56,30 @@ class HandleInertiaRequests extends Middleware
                 'error' => session('error'),
             ],
             /* ========================== */
+
+            // Etiqueta global "Entorno de desarrollo" (switch persistido en BD).
+            'envBadge' => [
+                'activo' => $this->entornoDesarrolloActivo(),
+            ],
         ];
+    }
+
+    /**
+     * Lee el switch de la etiqueta desde catParametriaPLD con caché corta.
+     * Nunca debe romper el render si la tabla aún no existe.
+     */
+    private function entornoDesarrolloActivo(): bool
+    {
+        try {
+            if (! Schema::hasTable('catParametriaPLD')) {
+                return false;
+            }
+
+            return Cache::remember('entorno_desarrollo_activo', 60, function () {
+                return \App\Models\CatParametriaPLD::getEntornoDesarrolloActivo();
+            });
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

@@ -26,6 +26,7 @@ export type AppPageProps<
     quote: { message: string; author: string };
     auth: Auth;
     sidebarOpen: boolean;
+    envBadge: { activo: boolean };
 };
 
 export interface User {

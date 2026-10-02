@@ -20,6 +20,7 @@ interface Props {
         correo: string;
         nombre: string;
         activo: boolean;
+        entorno_desarrollo: boolean;
     };
 }
 
@@ -29,6 +30,10 @@ const form = useForm({
     correo: props.config.correo,
     nombre: props.config.nombre,
     activo: props.config.activo,
+});
+
+const envForm = useForm({
+    activo: props.config.entorno_desarrollo,
 });
 
 const page = usePage();
@@ -114,6 +119,29 @@ const guardar = () => {
         },
     });
 };
+
+const guardarEntorno = () => {
+    envForm.post('/configuracion-cumplimiento/entorno-desarrollo', {
+        preserveScroll: true,
+        onSuccess: () => {
+            toastMessage.value = envForm.activo
+                ? 'Etiqueta "Entorno de desarrollo" activada. Ahora es visible en todas las pantallas.'
+                : 'Etiqueta "Entorno de desarrollo" desactivada.';
+            toastType.value = 'success';
+            showToast.value = true;
+
+            // Refresca el prop compartido envBadge para mostrar/ocultar el badge al instante.
+            router.reload();
+        },
+        onError: () => {
+            envForm.activo = !envForm.activo;
+            toastMessage.value =
+                'Error al guardar la etiqueta de entorno.';
+            toastType.value = 'error';
+            showToast.value = true;
+        },
+    });
+};
 </script>
 
 <template>
@@ -182,6 +210,54 @@ const guardar = () => {
                         </button>
                     </div>
                 </form>
+
+                <!-- Sección: Etiqueta de entorno de desarrollo -->
+                <div
+                    class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white p-6 shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)]"
+                >
+                    <section class="space-y-4">
+                        <h3
+                            class="mb-4 flex items-center gap-2 text-2xl font-semibold text-slate-800 dark:text-neutral-200"
+                        >
+                            <Settings class="h-6 w-6 text-amber-500" />
+                            Etiqueta de entorno
+                        </h3>
+                        <p class="text-sm text-slate-600 dark:text-neutral-400">
+                            Al activar el switch se muestra el badge
+                            <span class="font-semibold">«Entorno de desarrollo»</span>
+                            fijo en la esquina superior derecha, en todas las pantallas.
+                        </p>
+                        <div class="flex items-center justify-between gap-4 pt-2">
+                            <label
+                                for="entorno-desarrollo-switch"
+                                class="cursor-pointer text-sm font-medium text-slate-700 dark:text-neutral-300"
+                            >
+                                Mostrar «Entorno de desarrollo» en pantalla
+                            </label>
+                            <button
+                                id="entorno-desarrollo-switch"
+                                type="button"
+                                role="switch"
+                                :aria-checked="envForm.activo"
+                                :disabled="envForm.processing"
+                                @click="envForm.activo = !envForm.activo; guardarEntorno()"
+                                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="envForm.activo ? 'bg-amber-500' : 'bg-slate-300 dark:bg-neutral-700'"
+                            >
+                                <span
+                                    class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200"
+                                    :class="envForm.activo ? 'translate-x-6' : 'translate-x-1'"
+                                />
+                            </button>
+                        </div>
+                        <p
+                            v-if="envForm.processing"
+                            class="text-xs text-slate-500 dark:text-neutral-500"
+                        >
+                            Guardando...
+                        </p>
+                    </section>
+                </div>
             </div>
         </FadeIn>
 

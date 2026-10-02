@@ -45,6 +45,8 @@ class CatParametriaPLD extends Model
 
     const MONTO_AUTORIZACION_EFECTIVO_PM = 17;
 
+    const ENTORNO_DESARROLLO = 100;
+
     /**
      * Obtiene el valor de un parámetro por su ID.
      * Retorna el valor formateado según su tipo de dato o el valor raw si no se especifica.
@@ -87,5 +89,48 @@ class CatParametriaPLD extends Model
     public static function getToleranciaPagosFraccionados()
     {
         return self::getValor(self::TOLERANCIA_PAGOS_FRACCIONADOS, 10);
+    }
+
+    /**
+     * Indica si la etiqueta global "Entorno de desarrollo" está activa.
+     * Fuente de verdad: catParametriaPLD ID 100 (entorno_desarrollo).
+     */
+    public static function getEntornoDesarrolloActivo(): bool
+    {
+        $param = self::find(self::ENTORNO_DESARROLLO);
+
+        if (! $param) {
+            return false;
+        }
+
+        return in_array(strtolower(trim((string) $param->Valor)), ['1', 'true', 'si', 'sí', 'on'], true);
+    }
+
+    /**
+     * Persiste el estado de la etiqueta "Entorno de desarrollo".
+     */
+    public static function setEntornoDesarrolloActivo(bool $activo): void
+    {
+        $now = now();
+        $param = self::find(self::ENTORNO_DESARROLLO);
+
+        if ($param) {
+            $param->update([
+                'Valor' => $activo ? '1' : '0',
+                'TimeStampModificacion' => $now,
+            ]);
+
+            return;
+        }
+
+        self::create([
+            'IDParametro' => self::ENTORNO_DESARROLLO,
+            'Parametro' => 'entorno_desarrollo',
+            'Valor' => $activo ? '1' : '0',
+            'TipoDato' => 'boolean',
+            'Activo' => 1,
+            'TimeStampAlta' => $now,
+            'TimeStampModificacion' => $now,
+        ]);
     }
 }

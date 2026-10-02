@@ -72,8 +72,8 @@ class AnalisisPagosService
         // Obtener tolerancia
         $toleranciaPorcentaje = CatParametriaPLD::getToleranciaPagosFraccionados();
 
-        // Validar pagos individuales contra gastos + prima
-        $montoEsperadoPago = $operacion->PrimaTotal + $operacion->GastosEmision;
+        // Validar pagos individuales contra prima total (GastosEmision ya incluido en PrimaTotal)
+        $montoEsperadoPago = (float) $operacion->PrimaTotal;
         $tolerancia = $montoEsperadoPago * ($toleranciaPorcentaje / 100);
         $limiteInferior = $montoEsperadoPago - $tolerancia;
         $limiteSuperior = $montoEsperadoPago + $tolerancia;

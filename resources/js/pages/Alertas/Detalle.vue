@@ -651,16 +651,17 @@ function submitEditarAlerta(e: Event) {
                                 <span class="font-medium text-gray-900 dark:text-neutral-100">{{ operacion.tipoDocumento || '-' }}</span>
                             </div>
                             <div>
-                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Prima Total</span>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Prima Total (incluye gastos)</span>
                                 <span class="font-bold text-base" :class="(parseFloat(operacion.PrimaTotal)||0) < 0 ? 'text-red-600 dark:text-red-300' : 'text-gray-900 dark:text-neutral-100'">{{ numberFormat(operacion.PrimaTotal, String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }} <span class="text-xs font-normal text-gray-500">({{ operacion.IDMoneda || alerta.IDMoneda || 'MXN' }})</span></span>
                             </div>
                             <div>
-                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Gastos de Emisión</span>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Gastos de Emisión (incluidos)</span>
                                 <span class="font-semibold text-gray-900 dark:text-neutral-100">{{ numberFormat(operacion.GastosEmision, String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }}</span>
+                                <span class="block text-[11px] text-gray-400 font-normal mt-0.5">Informativo: ya incluido en Prima Total</span>
                             </div>
                             <div>
-                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Prima + Gastos</span>
-                                <span class="font-bold text-gray-900 dark:text-neutral-100">{{ numberFormat((parseFloat(operacion.PrimaTotal)||0) + (parseFloat(operacion.GastosEmision)||0), String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }}</span>
+                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Total a pagar</span>
+                                <span class="font-bold text-gray-900 dark:text-neutral-100">{{ numberFormat(operacion.PrimaTotal, String(operacion.IDMoneda || alerta.IDMoneda || 'MXN')) }}</span>
                             </div>
                             <div>
                                 <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Moneda</span>

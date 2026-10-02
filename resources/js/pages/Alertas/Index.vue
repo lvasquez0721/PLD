@@ -952,7 +952,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                             {{ alerta.operacion ? formatCurrencyOp(alerta.operacion.PrimaTotal, alerta.operacion.IDMoneda ?? String(alerta.IDMoneda)) : (alerta.tiene_pagos ? (alerta.monto_pagos ?? alerta.MontoOperacion) : '—') }}
                                                         </span>
                                                         <span class="text-[11px] text-gray-500 dark:text-neutral-400">
-                                                            {{ getMonedaInfoOp(alerta.operacion?.IDMoneda ?? String(alerta.IDMoneda)).nombre }} <span v-if="alerta.operacion?.GastosEmision" class="text-gray-400">+ {{ formatCurrencyOp(alerta.operacion.GastosEmision, alerta.operacion.IDMoneda) }} gastos</span>
+                                                            {{ getMonedaInfoOp(alerta.operacion?.IDMoneda ?? String(alerta.IDMoneda)).nombre }} <span v-if="alerta.operacion?.GastosEmision" class="text-gray-400" title="Gastos de emisión ya incluidos en Prima Total">(incl. {{ formatCurrencyOp(alerta.operacion.GastosEmision, alerta.operacion.IDMoneda) }} gastos)</span>
                                                         </span>
                                                     </div>
                                                 </td>
