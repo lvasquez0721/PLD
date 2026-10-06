@@ -15,21 +15,20 @@ use Inertia\Inertia;
 
 class ReporteOperacionesController extends Controller
 {
-    private const PATRONES = [
-        'Relevante',
-        'Inusual',
-        'Preocupante',
-        'Cancelacion',
-        'Fraccionado',
-        'Acumulado',
-        'Nuevo',
-    ];
-
     private const ESTATUS = ['Enviado', 'Por reportar'];
+
+    /**
+     * Patrones con tipo de reporte propio (se filtran por igualdad).
+     * Todo patrón no listado aquí se considera "Inusual"
+     * (Cancelacion, Fraccionado, Acumulado, Nuevo, Inusual, PPE, etc.).
+     */
+    private const PATRONES_PROPIOS = [
+        'Relevante',
+        'Preocupante',
+    ];
 
     private const TIPOS_REPORTE = [
         'Relevante'   => ['Relevante'],
-        'Inusual'     => ['Cancelacion', 'Fraccionado', 'Acumulado', 'Inusual', 'Nuevo'],
         'Preocupante' => ['Preocupante'],
     ];
 
@@ -228,7 +227,7 @@ class ReporteOperacionesController extends Controller
     {
         $query = TbAlertas::from('tbAlertas as a')
             ->leftJoin('tbOperaciones as op', 'op.IDOperacion', '=', 'a.IDOperacion')
-            ->whereIn('a.Patron', self::PATRONES)
+            // Mostrar todos los patrones de alerta, solo con estatus Por reportar / Enviado
             ->whereIn('a.Estatus', self::ESTATUS)
             ->select([
                 'a.*',
@@ -255,12 +254,25 @@ class ReporteOperacionesController extends Controller
             ]);
 
         $tipo = $filtros['tipo_reporte'] ?? '';
-
-        if (! empty($tipo) && $tipo !== 'Todos' && isset(self::TIPOS_REPORTE[$tipo])) {
-            $query->whereIn('a.Patron', self::TIPOS_REPORTE[$tipo]);
+        if ($tipo === 'Todas') {
+            $tipo = 'Todos';
         }
 
-        if (! empty($filtros['estatus']) && $filtros['estatus'] !== 'Todos') {
+        if (! empty($tipo) && $tipo !== 'Todos') {
+            if ($tipo === 'Inusual') {
+                // Inusual = patrón "Inusual" + todo patrón no mencionado en el select
+                // (Cancelacion, Fraccionado, Acumulado, Nuevo, PPE, etc.).
+                // Se incluye IS NULL porque NOT IN por sí solo excluye los nulos en MySQL.
+                $query->where(function ($q) {
+                    $q->whereNotIn('a.Patron', self::PATRONES_PROPIOS)
+                      ->orWhereNull('a.Patron');
+                });
+            } elseif (isset(self::TIPOS_REPORTE[$tipo])) {
+                $query->whereIn('a.Patron', self::TIPOS_REPORTE[$tipo]);
+            }
+        }
+
+        if (! empty($filtros['estatus']) && $filtros['estatus'] !== 'Todos' && in_array($filtros['estatus'], self::ESTATUS, true)) {
             $query->where('a.Estatus', $filtros['estatus']);
         }
 

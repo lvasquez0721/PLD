@@ -3,17 +3,14 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
-    <div class="flex items-center min-w-0">
-        <AppLogoIcon class="size-5 flex-shrink-0 fill-current text-white dark:text-black" />
-        <div class="ml-1 flex-1 min-w-0 app-logo-text">
-            <span
-                class="block leading-tight font-semibold tracking-tight tabular-nums text-sm truncate sm:whitespace-normal"
-                style="font-variant-ligatures: discretionary-ligatures; letter-spacing: -0.01em;">
-                <span style="font-feature-settings: 'ss01', 'kern', 'liga', 'dlig'">Prevención</span>
-                <span aria-hidden="true" class="inline-block align-middle select-none"
-                    style="font-size: 0.6em; vertical-align: super; opacity: 0.75; margin-left: 0.18em;"></span>
-                <span style="letter-spacing: 0.005em; font-feature-settings: 'cv01', 'onum';">de Lavado de Dinero</span>
-                <span aria-hidden="true" class="sr-only"> </span>
+    <div class="flex min-w-0 items-center gap-2">
+        <AppLogoIcon class="size-7 shrink-0" />
+        <div class="app-logo-text min-w-0 flex-1 leading-none">
+            <span class="block truncate text-[13px] font-semibold tracking-tight text-sidebar-foreground">
+                Prevención de Lavado de Dinero
+            </span>
+            <span class="app-logo-sub mt-1 block text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/50">
+                PLD · Cumplimiento
             </span>
         </div>
     </div>

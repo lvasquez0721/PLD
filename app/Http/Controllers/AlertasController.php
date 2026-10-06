@@ -338,7 +338,11 @@ class AlertasController extends Controller
             $horaActual = date('H:i:s');
             $fechaActualYMD = date('Y-m-d');
 
+            // Regla fija: Preocupante siempre se emite en Generado (salvo transición a Enviado al reportar).
             $estatus = $request->input('estatus');
+            if ($estatus !== 'Enviado') {
+                $estatus = 'Generado';
+            }
 
             // El patrón siempre es "Preocupante" según la instrucción
             $alerta->Patron = "Preocupante";
@@ -475,7 +479,13 @@ class AlertasController extends Controller
                 $alerta->Evidencias = json_encode(array_merge($evidenciasPrevias, $evidenciasData));
             }
 
+            // Regla fija: Fraccionado, Cancelacion y Preocupante siempre en Generado
+            // (se respeta la transición a Enviado al reportar).
             $estatus = $request->input('estatus');
+            $patronActual = $alerta->Patron ?? '';
+            if ($estatus !== 'Enviado' && in_array($patronActual, ['Fraccionado', 'Cancelacion', 'Preocupante'], true)) {
+                $estatus = 'Generado';
+            }
             $alerta->Estatus      = $estatus;
             $alerta->Razones      = $request->input('razones');
             $alerta->Descripcion  = $request->input('descripcion');

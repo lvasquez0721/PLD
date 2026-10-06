@@ -651,34 +651,32 @@ class OperacionesController extends Controller
     {
         $patron = $alertaData['patron'] ?? '';
 
-        if ($patron === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
-            return 'Por reportar';
+        // Regla fija: Fraccionado, Cancelacion, Preocupante e Inusual siempre se emiten en Generado,
+        // sin importar umbrales de monto.
+        if (in_array($patron, [
+            AnalisisPagosService::PATRON_FRACCIONADO,
+            AnalisisPagosService::PATRON_CANCELACION,
+            AnalisisPagosService::PATRON_MONTO_INUSUAL,
+            'Preocupante',
+        ], true)) {
+            return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        if ($patron === AnalisisPagosService::PATRON_CANCELACION) {
-            $valorReferenciaUSD = CatParametriaPLD::getOperacionesRelevantes();
-            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
-
-            if ($primaTotalUSD < $valorReferenciaUSD) {
-                return AnalisisPagosService::ESTATUS_CERRADO;
-            }
-
+        // Blindaje adicional case-insensitive para patrón "inusual"
+        if (is_string($patron) && strtolower(trim($patron)) === 'inusual') {
             return AnalisisPagosService::ESTATUS_GENERADO;
+        }
+
+        if ($patron === AnalisisPagosService::PATRON_MONTO_RELEVANTE) {
+            return 'Por reportar';
         }
 
         if ($patron === AnalisisPagosService::PATRON_PPE) {
             return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        if ($patron === AnalisisPagosService::PATRON_MONTO_INUSUAL) {
-            $montoPagoUSD = $alertaData['monto_usd'] ?? null;
-
-            if ($montoPagoUSD !== null && $montoPagoUSD < CatParametriaPLD::getMontoMinimoAlerta()) {
-                return AnalisisPagosService::ESTATUS_CERRADO;
-            }
-
-            return AnalisisPagosService::ESTATUS_GENERADO;
-        }
+        // NOTA: El patrón Inusual siempre se emite en Generado (ver regla fija arriba).
+        // No se aplica umbral de monto mínimo ni cierre automático.
 
         if ($operacion) {
             $montoMinimoUSD = CatParametriaPLD::getMontoMinimoAlerta();

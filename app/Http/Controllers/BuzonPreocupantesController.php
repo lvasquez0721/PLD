@@ -34,7 +34,8 @@ class BuzonPreocupantesController extends Controller
             ]);
 
             $patron = $validated['patron'] ?? 'Nuevo';
-            $estatus = $patron === 'Preocupante' ? 'Por reportar' : 'Generado';
+            // Regla fija: Preocupante (y Nuevo) siempre se emiten en Generado.
+            $estatus = 'Generado';
 
             // Convertir los IDs a enteros
             $ids = array_map('intval', $validated['ids']);

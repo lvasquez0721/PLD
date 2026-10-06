@@ -5,154 +5,132 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    useSidebar,
 } from '@/components/ui/sidebar';
 import { urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
-defineProps<{
+export interface NavGroup {
+    label: string;
     items: NavItem[];
+}
+
+const props = defineProps<{
+    groups?: NavGroup[];
+    items?: NavItem[];
 }>();
 
 const page = usePage();
-const { state } = useSidebar();
-const isCollapsed = computed(() => state.value === 'collapsed');
-const hoveredItem = ref<string | null>(null);
 
-// Computed para determinar si un item está activo
-const isItemActive = (href: string) => {
-    return urlIsActive(href, page.url);
-};
+// Compatibilidad: si solo llegan `items` planos, se envuelven en un grupo sin etiqueta.
+const normalizedGroups = computed<NavGroup[]>(() => {
+    if (props.groups?.length) return props.groups;
+    if (props.items?.length) return [{ label: '', items: props.items }];
+    return [];
+});
+
+const isItemActive = (href: NavItem['href']) => urlIsActive(href, page.url);
 </script>
 
 <template>
-    <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel class="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider mb-3">
-            Navegación Principal
-        </SidebarGroupLabel>
-        <SidebarMenu class="space-y-1">
-            <SidebarMenuItem v-for="(item, index) in items" :key="item.title" class="relative"
-                :style="{ '--animation-delay': `${index * 0.1}s` }">
-                <SidebarMenuButton as-child :is-active="isItemActive(item.href)"
-                    :tooltip="item.title"
-                    class="group relative overflow-hidden transition-all duration-200 ease-out hover:bg-sidebar-accent/80 focus:bg-sidebar-accent/80"
-                    :class="{
-                        'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm': isItemActive(item.href),
-                        'hover:translate-x-1': !isItemActive(item.href),
-                        'scale-105': hoveredItem === item.title
-                    }" @mouseenter="hoveredItem = item.title" @mouseleave="hoveredItem = null">
-                    <Link :href="item.href"
-                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sidebar-accent/20">
-                    <!-- Indicador de estado activo -->
-                    <div v-if="isItemActive(item.href)"
-                        class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-sidebar-accent-foreground rounded-r-full" />
-
-                    <!-- Efecto de brillo en hover -->
-                    <div
-                        class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%]" />
-
-                    <!-- Icono con animación sutil -->
-                    <div class="relative z-10 flex-shrink-0">
-                        <component :is="item.icon" class="w-5 h-5 transition-all duration-200 group-hover:scale-110"
-                            :class="{
-                                'text-sidebar-accent-foreground': isItemActive(item.href),
-                                'text-sidebar-foreground/70 group-hover:text-sidebar-foreground': !isItemActive(item.href)
-                            }" />
-                    </div>
-
-                    <!-- Contenido del texto -->
-                    <div class="flex-1 min-w-0">
-                        <span class="font-medium transition-colors duration-200" :class="{
-                            'text-sidebar-accent-foreground': isItemActive(item.href),
-                            'text-sidebar-foreground group-hover:text-sidebar-foreground': !isItemActive(item.href)
-                        }">
-                            {{ item.title }}
-                        </span>
-
-
-                    </div>
-
-                    <!-- Badge de notificación -->
-                    <div v-if="item.badge" class="flex-shrink-0 ml-auto">
-                        <span
-                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200"
-                            :class="{
-                                'bg-sidebar-accent-foreground/20 text-sidebar-accent-foreground': isItemActive(item.href),
-                                'bg-sidebar-accent text-sidebar-accent-foreground': !isItemActive(item.href) && item.badge === 'Nuevo',
-                                'bg-red-500/20 text-red-500': !isItemActive(item.href) && item.badge !== 'Nuevo'
-                            }">
-                            {{ item.badge }}
-                        </span>
-                    </div>
-
-                    <!-- Indicador de carga sutil (solo visible cuando la sidebar está expandida) -->
-                    <div v-if="isItemActive(item.href) && !isCollapsed"
-                        class="sidebar-active-dot absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-sidebar-accent-foreground rounded-full animate-pulse" />
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
-    </SidebarGroup>
+    <nav aria-label="Navegación principal" class="sidenav-nav">
+        <SidebarGroup
+            v-for="group in normalizedGroups"
+            :key="group.label || 'principal'"
+            class="px-2 py-0"
+        >
+            <SidebarGroupLabel
+                v-if="group.label"
+                class="sidenav-label px-2.5 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/55"
+            >
+                {{ group.label }}
+            </SidebarGroupLabel>
+            <SidebarMenu class="gap-0.5">
+                <SidebarMenuItem v-for="item in group.items" :key="item.title">
+                    <SidebarMenuButton
+                        as-child
+                        :is-active="isItemActive(item.href)"
+                        :tooltip="item.title"
+                        class="sidenav-item group relative h-9 rounded-[10px] px-2.5 transition-[background-color,color] duration-150 ease-out hover:bg-sidebar-accent/70 focus-visible:bg-sidebar-accent/70 active:scale-[0.985]"
+                        :class="{
+                            'bg-sidebar-accent font-medium text-sidebar-accent-foreground': isItemActive(item.href),
+                        }"
+                    >
+                        <Link
+                            :href="item.href"
+                            :aria-current="isItemActive(item.href) ? 'page' : undefined"
+                            class="flex w-full items-center gap-2.5 rounded-[10px] focus:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring/60"
+                        >
+                            <!-- Único indicador activo: pill táctil -->
+                            <span
+                                v-if="isItemActive(item.href)"
+                                aria-hidden="true"
+                                class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-current opacity-70"
+                            />
+                            <!-- Icono en tile: el detalle que se siente al pasar -->
+                            <span
+                                aria-hidden="true"
+                                class="sidenav-icon-tile grid size-7 shrink-0 place-items-center rounded-lg transition-[background-color,transform] duration-150 ease-out group-hover:-translate-y-px group-hover:bg-black/[0.04] dark:group-hover:bg-white/[0.07]"
+                                :class="{
+                                    'bg-black/[0.05] dark:bg-white/[0.08]': isItemActive(item.href),
+                                }"
+                            >
+                                <component
+                                    :is="item.icon"
+                                    class="size-4 transition-colors duration-150"
+                                    :class="{
+                                        'text-sidebar-accent-foreground': isItemActive(item.href),
+                                        'text-sidebar-foreground/60 group-hover:text-sidebar-foreground': !isItemActive(item.href),
+                                    }"
+                                />
+                            </span>
+                            <span
+                                class="min-w-0 flex-1 truncate text-[13.5px] leading-none"
+                                :class="{
+                                    'text-sidebar-accent-foreground': isItemActive(item.href),
+                                    'text-sidebar-foreground/85 group-hover:text-sidebar-foreground': !isItemActive(item.href),
+                                }"
+                            >
+                                {{ item.title }}
+                            </span>
+                            <span
+                                v-if="item.badge"
+                                class="ml-auto shrink-0 rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-[11px] font-medium leading-none text-sidebar-accent-foreground"
+                            >
+                                {{ item.badge }}
+                            </span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarGroup>
+    </nav>
 </template>
 
 <style scoped>
-/* Animaciones de entrada escalonadas */
-.sidebar-menu-item {
-    animation: slideInFromLeft 0.4s ease-out;
-    animation-fill-mode: both;
-    animation-delay: var(--animation-delay);
+/* Entrada serena: un solo fundido por grupo, sin cascadas por item */
+.sidenav-nav {
+    animation: sidenav-settle 240ms var(--sidebar-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
-@keyframes slideInFromLeft {
+@keyframes sidenav-settle {
     from {
         opacity: 0;
-        transform: translateX(-20px);
+        transform: translateY(3px);
     }
-
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
-/* Efectos de micro-interacción */
-.group:hover .group-hover\:scale-110 {
-    transform: scale(1.1);
+.sidenav-label {
+    user-select: none;
 }
 
-/* Mejoras en el estado activo */
-.sidebar-menu-button[data-state="active"] {
-    position: relative;
-}
-
-.sidebar-menu-button[data-state="active"]::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: linear-gradient(to bottom, var(--sidebar-accent-foreground), transparent);
-    border-radius: 0 2px 2px 0;
-}
-
-/* Efectos de profundidad */
-.sidebar-menu-button:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-}
-
-/* Transiciones suaves para todos los elementos */
-* {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Mejoras en modo oscuro */
-@media (prefers-color-scheme: dark) {
-    .sidebar-menu-button:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
+/* El botón de shadcn ya aporta layout; aquí solo afinamos tacto y foco */
+.sidenav-item:focus-visible {
+    outline: none;
 }
 </style>
