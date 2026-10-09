@@ -19,17 +19,17 @@ class ReporteOperacionesController extends Controller
 
     /**
      * Patrones con tipo de reporte propio (se filtran por igualdad).
-     * Todo patrón no listado aquí se considera "Inusual"
-     * (Cancelacion, Fraccionado, Acumulado, Nuevo, Inusual, PPE, etc.).
+     * Todo patrón no listado aquí se considera "Monto Inusual"
+     * (Cancelacion, Fraccionado, Acumulado Efectivo, Nuevo, Monto Inusual, PPE, etc.).
      */
     private const PATRONES_PROPIOS = [
-        'Relevante',
-        'Preocupante',
+        'Monto',
+        'Nuevo',
     ];
 
     private const TIPOS_REPORTE = [
-        'Relevante'   => ['Relevante'],
-        'Preocupante' => ['Preocupante'],
+        'Monto' => ['Monto'],
+        'Nuevo' => ['Nuevo'],
     ];
 
     private const CLAVE_SUJETO_OBLIGADO = '022123';
@@ -37,7 +37,7 @@ class ReporteOperacionesController extends Controller
     private const ORGANO_SUPERVISOR = '003';
 
     /**
-     * Encabezados del layout de operaciones relevantes, inusuales y preocupantes.
+     * Encabezados del layout de operaciones monto, monto inusual y nuevo.
      */
     private const LAYOUT_HEADERS = [
         'Tipo Reporte',
@@ -81,7 +81,6 @@ class ReporteOperacionesController extends Controller
         'Apellido Materno Titular',
         'Descripcion',
         'Razon',
-        'Estatus',
     ];
 
     public function index()
@@ -108,7 +107,7 @@ class ReporteOperacionesController extends Controller
         $validated = $request->validate([
             'ids'          => 'nullable|array',
             'ids.*'        => 'integer',
-            'tipo_reporte' => 'required|string|in:Relevante,Inusual,Preocupante,Todos,Todas',
+            'tipo_reporte' => 'required|string|in:Monto,Monto Inusual,Nuevo,Todos,Todas',
             'con_headers'  => 'nullable|boolean',
         ]);
 
@@ -163,12 +162,28 @@ class ReporteOperacionesController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
+            // Filtrar filas totalmente vacías para no generar un registro en blanco extra
+            $filas = array_values(array_filter($filas, function ($fila) {
+                if (! is_array($fila)) return false;
+                foreach ($fila as $celda) {
+                    if (trim((string) $celda) !== '') return true;
+                }
+                return false;
+            }));
+
+            $primeraLinea = true;
+
             if ($conHeaders) {
-                fwrite($file, implode(';', self::LAYOUT_HEADERS)."\r\n");
+                fwrite($file, implode(';', self::LAYOUT_HEADERS).';');
+                $primeraLinea = false;
             }
 
             foreach ($filas as $fila) {
-                fwrite($file, implode(';', $fila)."\r\n");
+                if (! $primeraLinea) {
+                    fwrite($file, "\r\n");
+                }
+                fwrite($file, implode(';', $fila).';');
+                $primeraLinea = false;
             }
 
             fclose($file);
@@ -182,7 +197,7 @@ class ReporteOperacionesController extends Controller
         $validated = $request->validate([
             'ids'          => 'required|array|min:1',
             'ids.*'        => 'integer',
-            'tipo_reporte' => 'nullable|string|in:Relevante,Inusual,Preocupante,Todos,Todas',
+            'tipo_reporte' => 'nullable|string|in:Monto,Monto Inusual,Nuevo,Todos,Todas',
         ]);
 
         $tipo = $validated['tipo_reporte'] ?? 'Todos';
@@ -204,18 +219,27 @@ class ReporteOperacionesController extends Controller
             return response()->json(['message' => 'No hay registros por reportar con los criterios seleccionados. Verifique que los registros estén en estatus "Por reportar".'], 422);
         }
 
-        DB::transaction(function () use ($alertas) {
-            $servicio = new ReporteRegulatorioService;
+        try {
+            DB::transaction(function () use ($alertas) {
+                $servicio = new ReporteRegulatorioService;
 
-            foreach ($alertas as $alerta) {
-                $servicio->emitirDesdeAlerta($alerta);
+                foreach ($alertas as $alerta) {
+                    $servicio->emitirDesdeAlerta($alerta);
 
-                if ($alerta->Estatus !== 'Enviado') {
-                    $alerta->Estatus = 'Enviado';
-                    $alerta->save();
+                    if ($alerta->Estatus !== 'Enviado') {
+                        $alerta->Estatus = 'Enviado';
+                        $alerta->save();
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al reportar operaciones', [
+                'ids' => $validated['ids'],
+                'exception' => $e->getMessage(),
+            ]);
+
+            return response()->json(['message' => 'No se pudo completar el reporte. Verifique los datos de los registros seleccionados e intente de nuevo.'], 500);
+        }
 
         return response()->json([
             'message' => 'Se reportaron '.count($alertas).' registro(s) correctamente.',
@@ -259,9 +283,9 @@ class ReporteOperacionesController extends Controller
         }
 
         if (! empty($tipo) && $tipo !== 'Todos') {
-            if ($tipo === 'Inusual') {
-                // Inusual = patrón "Inusual" + todo patrón no mencionado en el select
-                // (Cancelacion, Fraccionado, Acumulado, Nuevo, PPE, etc.).
+            if ($tipo === 'Monto Inusual') {
+                // Monto Inusual = patrón "Monto Inusual" + todo patrón no mencionado en el select
+                // (Cancelacion, Fraccionado, Acumulado Efectivo, Nuevo, PPE, etc.).
                 // Se incluye IS NULL porque NOT IN por sí solo excluye los nulos en MySQL.
                 $query->where(function ($q) {
                     $q->whereNotIn('a.Patron', self::PATRONES_PROPIOS)
@@ -294,10 +318,10 @@ class ReporteOperacionesController extends Controller
     private function nombreArchivo(string $tipo, $reportes = null): string
     {
         $prefijo = match ($tipo) {
-            'Relevante'   => '1',
-            'Inusual'     => '2',
-            'Preocupante' => '3',
-            default       => '0',
+            'Monto'         => '1',
+            'Monto Inusual' => '2',
+            'Nuevo'         => '3',
+            default         => '0',
         };
 
         $fechaRef = null;
@@ -307,7 +331,7 @@ class ReporteOperacionesController extends Controller
             if (empty($fechaRef) && ! empty($first->PeriodoReporte)) {
                 // Si no hay fecha pero hay periodo almacenado, usarlo directamente
                 $raw = preg_replace('/\D/', '', (string) $first->PeriodoReporte);
-                if ($tipo === 'Relevante' && strlen($raw) >= 4) {
+                if ($tipo === 'Monto' && strlen($raw) >= 4) {
                     $periodo = substr($raw, -4);
                     if (strlen($periodo) === 4) {
                         return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
@@ -323,11 +347,11 @@ class ReporteOperacionesController extends Controller
 
         if ($fechaRef) {
             $ts = strtotime((string) $fechaRef);
-            $periodo = $tipo === 'Relevante'
+            $periodo = $tipo === 'Monto'
                 ? ($ts ? date('ym', $ts) : now()->format('ym'))
                 : ($ts ? date('ymd', $ts) : now()->format('ymd'));
         } else {
-            $periodo = $tipo === 'Relevante'
+            $periodo = $tipo === 'Monto'
                 ? now()->format('ym')
                 : now()->format('ymd');
         }
@@ -338,20 +362,20 @@ class ReporteOperacionesController extends Controller
     private function nombreArchivoDesdeAlertas(string $tipo, $alertas): string
     {
         $prefijo = match ($tipo) {
-            'Relevante'   => '1',
-            'Inusual'     => '2',
-            'Preocupante' => '3',
-            default       => '0',
+            'Monto'         => '1',
+            'Monto Inusual' => '2',
+            'Nuevo'         => '3',
+            default         => '0',
         };
         $first = $alertas->first();
         $fechaRef = $first->FechaDeteccion ?? $first->FechaOperacion ?? $first->created_at ?? null;
         if ($fechaRef) {
             $ts = strtotime((string) $fechaRef);
-            $periodo = $tipo === 'Relevante'
+            $periodo = $tipo === 'Monto'
                 ? ($ts ? date('ym', $ts) : now()->format('ym'))
                 : ($ts ? date('ymd', $ts) : now()->format('ymd'));
         } else {
-            $periodo = $tipo === 'Relevante' ? now()->format('ym') : now()->format('ymd');
+            $periodo = $tipo === 'Monto' ? now()->format('ym') : now()->format('ymd');
         }
         return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
     }
@@ -360,14 +384,14 @@ class ReporteOperacionesController extends Controller
     {
         // Mapeo simplificado desde alertas cuando aún no existe reporte regulatorio.
         // No crea registro, solo genera filas para descarga sin cambiar estatus.
-        $codigosMoneda = ['MXN' => '001', 'USD' => '002', '001' => '001', '002' => '002', '1' => '001', '2' => '002'];
+        $codigosMoneda = ['MXN' => '1', 'USD' => '2', '001' => '1', '002' => '2', '01' => '1', '02' => '2', '1' => '1', '2' => '2'];
         $folio = 0;
         return $alertas->map(function ($a) use ($codigosMoneda, &$folio) {
             $folio++;
             $tipoReporte = match ($a->Patron) {
-                'Relevante'   => '1',
-                'Preocupante' => '3',
-                default       => '2',
+                'Monto' => '1',
+                'Nuevo' => '3',
+                default => '2',
             };
             $fechaDet = $a->FechaDeteccion ?? $a->FechaOperacion ?? null;
             $ts = $fechaDet ? strtotime((string) $fechaDet) : null;
@@ -375,11 +399,25 @@ class ReporteOperacionesController extends Controller
                 ? ($ts ? date('ym', $ts) : '')
                 : ($ts ? date('ymd', $ts) : '');
             $rawMoneda = strtoupper(trim((string) ($a->IDMoneda ?? '')));
-            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '001');
-            if (! in_array($moneda, ['001','002'], true)) $moneda = '001';
+            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '1');
+            $moneda = ltrim((string) $moneda, '0');
+            if ($moneda === '') $moneda = '0';
+            if (! in_array($moneda, ['1','2'], true)) $moneda = '1';
             $instrumento = trim((string) ($a->InstrumentoMonetario ?? ''));
             if ($instrumento === '') $instrumento = '01';
             if (is_numeric($instrumento)) $instrumento = str_pad($instrumento, 2, '0', STR_PAD_LEFT);
+
+            // Col.14 FechaDeteccion vacía solo en Monto (tipo 1)
+            $fechaDeteccion = $tipoReporte === '1' ? '' : $this->formatearFecha($a->FechaDeteccion);
+
+            // Cols.29-31: fraccionar nombre completo del agente
+            [$nomAg, $patAg, $matAg] = $this->fraccionarAgente(
+                $a->Agente ?? null,
+                $a->OperacionNombreAgente ?? null,
+                $a->OperacionAPaternoAgente ?? null,
+                $a->OperacionAMaternoAgente ?? null,
+                $a->OperacionRazonSocialAgente ?? null
+            );
 
             return [
                 $this->limpiar($tipoReporte),
@@ -395,7 +433,7 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar(number_format((float) ($a->MontoOperacion ?? 0), 2, '.', '')),
                 $this->limpiar($moneda),
                 $this->limpiar($this->formatearFecha($a->FechaOperacion)),
-                $this->limpiar($this->formatearFecha($a->FechaDeteccion)),
+                $this->limpiar($fechaDeteccion),
                 $this->limpiar('MX'),
                 $this->limpiar(''),
                 $this->limpiar(''),
@@ -410,11 +448,12 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar(''),
                 $this->limpiar(''),
                 $this->limpiar(''),
-                $this->limpiar($a->Agente),
-                $this->limpiar(''),
-                $this->limpiar(''),
+                $this->limpiar($nomAg),
+                $this->limpiar($patAg),
+                $this->limpiar($matAg),
                 $this->limpiar($a->RFCAgente),
                 $this->limpiar(''),
+                $this->limpiar('00'),
                 $this->limpiar(''),
                 $this->limpiar(''),
                 $this->limpiar(''),
@@ -423,14 +462,13 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar(''),
                 $this->limpiar($a->Descripcion),
                 $this->limpiar($a->Razones),
-                $this->limpiar($a->Estatus),
             ];
         })->all();
     }
 
     private function mapearFilas($reportes): array
     {
-        $codigosMoneda = ['MXN' => '001', 'USD' => '002', '001' => '001', '002' => '002', '1' => '001', '2' => '002'];
+        $codigosMoneda = ['MXN' => '1', 'USD' => '2', '001' => '1', '002' => '2', '01' => '1', '02' => '2', '1' => '1', '2' => '2'];
 
         $tiposPersona   = CatTipoPersona::pluck('IDTipoPersona', 'TipoPersona');
         $formasPago     = CatFormaPagos::pluck('IDFormaPago', 'FormaPago');
@@ -481,12 +519,16 @@ class ReporteOperacionesController extends Controller
                 ? str_pad((string) $r->IDTipoOperacion, 2, '0', STR_PAD_LEFT)
                 : '';
 
-            // Moneda nunca en blanco, default 001
+            // Moneda nunca en blanco, default 1 (un dígito, sin padding)
             $rawMoneda = strtoupper(trim((string) ($r->IDMoneda ?? '')));
-            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '001');
-            if (! in_array($moneda, ['001', '002'], true)) {
-                // Si viene texto como "PESOS" o ID numérico desconocido, fallback 001
-                $moneda = $codigosMoneda[$rawMoneda] ?? '001';
+            $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '1');
+            $moneda = ltrim((string) $moneda, '0');
+            if ($moneda === '') $moneda = '0';
+            if (! in_array($moneda, ['1', '2'], true)) {
+                // Si viene texto como "PESOS" o ID numérico desconocido, fallback 1
+                $moneda = $codigosMoneda[$rawMoneda] ?? '1';
+                $moneda = ltrim((string) $moneda, '0');
+                if ($moneda === '' || ! in_array($moneda, ['1', '2'], true)) $moneda = '1';
             }
 
             // Nacionalidad: si viene texto "Mexicana" mapea a "MX", si ya es código deja igual
@@ -533,6 +575,19 @@ class ReporteOperacionesController extends Controller
                 $curp = '';
             }
 
+            // Col.14 FechaDeteccion vacía solo en Monto (IDTipoReporte 1)
+            $esRelevante = ((int) ($r->IDTipoReporte ?? 0) === 1);
+            $fechaDeteccion = $esRelevante ? '' : $this->formatearFecha($r->FechaDeteccion);
+
+            // Cols.29-31: si viene nombre completo sin desglose, fraccionar
+            [$nomAg, $patAg, $matAg] = $this->fraccionarAgente(
+                $r->NombreAgente ?? null, null, $r->APaternoAgente ?? null, $r->AMaternoAgente ?? null, null
+            );
+
+            // Col.34 consecutivo: operación principal sin relacionados = 00
+            $cuenta = trim((string) ($r->Cuenta ?? ''));
+            if ($cuenta === '') $cuenta = '00';
+
             return [
                 $this->limpiar($r->IDTipoReporte),
                 $this->limpiar($this->periodoReporte($r)),
@@ -547,7 +602,7 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar(number_format((float) ($r->Monto ?? 0), 2, '.', '')),
                 $this->limpiar($moneda),
                 $this->limpiar($this->formatearFecha($r->FechaOperacion)),
-                $this->limpiar($this->formatearFecha($r->FechaDeteccion)),
+                $this->limpiar($fechaDeteccion),
                 $this->limpiar($nacionalidad),
                 $this->limpiar($tipoPersonaVal),
                 $this->limpiar($razonSocial),
@@ -562,12 +617,12 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar($r->Ciudad),
                 $this->limpiar($r->Telefono),
                 $this->limpiar($ocupacion),
-                $this->limpiar($r->NombreAgente),
-                $this->limpiar($r->APaternoAgente),
-                $this->limpiar($r->AMaternoAgente),
+                $this->limpiar($nomAg),
+                $this->limpiar($patAg),
+                $this->limpiar($matAg),
                 $this->limpiar($r->RFCAgente),
                 $this->limpiar($r->CURPAgente),
-                $this->limpiar($r->Cuenta),
+                $this->limpiar($cuenta),
                 $this->limpiar($r->NoPolizaCuenta),
                 $this->limpiar($r->CveSujetoObl),
                 $this->limpiar($r->NombreTitular),
@@ -575,7 +630,6 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar($r->AMaternoTitular),
                 $this->limpiar($r->Descripcion),
                 $this->limpiar($r->Razon),
-                $this->limpiar($r->Estatus),
             ];
         })->all();
     }
@@ -586,7 +640,7 @@ class ReporteOperacionesController extends Controller
         $periodo = preg_replace('/\D/', '', (string) ($r->PeriodoReporte ?? ''));
 
         if ($tipo === 1) {
-            // Relevante: YYMM (4) segun ejemplo 2022123260731.003 -> yymm
+            // Monto: YYMM (4) segun ejemplo 2022123260731.003 -> yymm
             if (strlen($periodo) >= 4) {
                 // Si viene YYYYMM (6) convertir a YYMM
                 if (strlen($periodo) >= 6) {
@@ -597,7 +651,7 @@ class ReporteOperacionesController extends Controller
             return $r->FechaDeteccion ? date('ym', strtotime((string) $r->FechaDeteccion)) : '';
         }
 
-        // Inusual/Preocupante: YYMMDD (6)
+        // Monto Inusual/Nuevo: YYMMDD (6)
         if (strlen($periodo) >= 6) {
             if (strlen($periodo) >= 8) {
                 // YYYYMMDD -> YYMMDD
@@ -618,6 +672,49 @@ class ReporteOperacionesController extends Controller
         $timestamp = strtotime((string) $fecha);
 
         return $timestamp ? date('Ymd', $timestamp) : '';
+    }
+
+    /**
+     * Fracciona nombre completo del agente en [Nombre, APaterno, AMaterno].
+     * Prioridad: desglose ya capturado (nombre/paterno/materno/razón social).
+     * Fallback: split del string completo (>=3 tokens: Nombre=tokens[0..n-3]).
+     * Regla layout PF: sin paterno => XXXX.
+     */
+    private function fraccionarAgente($full = null, $nombre = null, $paterno = null, $materno = null, $razonSocial = null): array
+    {
+        $razonSocial = trim((string) ($razonSocial ?? ''));
+        $nombre = trim((string) ($nombre ?? ''));
+        $paterno = trim((string) ($paterno ?? ''));
+        $materno = trim((string) ($materno ?? ''));
+        $full = trim(preg_replace('/\s+/', ' ', (string) ($full ?? '')));
+
+        // Si hay razón social de agente moral, va completa en Nombre y vacíos en apellidos
+        if ($razonSocial !== '') {
+            return [$razonSocial, '', ''];
+        }
+
+        if ($nombre !== '' && ($paterno !== '' || $materno !== '')) {
+            if ($nombre !== '' && $paterno === '' && $materno !== '') {
+                $paterno = 'XXXX';
+            }
+            return [$nombre, $paterno, $materno];
+        }
+
+        $base = $nombre !== '' ? $nombre : $full;
+        if ($base === '') {
+            return ['', '', ''];
+        }
+
+        $tokens = preg_split('/\s+/', $base, -1, PREG_SPLIT_NO_EMPTY);
+        if (count($tokens) >= 3) {
+            $mat = array_pop($tokens);
+            $pat = array_pop($tokens);
+            return [implode(' ', $tokens), $pat, $mat];
+        }
+        if (count($tokens) === 2) {
+            return [$tokens[0], $tokens[1], ''];
+        }
+        return [$tokens[0], 'XXXX', ''];
     }
 
     private function limpiar($value): string

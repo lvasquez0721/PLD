@@ -144,6 +144,70 @@ Route::post('/migraciones/ejecutar', function () {
     }
 });
 
+Route::post('/sistema/setup', function () {
+    if (! app()->environment('local')) {
+        abort(403, 'Acceso denegado');
+    }
+    try {
+        // 1. Correr migraciones
+        Artisan::call('migrate', ['--force' => true]);
+        $migrateOutput = Artisan::output();
+
+        // 2. Generar enlace simbólico storage
+        $storagePath = public_path('storage');
+        $targetPath = storage_path('app/public');
+        $storageOutput = null;
+
+        if (is_link($storagePath)) {
+            if (readlink($storagePath) !== $targetPath) {
+                return response()->json([
+                    'success' => false,
+                    'migrate' => $migrateOutput,
+                    'message' => "Migraciones OK, pero el enlace 'public/storage' apunta a '".readlink($storagePath)."', no a '$targetPath'.",
+                ], 500);
+            }
+            $storageOutput = "'public/storage' ya existe y apunta correctamente.";
+        } elseif (file_exists($storagePath)) {
+            return response()->json([
+                'success' => false,
+                'migrate' => $migrateOutput,
+                'message' => "'public/storage' ya existe pero no es un enlace simbólico. Eliminarlo manualmente y vuelve a intentar.",
+            ], 500);
+        } else {
+            if (! file_exists($targetPath)) {
+                return response()->json([
+                    'success' => false,
+                    'migrate' => $migrateOutput,
+                    'message' => "Migraciones OK, pero el directorio target '$targetPath' no existe.",
+                ], 500);
+            }
+
+            Artisan::call('storage:link');
+            $storageOutput = Artisan::output() ?: 'Enlace simbólico creado exitosamente.';
+
+            if (! is_link($storagePath)) {
+                return response()->json([
+                    'success' => false,
+                    'migrate' => $migrateOutput,
+                    'message' => 'Migraciones OK, pero crear el enlace simbólico falló. Verifica permisos de archivo y rutas.',
+                    'storage' => $storageOutput,
+                ], 500);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'migrate' => $migrateOutput,
+            'storage' => $storageOutput,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Excepción: '.$e->getMessage(),
+        ], 500);
+    }
+});
+
 Route::post('/storage-link', function () {
     try {
         // Validación previa: asegurarse que el target 'storage' existe y es accesible

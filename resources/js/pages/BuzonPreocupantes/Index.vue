@@ -27,11 +27,10 @@ defineProps<{
     toast?: string
 }>()
 
-// Patrón con el que se emiten las alertas
+// Patrón con el que se emiten las alertas (buzón solo emite Nuevo)
 const patronSeleccionado = ref('Nuevo');
 const opcionesPatron = [
     { value: 'Nuevo', label: 'Nuevo' },
-    { value: 'Preocupante', label: 'Preocupante' },
 ];
 
 // IDs seleccionados

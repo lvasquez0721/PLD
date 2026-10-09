@@ -269,11 +269,17 @@ const opcionesEstatus = [
 ];
 
 const alertaEstatus = computed(() => (alerta.value?.Estatus || '').toLowerCase());
+const esRelevante = computed(() => {
+    const patron = alerta.value?.Patron;
+    return typeof patron === 'string' && patron.trim().toLowerCase() === 'monto';
+});
 const puedeEditar = computed(() => {
+    if (esRelevante.value) return false;
     const est = alertaEstatus.value;
     return est !== 'enviado' && est !== 'cerrado';
 });
 const puedeEliminarEvidencias = computed(() => {
+    if (esRelevante.value) return false;
     const est = alertaEstatus.value;
     return est !== 'enviado' && est !== 'cerrado';
 });
@@ -391,7 +397,7 @@ function volverPaginaAnterior() {
 }
 
 const esPreocupante = computed(() => {
-    return (alerta.value.Patron && typeof alerta.value.Patron === 'string' && alerta.value.Patron.trim().toLowerCase() === 'preocupante')
+    return (alerta.value.Patron && typeof alerta.value.Patron === 'string' && alerta.value.Patron.trim().toLowerCase() === 'nuevo')
 });
 const pagoPreocupante = computed(() => {
     return {
@@ -425,6 +431,9 @@ function getEvidenciaKey(ev: any, idx: any): string | number {
 }
 
 function eliminarEvidencia(ev: any, idx: any) {
+    if (esRelevante.value) {
+        return;
+    }
     const est = alertaEstatus.value;
     if (est === 'cerrado' || est === 'enviado') {
         return;
@@ -475,7 +484,7 @@ function submitEditarAlerta(e: Event) {
     formData.append('_method', 'POST');
 
     router.post(
-        route ? route('alertas.editar.dos') : '/alertas/editar-dos',
+        route ? route('alertas.editar-dos') : '/alertas/editar-dos',
         formData,
         {
             forceFormData: true,
@@ -807,7 +816,7 @@ function submitEditarAlerta(e: Event) {
                                 </svg>
                             </div>
                             <p class="text-sm text-gray-500 font-medium">No hay evidencias cargadas</p>
-                            <p class="text-xs text-gray-400 mt-1">Sube archivos en la sección de edición</p>
+                            <p v-if="!esRelevante" class="text-xs text-gray-400 mt-1">Sube archivos en la sección de edición</p>
                         </div>
                     </div>
 

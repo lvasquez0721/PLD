@@ -225,19 +225,19 @@ function getCategoryTags(cliente: any) {
     const tags = [];
 
     if (cliente.coincidencias) {
-        tags.push({ color: 'bg-orange-500', tooltip: 'Coincidencia, necesita revisión' });
+        tags.push({ color: 'bg-orange-500 dark:bg-orange-500/80', tooltip: 'Coincidencia, necesita revisión' });
     }
     if (cliente.esPPE) {
-        tags.push({ color: 'bg-indigo-400', tooltip: 'PPE, necesita revisión' });
+        tags.push({ color: 'bg-indigo-400 dark:bg-indigo-400/80', tooltip: 'PPE, necesita revisión' });
     }
     if (cliente.autorizadoApareceEnListas) {
-        tags.push({ color: 'bg-yellow-300', tooltip: 'Autorizada que aparece en listas' });
+        tags.push({ color: 'bg-yellow-300 dark:bg-yellow-400/80', tooltip: 'Autorizada que aparece en listas' });
     }
     if (cliente.fueraDeCategoria) {
-        tags.push({ color: 'bg-purple-500', tooltip: 'Fuera de categoría Tláloc' });
+        tags.push({ color: 'bg-purple-500 dark:bg-purple-500/80', tooltip: 'Fuera de categoría Tláloc' });
     }
     if (cliente.CNSF) {
-        tags.push({ color: 'bg-rose-400', tooltip: 'Listas internas (oficios CNSF)' });
+        tags.push({ color: 'bg-rose-400 dark:bg-rose-400/80', tooltip: 'Listas internas (oficios CNSF)' });
     }
     if (tags.length === 0) {
         tags.push({ color: 'bg-white border border-gray-300', tooltip: 'Sin coincidencia en listas', type: 'text' });
@@ -366,9 +366,9 @@ function descargarCSV() {
             <div class="relative">
 
             <div
-                class="fixed inset-0 -z-50 opacity-15 [background-image:url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2Fsvg%22%3E%3Cg%20fill%3D%22%23a0aec0%22%20fill-opacity%3D%220.1%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
+                class="fixed inset-0 -z-50 opacity-15 [background-image:url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2Fsvg%22%3E%3Cg%20fill%3D%22%23a0aec0%22%20fill-opacity%3D%220.1%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')] dark:opacity-[0.07]" />
             <div
-                class="fixed -top-1/2 left-1/2 -z-40 h-[1200px] w-[1200px] -translate-x-1/2 rounded-full bg-gradient-to-br from-blue-50 via-blue-50/0 to-blue-100/0 opacity-60 dark:from-blue-950/20" />
+                class="fixed -top-1/2 left-1/2 -z-40 h-[1200px] w-[1200px] -translate-x-1/2 rounded-full bg-gradient-to-br from-blue-50 via-blue-50/0 to-blue-100/0 opacity-60 dark:from-blue-950/20 dark:via-transparent dark:to-transparent dark:opacity-30" />
 
 
             <!-- Leyenda de colores PLD con tarjetas sensoriales -->
@@ -392,9 +392,9 @@ function descargarCSV() {
                 <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <!-- Sin coincidencia en listas -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-blue-400/80 hover:bg-white hover:shadow-2xl hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-blue-400/80 hover:bg-white hover:shadow-2xl hover:shadow-blue-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md border border-gray-300 bg-white shadow-sm transition-all duration-300 group-hover:border-blue-400/80 dark:border-neutral-700 dark:bg-transparent"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md border border-gray-300 bg-white shadow-sm transition-all duration-300 group-hover:border-blue-400/80 dark:border-neutral-700 dark:bg-transparent dark:shadow-none dark:group-hover:border-blue-500/50"></span>
                         <div>
                             <p class="text-xs font-semibold text-gray-800 dark:text-neutral-200">Sin coincidencia</p>
                             <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
@@ -405,9 +405,9 @@ function descargarCSV() {
 
                     <!-- Aparece en listas bloqueadas, necesita revisión -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-orange-400/80 hover:bg-white hover:shadow-2xl hover:shadow-orange-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-orange-400/80 hover:bg-white hover:shadow-2xl hover:shadow-orange-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-orange-500 shadow-sm shadow-orange-500/30 transition-all duration-300"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-orange-500 shadow-sm shadow-orange-500/30 transition-all duration-300 dark:shadow-black/20"></span>
                         <div>
                             <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">Coincidencia</p>
                             <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
@@ -418,9 +418,9 @@ function descargarCSV() {
 
                     <!-- PPE, necesita revisión -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-indigo-400/80 hover:bg-white hover:shadow-2xl hover:shadow-indigo-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-indigo-400/80 hover:bg-white hover:shadow-2xl hover:shadow-indigo-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-indigo-400 shadow-sm shadow-indigo-400/30 transition-all duration-300"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-indigo-400 shadow-sm shadow-indigo-400/30 transition-all duration-300 dark:shadow-black/20"></span>
                         <div>
                             <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-200">PPE</p>
                             <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
@@ -431,9 +431,9 @@ function descargarCSV() {
 
                     <!-- Autorizada que aparece en listas -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-yellow-400/80 hover:bg-white hover:shadow-2xl hover:shadow-yellow-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-yellow-400/80 hover:bg-white hover:shadow-2xl hover:shadow-yellow-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-yellow-300 shadow-sm shadow-yellow-300/30 transition-all duration-300"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-yellow-300 shadow-sm shadow-yellow-300/30 transition-all duration-300 dark:shadow-black/20"></span>
                         <div>
                             <p class="text-xs font-semibold text-yellow-700 dark:text-yellow-200">Autorizada en Listas
                             </p>
@@ -445,9 +445,9 @@ function descargarCSV() {
 
                     <!-- Fuera de categoría Tláloc -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-purple-400/80 hover:bg-white hover:shadow-2xl hover:shadow-purple-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-purple-400/80 hover:bg-white hover:shadow-2xl hover:shadow-purple-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-purple-500 shadow-sm shadow-purple-500/30 transition-all duration-300"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-purple-500 shadow-sm shadow-purple-500/30 transition-all duration-300 dark:shadow-black/20"></span>
                         <div>
                             <p class="text-xs font-semibold text-purple-700 dark:text-purple-200">Fuera de Categoría</p>
                             <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
@@ -458,9 +458,9 @@ function descargarCSV() {
 
                     <!-- Listas internas (oficios CNSF) -->
                     <div
-                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-rose-400/80 hover:bg-white hover:shadow-2xl hover:shadow-rose-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80">
+                        class="group flex items-start gap-3 rounded-xl border border-gray-200/80 bg-white/80 px-4 py-3 text-sm text-gray-900 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-rose-400/80 hover:bg-white hover:shadow-2xl hover:shadow-rose-500/10 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-white dark:hover:bg-neutral-800/80 dark:hover:shadow-black/30">
                         <span
-                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-rose-400 shadow-sm shadow-rose-400/30 transition-all duration-300"></span>
+                            class="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-rose-400 shadow-sm shadow-rose-400/30 transition-all duration-300 dark:shadow-black/20"></span>
                         <div>
                             <p class="text-xs font-semibold text-rose-700 dark:text-rose-200">Listas Internas (CNSF)</p>
                             <p class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
@@ -473,7 +473,7 @@ function descargarCSV() {
 
             <!-- Zona de búsqueda y filtros -->
             <div
-                class="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-neutral-800/80 dark:bg-neutral-950/60 dark:focus-within:border-blue-500/80 dark:focus-within:ring-blue-400/10">
+                class="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-neutral-800/80 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20 dark:focus-within:border-blue-500/80 dark:focus-within:ring-blue-400/10">
                 <!-- Informational Block -->
                 <div class="mb-4">
                     <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-500">
@@ -495,16 +495,16 @@ function descargarCSV() {
                         </span>
                         <span v-if="filtroTipoPersona !== 'todos'" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30">
                             {{ filtroTipoPersona === 'fisica' ? 'Personas Físicas' : 'Personas Morales' }}
-                            <button @click="filtroTipoPersona = 'todos'" type="button" class="ml-0.5 font-bold hover:text-emerald-900" aria-label="Quitar filtro tipo">×</button>
+                            <button @click="filtroTipoPersona = 'todos'" type="button" class="ml-0.5 font-bold hover:text-emerald-900 dark:hover:text-emerald-100" aria-label="Quitar filtro tipo">×</button>
                         </span>
                         <span v-if="filtroEstatus !== 'todos'" class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
                             {{ filtroEstatus === 'activo' ? 'Activos' : 'Inactivos' }}
-                            <button @click="filtroEstatus = 'todos'" type="button" class="ml-0.5 font-bold hover:text-amber-900" aria-label="Quitar filtro estatus">×</button>
+                            <button @click="filtroEstatus = 'todos'" type="button" class="ml-0.5 font-bold hover:text-amber-900 dark:hover:text-amber-100" aria-label="Quitar filtro estatus">×</button>
                         </span>
                         <template v-if="filtroCategoriaPLD.length !== pldCategoryOptions.length && filtroCategoriaPLD.length > 0">
                             <span v-for="cat in filtroCategoriaPLD" :key="cat" class="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700 ring-1 ring-inset ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30">
                                 {{ categoryDisplayNames[cat] || cat }}
-                                <button @click="removeCategory(cat)" type="button" class="ml-0.5 font-bold hover:text-violet-900" :aria-label="`Quitar ${cat}`">×</button>
+                                <button @click="removeCategory(cat)" type="button" class="ml-0.5 font-bold hover:text-violet-900 dark:hover:text-violet-100" :aria-label="`Quitar ${cat}`">×</button>
                             </span>
                         </template>
                         <button @click="clearAllFilters" type="button" class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline dark:text-neutral-400 dark:hover:text-white">
@@ -540,10 +540,10 @@ function descargarCSV() {
                     <div class="flex flex-col gap-1.5">
                         <label for="filtro-tipo-persona" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Tipo persona</label>
                         <select id="filtro-tipo-persona" v-model="filtroTipoPersona"
-                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
-                            <option value="todos">Todas las personas</option>
-                            <option value="fisica">Personas Físicas</option>
-                            <option value="moral">Personas Morales</option>
+                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="todos">Todas las personas</option>
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="fisica">Personas Físicas</option>
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="moral">Personas Morales</option>
                         </select>
                     </div>
 
@@ -551,10 +551,10 @@ function descargarCSV() {
                     <div class="flex flex-col gap-1.5">
                         <label for="filtro-estatus-cliente" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Estatus</label>
                         <select id="filtro-estatus-cliente" v-model="filtroEstatus"
-                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
-                            <option value="todos">Todos los estatus</option>
-                            <option value="activo">Activos</option>
-                            <option value="inactivo">Inactivos</option>
+                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="todos">Todos los estatus</option>
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="activo">Activos</option>
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="inactivo">Inactivos</option>
                         </select>
                     </div>
 
@@ -564,7 +564,7 @@ function descargarCSV() {
                         <!-- Dropdown Button -->
                         <button id="pld-category-dropdown-button" ref="dropdownButtonRef"
                             @click="toggleCategoryDropdown" type="button" :aria-expanded="showCategoryDropdown"
-                            class="flex w-full items-center justify-between rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                            class="flex w-full items-center justify-between rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
                             <span class="truncate">{{ displayCategoryFilters || 'Todas' }}</span>
                             <span class="ml-2 flex items-center gap-1.5">
                                 <span v-if="selectedCategoryCount !== pldCategoryOptions.length"
@@ -585,7 +585,7 @@ function descargarCSV() {
                     <!-- Botón Descargar CSV -->
                     <div class="flex items-start">
                         <button @click="descargarCSV" type="button"
-                            class="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-600">
+                            class="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-emerald-500 dark:bg-emerald-500 dark:shadow-black/20 dark:hover:bg-emerald-600 dark:hover:shadow-black/30 dark:ring-offset-neutral-950">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                 xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -600,7 +600,7 @@ function descargarCSV() {
             <!-- Dropdown Panel (fixed positioning to escape overflow containers) -->
             <Teleport to="body">
                 <div v-if="showCategoryDropdown" ref="dropdownPanelRef"
-                    class="fixed z-[9999] w-72 origin-top-right rounded-xl border border-gray-200/80 bg-white/80 shadow-2xl shadow-gray-500/20 backdrop-blur-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-neutral-700/80 dark:bg-neutral-900/80 dark:shadow-black/50"
+                    class="fixed z-[9999] w-72 origin-top-right rounded-xl border border-gray-200/80 bg-white/80 shadow-2xl shadow-gray-500/20 backdrop-blur-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-neutral-700/80 dark:bg-neutral-900/80 dark:shadow-black/50 dark:ring-white/10 dark:ring-opacity-10"
                     :style="{
                         top: dropdownPosition.top + 'px',
                         left: dropdownPosition.left + 'px'
@@ -610,7 +610,7 @@ function descargarCSV() {
                             <label
                                 class="inline-flex w-full items-center rounded-md p-1 transition-colors hover:bg-gray-100 dark:hover:bg-neutral-800">
                                 <input type="checkbox" v-model="selectAllCategoriesComputed"
-                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:checked:bg-blue-600">
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-none dark:checked:bg-blue-600">
                                 <span class="ml-2 text-xs font-semibold text-gray-800 dark:text-white">Seleccionar
                                     todas ({{ selectedCategoryCount }}/{{ pldCategoryOptions.length }})</span>
                             </label>
@@ -619,13 +619,13 @@ function descargarCSV() {
                             <label v-for="option in pldCategoryOptions" :key="option.value"
                                 class="inline-flex items-center rounded-md p-1 text-xs text-gray-900 transition-colors hover:bg-gray-100 dark:text-white dark:hover:bg-neutral-800">
                                 <input type="checkbox" :value="option.value" v-model="filtroCategoriaPLD"
-                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:checked:bg-blue-600">
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500/50 focus:ring-offset-0 dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-none dark:checked:bg-blue-600">
                                 <span class="ml-2">{{ option.label }}</span>
                             </label>
                         </div>
                         <div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 dark:border-neutral-700">
                             <button @click="filtroCategoriaPLD = []" type="button" class="text-[11px] font-semibold text-gray-500 hover:text-gray-800 hover:underline dark:text-neutral-400 dark:hover:text-white">Limpiar</button>
-                            <button @click="showCategoryDropdown = false" type="button" class="rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700">Aplicar</button>
+                            <button @click="showCategoryDropdown = false" type="button" class="rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">Aplicar</button>
                         </div>
                     </div>
                 </div>
@@ -641,7 +641,7 @@ function descargarCSV() {
                     <table class="min-w-full border-collapse text-sm text-gray-800 dark:text-neutral-200">
                         <thead class="sticky top-0 z-10">
                             <tr
-                                class="bg-gray-50/80 text-xs font-semibold uppercase tracking-wider text-gray-600 backdrop-blur-md dark:bg-neutral-900/80 dark:text-neutral-300">
+                                class="bg-gray-50/80 text-xs font-semibold uppercase tracking-wider text-gray-600 backdrop-blur-md dark:bg-neutral-900/95 dark:text-neutral-300 dark:backdrop-blur-xl">
                                 <th
                                     class="border-b border-gray-200/80 px-4 py-3 text-left align-middle font-semibold dark:border-neutral-800">
                                     Nombre
@@ -674,7 +674,7 @@ function descargarCSV() {
                                     <div class="space-y-2" aria-hidden="true">
                                         <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800"></div>
                                     </div>
-                                    <p class="mt-3 text-center text-xs text-gray-400">Buscando clientes…</p>
+                                    <p class="mt-3 text-center text-xs text-gray-400 dark:text-neutral-500">Buscando clientes…</p>
                                 </td>
                             </tr>
                             <tr v-else-if="!clientesFiltrados.length" key="no-results">
@@ -683,7 +683,7 @@ function descargarCSV() {
                                     <p class="text-sm font-semibold text-gray-700 dark:text-neutral-200">Sin resultados para los filtros actuales</p>
                                     <p class="mx-auto mt-1 max-w-md text-xs">Prueba con menos palabras, revisa la ortografía o quita algún filtro. La búsqueda ignora mayúsculas, acentos y el orden de las palabras.</p>
                                     <div class="mt-4 flex items-center justify-center gap-2">
-                                        <button @click="clearAllFilters" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">Limpiar filtros</button>
+                                        <button @click="clearAllFilters" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">Limpiar filtros</button>
                                         <button @click="clearSearch" type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">Solo quitar búsqueda</button>
                                     </div>
                                 </td>
@@ -728,7 +728,7 @@ function descargarCSV() {
                                                 <Tooltip>
                                                     <TooltipTrigger as-child>
                                                         <div :class="tag.color"
-                                                            class="h-3 w-5 cursor-help rounded-sm border border-black/5 shadow-sm">
+                                                            class="h-3 w-5 cursor-help rounded-sm border border-black/5 shadow-sm dark:border-white/10 dark:shadow-black/20">
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
@@ -762,8 +762,8 @@ function descargarCSV() {
                     <div class="flex items-center space-x-2">
                         <label for="items-per-page" class="text-xs text-gray-600 dark:text-neutral-300">Mostrar:</label>
                         <select id="items-per-page" v-model="itemsPerPage"
-                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 py-2 pl-3 pr-8 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
-                            <option v-for="option in itemsPerPageOptions" :key="option" :value="option">{{ option }}
+                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 py-2 pl-3 pr-8 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" v-for="option in itemsPerPageOptions" :key="option" :value="option">{{ option }}
                             </option>
                         </select>
                     </div>
@@ -779,17 +779,17 @@ function descargarCSV() {
                 <!-- Page navigation controls -->
                 <div class="flex items-center space-x-2">
                     <button @click="prevPage" :disabled="currentPage === 1 || isSearching"
-                        class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
+                        class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-black/20 dark:hover:enabled:bg-neutral-800/90 dark:hover:shadow-black/20">
                         Anterior
                     </button>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-gray-600 dark:text-neutral-300">Página</span>
                         <input type="number" v-model.number="currentPage" min="1" :max="Math.max(1, totalPages)" :disabled="isSearching"
-                            class="w-16 rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2 text-center text-xs text-gray-900 outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                            class="w-16 rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2 text-center text-xs text-gray-900 outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
                         <span class="text-xs text-gray-600 dark:text-neutral-300">de {{ Math.max(1, totalPages) }}</span>
                     </div>
                     <button @click="nextPage" :disabled="currentPage === totalPages || totalPages === 0 || isSearching"
-                        class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:hover:enabled:bg-neutral-800/90">
+                        class="rounded-lg border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-out hover:bg-gray-100/80 hover:shadow-md hover:shadow-gray-300/20 disabled:cursor-not-allowed disabled:opacity-50 motion-safe:hover:enabled:scale-105 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-black/20 dark:hover:enabled:bg-neutral-800/90 dark:hover:shadow-black/20">
                         Siguiente
                     </button>
                 </div>
@@ -866,6 +866,14 @@ function descargarCSV() {
 
 ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(156, 163, 175, 0.6);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+    background-color: rgba(82, 82, 82, 0.8);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(113, 113, 122, 0.9);
 }
 
 /* Keyframe for subtle background animation if needed */

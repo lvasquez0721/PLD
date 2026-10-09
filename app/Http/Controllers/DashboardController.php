@@ -24,8 +24,8 @@ class DashboardController extends Controller
             $alertasPorEstatus[$estatus] = TbAlertas::where('Estatus', $estatus)->count();
         }
 
-        // Alertas por patrón PLD (Relevante, Inusual, Preocupante)
-        $patronesPLD = ['Relevante', 'Inusual', 'Preocupante', 'Cancelacion'];
+        // Alertas por patrón PLD (Monto, Monto Inusual, Nuevo)
+        $patronesPLD = ['Monto', 'Monto Inusual', 'Nuevo', 'Cancelacion'];
         $alertasPorPatron = [];
         foreach ($patronesPLD as $patron) {
             $alertasPorPatron[$patron] = TbAlertas::where('Patron', $patron)->count();

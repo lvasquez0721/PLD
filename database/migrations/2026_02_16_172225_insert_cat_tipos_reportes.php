@@ -12,9 +12,9 @@ return new class extends Migration
     {
         // Insert catalog entries into catTipoReporte
         DB::table('catTipoReporte')->insert([
-            ['IDTipoReporte' => 1, 'TipoReporte' => 'Relevante'],
-            ['IDTipoReporte' => 2, 'TipoReporte' => 'Inusual'],
-            ['IDTipoReporte' => 3, 'TipoReporte' => 'Preocupante'],
+            ['IDTipoReporte' => 1, 'TipoReporte' => 'Monto'],
+            ['IDTipoReporte' => 2, 'TipoReporte' => 'Monto Inusual'],
+            ['IDTipoReporte' => 3, 'TipoReporte' => 'Nuevo'],
         ]);
     }
 

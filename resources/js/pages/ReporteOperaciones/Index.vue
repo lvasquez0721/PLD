@@ -16,10 +16,10 @@ const fechaInicialStr   = ref('');
 const fechaFinalStr     = ref('');
 
 const opcionesTipoReporte = [
-    { value: 'Todos',        label: 'Todos' },
-    { value: 'Relevante',    label: 'Relevante' },
-    { value: 'Inusual',      label: 'Inusual' },
-    { value: 'Preocupante',  label: 'Preocupante' },
+    { value: 'Todos',         label: 'Todos' },
+    { value: 'Monto',         label: 'Monto' },
+    { value: 'Monto Inusual', label: 'Monto Inusual' },
+    { value: 'Nuevo',         label: 'Nuevo' },
 ];
 
 const opcionesEstatus = [

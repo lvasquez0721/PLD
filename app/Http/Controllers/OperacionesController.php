@@ -651,19 +651,19 @@ class OperacionesController extends Controller
     {
         $patron = $alertaData['patron'] ?? '';
 
-        // Regla fija: Fraccionado, Cancelacion, Preocupante e Inusual siempre se emiten en Generado,
+        // Regla fija: Fraccionado, Cancelacion, Nuevo y Monto Inusual siempre se emiten en Generado,
         // sin importar umbrales de monto.
         if (in_array($patron, [
             AnalisisPagosService::PATRON_FRACCIONADO,
             AnalisisPagosService::PATRON_CANCELACION,
             AnalisisPagosService::PATRON_MONTO_INUSUAL,
-            'Preocupante',
+            'Nuevo',
         ], true)) {
             return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        // Blindaje adicional case-insensitive para patrón "inusual"
-        if (is_string($patron) && strtolower(trim($patron)) === 'inusual') {
+        // Blindaje adicional case-insensitive para patrón "monto inusual" (legacy "inusual")
+        if (is_string($patron) && in_array(strtolower(trim($patron)), ['monto inusual', 'inusual'], true)) {
             return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
@@ -675,7 +675,7 @@ class OperacionesController extends Controller
             return AnalisisPagosService::ESTATUS_GENERADO;
         }
 
-        // NOTA: El patrón Inusual siempre se emite en Generado (ver regla fija arriba).
+        // NOTA: El patrón Monto Inusual siempre se emite en Generado (ver regla fija arriba).
         // No se aplica umbral de monto mínimo ni cierre automático.
 
         if ($operacion) {

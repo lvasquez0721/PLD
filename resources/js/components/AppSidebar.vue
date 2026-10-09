@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import NavMain, { type NavGroup } from '@/components/NavMain.vue';
+import NavAppearance from '@/components/NavAppearance.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
     Sidebar,
@@ -161,6 +162,7 @@ const logoHref = computed(() => (isDepurador.value ? '/logs' : dashboard()));
 
         <SidebarFooter class="flex-shrink-0 px-2 pb-3">
             <div aria-hidden="true" class="sidenav-hairline mx-2 mb-2 h-px" />
+            <NavAppearance />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

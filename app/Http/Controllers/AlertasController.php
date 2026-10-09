@@ -324,6 +324,16 @@ class AlertasController extends Controller
                 }
             }
 
+            if (strtolower(trim((string) ($alerta->Patron ?? ''))) === 'monto') {
+                if ($isInertia) {
+                    return redirect()->back()->with('error', 'Las alertas con patrón Monto no son editables.');
+                } else {
+                    return response()->json([
+                        'message' => 'Las alertas con patrón Monto no son editables.',
+                    ], 403);
+                }
+            }
+
             $agenteCliente = TbClientes::find($request->input('agente'));
             $agenteNombre = $agenteCliente
                 ? (($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
@@ -338,14 +348,12 @@ class AlertasController extends Controller
             $horaActual = date('H:i:s');
             $fechaActualYMD = date('Y-m-d');
 
-            // Regla fija: Preocupante siempre se emite en Generado (salvo transición a Enviado al reportar).
+            // Se respeta el estatus enviado por el usuario para que el
+            // cambio se refleje en la interfaz.
             $estatus = $request->input('estatus');
-            if ($estatus !== 'Enviado') {
-                $estatus = 'Generado';
-            }
 
-            // El patrón siempre es "Preocupante" según la instrucción
-            $alerta->Patron = "Preocupante";
+            // El patrón siempre es "Nuevo" según la instrucción (buzón solo emite Nuevo)
+            $alerta->Patron = "Nuevo";
 
             $alerta->Folio = $request->input('idAlerta');
             $alerta->IDCliente = $request->input('noCliente');
@@ -454,6 +462,16 @@ class AlertasController extends Controller
                 }
             }
 
+            if (strtolower(trim((string) ($alerta->Patron ?? ''))) === 'monto') {
+                if ($isInertia) {
+                    return redirect()->back()->with('error', 'Las alertas con patrón Monto no son editables.');
+                } else {
+                    return response()->json([
+                        'message' => 'Las alertas con patrón Monto no son editables.',
+                    ], 403);
+                }
+            }
+
             // Manejo de evidencias (añade a las existentes) - guardar usando nombre original
             $evidenciasData = [];
             if ($request->hasFile('evidencias')) {
@@ -479,13 +497,11 @@ class AlertasController extends Controller
                 $alerta->Evidencias = json_encode(array_merge($evidenciasPrevias, $evidenciasData));
             }
 
-            // Regla fija: Fraccionado, Cancelacion y Preocupante siempre en Generado
+            // Regla fija: Fraccionado, Cancelacion y Nuevo siempre en Generado
             // (se respeta la transición a Enviado al reportar).
+            // NOTA: se respeta el estatus enviado por el usuario para que el
+            // cambio se refleje en la vista de detalle.
             $estatus = $request->input('estatus');
-            $patronActual = $alerta->Patron ?? '';
-            if ($estatus !== 'Enviado' && in_array($patronActual, ['Fraccionado', 'Cancelacion', 'Preocupante'], true)) {
-                $estatus = 'Generado';
-            }
             $alerta->Estatus      = $estatus;
             $alerta->Razones      = $request->input('razones');
             $alerta->Descripcion  = $request->input('descripcion');
@@ -566,6 +582,11 @@ class AlertasController extends Controller
         if (!$alerta) {
             return back()
                 ->with('error', 'No se encontró la alerta indicada.');
+        }
+
+        if (strtolower(trim((string) ($alerta->Patron ?? ''))) === 'monto') {
+            return back()
+                ->with('error', 'Las alertas con patrón Monto son de solo lectura.');
         }
 
         $pathToDelete = $request->input('path');

@@ -30,11 +30,11 @@ class BuzonPreocupantesController extends Controller
             $validated = $request->validate([
                 'ids' => 'required|array',
                 'ids.*' => 'integer',
-                'patron' => 'nullable|string|in:Nuevo,Preocupante',
+                'patron' => 'nullable|string|in:Nuevo',
             ]);
 
             $patron = $validated['patron'] ?? 'Nuevo';
-            // Regla fija: Preocupante (y Nuevo) siempre se emiten en Generado.
+            // Regla fija: Nuevo siempre se emite en Generado (buzón solo emite patrón Nuevo).
             $estatus = 'Generado';
 
             // Convertir los IDs a enteros
