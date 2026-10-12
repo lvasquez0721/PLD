@@ -135,7 +135,7 @@ class AnalisisPagosService
 
     private function analizarMontoRelevante(TbOperaciones $operacion, array $pagos, ResultadoAnalisisPago $resultado): void
     {
-        // Solo pagos en efectivo
+        // Solo pagos en efectivo. Umbral ID 1 (Operaciones relevantes) en USD vía Banxico.
         $pagosEfectivo = collect($pagos)->filter(fn ($pago) => $pago['IDFormaPago'] == 1);
         $umbralRelevante = CatParametriaPLD::getOperacionesRelevantes();
 
@@ -184,8 +184,9 @@ class AnalisisPagosService
             return;
         }
 
-        // Obtener límites de parametría (Valores en MXN)
-        // Límite Inferior: ID 14 (Monto mínimo alerta)
+        // Obtener límites de parametría (rango mixto confirmado):
+        // Límite Inferior: ID 14 (Monto mínimo alerta) en USD vía Banxico.
+        // Límite Superior: ID 17 (PM) o ID 16 (PF) en MXN.
         $limiteInferior = CatParametriaPLD::getMontoMinimoAlerta();
 
         // Determinar si es Persona Moral (IDTipoPersona = 2)
@@ -204,22 +205,23 @@ class AnalisisPagosService
         foreach ($pagos as $index => $pago) {
             $montoPago = (float) $pago['Monto'];
 
-            // Convertir monto del pago a MXN para comparar con los límites
+            // Comparar cada límite en su moneda: inferior en USD, superior en MXN.
             // Assuming all payments for an operation are in the same currency as the operation
+            $montoPagoUSD = $this->convertirAUSD($montoPago, $operacion->IDMoneda);
             $montoPagoMXN = $this->convertirAMXN($montoPago, $operacion->IDMoneda);
 
             // Validar si el monto del pago está fuera de rango
-            if ($montoPagoMXN < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
+            if ($montoPagoUSD < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
                 $resultado->esMontoInusual = true; // Set to true if any payment is inusual
 
-                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.$operacion->IDMoneda.') equivalente a MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido ['.number_format($limiteInferior, 2).', '.number_format($limiteSuperior, 2).']';
+                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.$operacion->IDMoneda.') equivalente a USD '.number_format($montoPagoUSD, 2).' / MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido [USD '.number_format($limiteInferior, 2).', MXN '.number_format($limiteSuperior, 2).']';
 
                 $alertData = [
                     'patron' => self::PATRON_MONTO_INUSUAL,
                     'descripcion' => 'Pago inusual detectado',
                     'razones' => $razones,
                     'monto_mxn' => $montoPagoMXN,
-                    'monto_usd' => $this->convertirAUSD($montoPago, $operacion->IDMoneda),
+                    'monto_usd' => $montoPagoUSD,
                 ];
 
                 if (isset($pago['IDPago'])) {
@@ -304,16 +306,16 @@ class AnalisisPagosService
 
         // Si hay alertas para generar
         if (! empty($resultado->alertasGenerar)) {
-            // Verificar si el monto total de la prima es menor al monto mínimo de alerta
-            $montoMinimoAlertaMXN = CatParametriaPLD::getMontoMinimoAlerta();
+            // Verificar si el monto total de la prima es menor al monto mínimo de alerta (USD vía Banxico)
+            $montoMinimoAlertaUSD = CatParametriaPLD::getMontoMinimoAlerta();
 
-            // Convertir PrimaTotal a MXN para comparar
-            $primaTotalMXN = $this->convertirAMXN($operacion->PrimaTotal, $operacion->IDMoneda);
+            // Convertir PrimaTotal a USD para comparar
+            $primaTotalUSD = $this->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
 
             // Si la prima total es menor al umbral mínimo, se cierra automáticamente
             // Esto aplica para alertas generadas por Fraccionado o AcumuladoEfectivo
             // donde el riesgo se mitiga si el monto es bajo.
-            if ($primaTotalMXN < $montoMinimoAlertaMXN) {
+            if ($primaTotalUSD < $montoMinimoAlertaUSD) {
                 $resultado->estatusFinal = self::ESTATUS_CERRADO;
             } else {
                 $resultado->estatusFinal = self::ESTATUS_GENERADO;

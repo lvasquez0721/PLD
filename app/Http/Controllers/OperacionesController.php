@@ -13,6 +13,7 @@ use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
 use App\Services\NotificacionCumplimientoService;
 use App\Services\PLD\AnalisisPagosService;
+use App\Services\PLD\PrimaCancelacionService;
 use App\Services\PLD\ReportesRegulatorios;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -79,13 +80,14 @@ class OperacionesController extends Controller
             ], 500);
         }
 
-        // Validar si el cliente está activo
+        // El cliente siempre permanece activo aun con coincidencia en listas,
+        // por lo que ya no se bloquea la operación por inactividad.
         $cliente = TbClientes::find($validatedData['IDCliente']);
-        if (! $cliente || ! $cliente->Activo) {
+        if (! $cliente) {
             return response()->json([
-                'codigoError' => 403,
-                'error' => 'El cliente no se encuentra activo por coincidencias en listas.',
-            ], 403);
+                'codigoError' => 404,
+                'error' => 'No se encontró el cliente indicado.',
+            ], 404);
         }
 
         // Validación unicidad FolioPoliza / FolioEndoso (aditiva, sin romper formato)
@@ -127,6 +129,35 @@ class OperacionesController extends Controller
 
         try {
             DB::beginTransaction();
+
+            // Regla espejo de cancelación: si es endoso de cancelación, la prima total
+            // debe ser exactamente -SUM(historial previo de la póliza) para que el
+            // balance final sea 0. Se auto-corrige el valor recibido del SIT.
+            $primaRecibidaOriginal = null;
+            $sumaHistorialPrevia = null;
+            $primaCancelacionCorregida = false;
+
+            if (! empty($validatedData['EsEndosoCancelacion'])) {
+                [$existeHistorial, $sumaHistorialPrevia] = PrimaCancelacionService::sumaHistorialPrevioConBloqueo($folioPolizaNorm);
+
+                if ($existeHistorial) {
+                    $primaRecibidaOriginal = round((float) $validatedData['PrimaTotal'], 2);
+                    // +0.0 normaliza un eventual -0.0 a 0.0 positivo.
+                    $primaEsperada = round(-(float) $sumaHistorialPrevia, 2) + 0.0;
+
+                    if (PrimaCancelacionService::necesitaCorreccion($primaRecibidaOriginal, $primaEsperada)) {
+                        \Log::warning('[Cancelacion] Prima autocorregida al espejo del historial', [
+                            'folio_poliza' => $folioPolizaNorm,
+                            'folio_endoso' => $folioEndosoNorm,
+                            'prima_recibida' => $primaRecibidaOriginal,
+                            'suma_historial_previa' => $sumaHistorialPrevia,
+                            'prima_esperada' => $primaEsperada,
+                        ]);
+                        $validatedData['PrimaTotal'] = $primaEsperada;
+                        $primaCancelacionCorregida = true;
+                    }
+                }
+            }
 
             $operacion = new TbOperaciones;
             $operacion->IDCliente = $validatedData['IDCliente'];
@@ -178,6 +209,10 @@ class OperacionesController extends Controller
                         'operacion_base_id' => $evaluacion['base']->IDOperacion ?? null,
                         'ultimo_pago_fecha' => $evaluacion['ultimoPago']->FechaPago ?? null,
                         'dias_desde_ultimo_pago' => $evaluacion['dias'] ?? null,
+                        'prima_recibida' => $primaRecibidaOriginal,
+                        'prima_aplicada' => round((float) $operacion->PrimaTotal, 2),
+                        'suma_historial_previa' => $sumaHistorialPrevia,
+                        'prima_corregida' => $primaCancelacionCorregida,
                     ];
                     $alertaN = $this->crearAlerta($operacion, $cliente, $alertaData, $evidencias, [], null, $request->IDFormaPago);
                     $alertasNuevas[] = $alertaN;
@@ -257,8 +292,38 @@ class OperacionesController extends Controller
                 }
             }
 
+            // Aviso por cliente de alto riesgo: siempre que el último perfil (tbPerfilTransaccional.Perfil) sea >= 2.
+            try {
+                $perfilRiesgo = \App\Models\TbPerfilTransaccional::where('IDCliente', $operacion->IDCliente)
+                    ->orderByDesc('IDRegistroPerfil')
+                    ->first();
+                if ($perfilRiesgo && is_numeric($perfilRiesgo->Perfil) && (float) $perfilRiesgo->Perfil >= 2) {
+                    $nombreRiesgo = TbAlertas::nombreParaCliente($cliente) ?? '—';
+                    NotificacionCumplimientoService::enviarRiesgoAlto([
+                        'asunto' => 'Operación de cliente de alto riesgo - PLD - '.$nombreRiesgo,
+                        'idCliente' => $operacion->IDCliente,
+                        'nombre' => $nombreRiesgo,
+                        'IDOperacion' => $operacion->IDOperacion,
+                        'FolioPoliza' => $operacion->FolioPoliza,
+                        'FolioEndoso' => $operacion->FolioEndoso,
+                        'Perfil' => $perfilRiesgo->Perfil,
+                        'IDRegistroPerfil' => $perfilRiesgo->IDRegistroPerfil,
+                        'TotalUbicacion' => $perfilRiesgo->TotalUbicacion,
+                        'TotalEconomico' => $perfilRiesgo->TotalEconomico,
+                        'CalculoOcupacion' => $perfilRiesgo->CalculoOcupacion,
+                        'fecha' => now()->format('d/m/Y'),
+                        'hora' => now()->format('H:i'),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('[Notificacion] Error enviando aviso de riesgo alto: '.$e->getMessage());
+            }
+
             $mensajeExito = 'Operación ingresada exitosamente';
             if ($operacion->EsEndosoCancelacion) {
+                if ($primaCancelacionCorregida) {
+                    $mensajeExito .= ' - Prima autocorregida de '.$primaRecibidaOriginal.' a '.round((float) $operacion->PrimaTotal, 2).' (espejo del historial)';
+                }
                 if ($alertaGenerada) {
                     $mensajeExito .= ' - Alerta de cancelación generada';
                 } else {
@@ -282,6 +347,10 @@ class OperacionesController extends Controller
                 'alertaCancelacionGenerada' => $alertaGenerada,
                 'pagosAnulados' => $pagosAnulados,
                 'alertaPPEGenerada' => $alertaPPEGenerada,
+                'primaCorregida' => $primaCancelacionCorregida,
+                'primaRecibida' => $primaRecibidaOriginal,
+                'primaAplicada' => round((float) $operacion->PrimaTotal, 2),
+                'sumaHistorialPrevia' => $sumaHistorialPrevia,
             ], 201);
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
@@ -372,11 +441,11 @@ class OperacionesController extends Controller
 
             foreach ($idsCliente as $idCliente) {
                 $clienteItem = $clientes->get($idCliente);
-                if (! $clienteItem || ! $clienteItem->Activo) {
+                if (! $clienteItem) {
                     return response()->json([
-                        'codigoError' => 403,
-                        'error' => "El cliente ID {$idCliente} no se encuentra activo por coincidencias en listas.",
-                    ], 403);
+                        'codigoError' => 404,
+                        'error' => "No se encontró el cliente ID {$idCliente}.",
+                    ], 404);
                 }
             }
 

@@ -103,12 +103,21 @@ const isClienteActivo = computed(() => {
     const activo = props.cliente?.Activo
     return activo === true || activo === 1 || activo === '1'
 })
-const clienteEstatusLabel = computed(() => (isClienteActivo.value ? 'Activo' : 'Bloqueado'))
-const clienteEstatusClass = computed(() =>
-    isClienteActivo.value
+const tieneCoincidenciaListas = computed(() => {
+    const c = props.cliente?.CoincideEnListasNegras
+    return c === true || c === 1 || c === '1'
+})
+const clienteEstatusLabel = computed(() => {
+    if (tieneCoincidenciaListas.value) return 'Activo con coincidencia'
+    return isClienteActivo.value ? 'Activo' : 'Bloqueado'
+})
+const clienteEstatusClass = computed(() => {
+    if (tieneCoincidenciaListas.value)
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+    return isClienteActivo.value
         ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
         : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
-)
+})
 
 const personaTipo = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? 'Persona Física' : 'Persona Moral')
 const personaIcon = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? UserCircle : Building)
@@ -323,7 +332,8 @@ function riesgoNombre(n: number): string {
                             </div>
                         </div>
                     </div>
-                    <div v-if="!isClienteActivo" class="mt-3">
+                    <!-- Botón Activar cliente oculto: el cliente siempre permanece activo -->
+                    <div v-if="false" class="mt-3">
                         <button
                             type="button"
                             @click="abrirModalActivarCliente"

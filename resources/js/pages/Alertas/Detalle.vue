@@ -326,6 +326,7 @@ const clienteInfo = computed(() => {
         domicilio,
         idCliente: cliente.value.IDCliente,
         activo: cliente.value.Activo,
+        coincide: cliente.value.CoincideEnListasNegras,
     };
 });
 
@@ -551,9 +552,9 @@ function submitEditarAlerta(e: Event) {
                         <div class="flex justify-between items-center mb-3">
                             <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100">Información del cliente</div>
                             <div class="flex gap-2">
-                                <!-- Botón de Activar Cliente -->
+                                <!-- Botón de Activar Cliente oculto: el cliente siempre permanece activo -->
                                 <button
-                                    v-if="cliente && cliente.IDCliente && !clienteInfo.activo"
+                                    v-if="false"
                                     type="button"
                                     @click="abrirModalActivarCliente"
                                     :disabled="loadingActivar"
@@ -576,8 +577,8 @@ function submitEditarAlerta(e: Event) {
                             <div>
                                 <span class="block text-xs text-gray-500 uppercase font-medium mb-0.5">Estatus</span>
                                 <span class="inline-block px-2 py-0.5 rounded text-xs font-bold"
-                                    :class="clienteInfo.activo ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'">
-                                    {{ clienteInfo.activo ? 'Activo' : 'Inactivo' }}
+                                    :class="clienteInfo.coincide ? 'bg-amber-100 text-amber-700 border border-amber-200' : (clienteInfo.activo ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                                    {{ clienteInfo.coincide ? 'Activo con coincidencia' : (clienteInfo.activo ? 'Activo' : 'Inactivo') }}
                                 </span>
                             </div>
                             <div>

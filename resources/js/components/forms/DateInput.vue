@@ -227,7 +227,7 @@ function handleWrapperClick(event: MouseEvent) {
         <!-- Hover/focus subtle overlay interaction -->
         <span
           aria-hidden="true"
-          class="pointer-events-none absolute inset-0 rounded-xl group-hover:shadow-[0_4px_18px_0_rgba(15,23,42,0.04)] group-hover:bg-neutral-800/2 dark:group-hover:bg-neutral-800/4 transition-all duration-200 group-focus-within:shadow-[0_5px_20px_0_rgba(0,0,0,0.10)]"
+          class="pointer-events-none absolute inset-0 rounded-xl group-hover:shadow-[0_4px_18px_0_rgba(15,23,42,0.04)] group-hover:bg-neutral-800/2 dark:group-hover:bg-neutral-800/4 dark:group-hover:shadow-[0_4px_18px_0_rgba(0,0,0,0.4)] transition-all duration-200 group-focus-within:shadow-[0_5px_20px_0_rgba(0,0,0,0.10)] dark:group-focus-within:shadow-[0_5px_20px_0_rgba(0,0,0,0.5)]"
         />
       </div>
     </div>

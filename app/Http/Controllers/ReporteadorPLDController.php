@@ -151,8 +151,9 @@ class ReporteadorPLDController extends Controller
             'usdAcum'  => $request->input('usdAcum',  '0') === '1',
             'mxn300k'  => $request->input('mxn300k',  '0') === '1',
             'mxn500k'  => $request->input('mxn500k',  '0') === '1',
-            'mxnAcum'  => $request->input('mxnAcum',  '0') === '1',
         ];
+
+        // Acumulado únicamente en USD (ID 2 Reporteador Monto Acumulado).
 
         $montoAcumUSD = CatParametriaPLD::getReporteadorMontoAcumulado();
 
@@ -219,9 +220,6 @@ class ReporteadorPLDController extends Controller
             if ($filtros['usdAcum']) {
                 $query->havingRaw("SUM($usdExpr) >= ?", [$montoAcumUSD]);
             }
-            if ($filtros['mxnAcum']) {
-                $query->havingRaw("SUM($mxdExpr) >= 1000000");
-            }
 
             return $query;
         }
@@ -240,7 +238,7 @@ class ReporteadorPLDController extends Controller
         ])
         ->orderBy('op.FechaPago', 'desc');
 
-        // Umbrales acumulados en modo individual → subquery por cliente calificado
+        // Umbral acumulado en USD en modo individual → subquery por cliente calificado
         if ($filtros['usdAcum']) {
             $acumUSD = $montoAcumUSD;
             $query->whereIn('o.IDCliente', function ($sub) use ($acumUSD, $tipoPersona, $monedaMXN, $monedaUSD, $fechaInicio, $fechaFin) {
@@ -259,26 +257,6 @@ class ReporteadorPLDController extends Controller
                 $sub->havingRaw(
                     "SUM(CASE WHEN op2.IDMoneda = 'USD' THEN op2.Monto ELSE CASE WHEN op2.TipoCambio > 0 THEN op2.Monto / op2.TipoCambio ELSE 0 END END) >= ?",
                     [$acumUSD]
-                );
-            });
-        }
-
-        if ($filtros['mxnAcum']) {
-            $query->whereIn('o.IDCliente', function ($sub) use ($tipoPersona, $monedaMXN, $monedaUSD, $fechaInicio, $fechaFin) {
-                $sub->select('o2.IDCliente')
-                    ->from('tbOperacionesPagos as op2')
-                    ->join('tbOperaciones as o2', 'op2.IDOperacion', '=', 'o2.IDOperacion')
-                    ->join('tbClientes as c2', 'o2.IDCliente', '=', 'c2.IDCliente')
-                    ->groupBy('o2.IDCliente');
-
-                if ($tipoPersona === '1') $sub->where('c2.IDTipoPersona', 1);
-                elseif ($tipoPersona === '2') $sub->where('c2.IDTipoPersona', 2);
-                if ($monedaMXN && ! $monedaUSD) $sub->where('op2.IDMoneda', 'MXN');
-                elseif ($monedaUSD && ! $monedaMXN) $sub->where('op2.IDMoneda', 'USD');
-                if ($fechaInicio && $fechaFin) $sub->whereBetween('op2.FechaPago', [$fechaInicio, $fechaFin]);
-
-                $sub->havingRaw(
-                    "SUM(CASE WHEN op2.IDMoneda = 'MXN' THEN op2.Monto ELSE op2.Monto * op2.TipoCambio END) >= 1000000"
                 );
             });
         }

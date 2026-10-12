@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\AvisoAlertaConsolidada;
 use App\Mail\AvisoOficialCumplimiento;
+use App\Mail\AvisoRiesgoAlto;
 use App\Models\CatCorreoNotificacion;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -49,6 +50,48 @@ class NotificacionCumplimientoService
             Log::error('Error al enviar aviso al oficial de cumplimiento: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'idCliente' => $datos['idCliente'] ?? null,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Envía un aviso al oficial de cumplimiento cuando se emite una operación
+     * para un cliente de alto riesgo (Perfil >= 2). No revierte ni rompe el flujo principal.
+     */
+    public static function enviarRiesgoAlto(array $datos): bool
+    {
+        try {
+            $config = self::getConfiguracionOficial();
+
+            if (! $config || empty($config->Correo)) {
+                Log::warning('No se configuró el correo del oficial de cumplimiento. Se omite el aviso de riesgo alto.', [
+                    'idCliente' => $datos['idCliente'] ?? null,
+                    'IDOperacion' => $datos['IDOperacion'] ?? null,
+                    'Perfil' => $datos['Perfil'] ?? null,
+                ]);
+
+                return false;
+            }
+
+            $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
+
+            Mail::to($config->Correo, $destinatario)->send(new AvisoRiesgoAlto($datos));
+
+            Log::info('[NotificacionCumplimiento] Correo de riesgo alto enviado', [
+                'correo' => $config->Correo,
+                'idCliente' => $datos['idCliente'] ?? null,
+                'IDOperacion' => $datos['IDOperacion'] ?? null,
+                'Perfil' => $datos['Perfil'] ?? null,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error al enviar aviso de riesgo alto al oficial de cumplimiento: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'idCliente' => $datos['idCliente'] ?? null,
+                'IDOperacion' => $datos['IDOperacion'] ?? null,
             ]);
 
             return false;

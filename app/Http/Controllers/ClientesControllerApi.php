@@ -261,8 +261,9 @@ class ClientesControllerApi extends Controller
             }
         }
 
-        // Si el cliente coincide en listas negras, se establece Activo = false; en caso contrario, Activo = true
-        $activo = ! $personaBloqueada;
+        // El cliente siempre se da de alta como Activo, aun con coincidencia en listas.
+        // La coincidencia se conserva en CoincideEnListasNegras y se avisa al oficial de cumplimiento.
+        $activo = true;
 
         DB::beginTransaction();
         try {
@@ -772,9 +773,8 @@ class ClientesControllerApi extends Controller
         }
 
             $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
-            if ($coincideEnListasNegras) {
-                $cliente->Activo = 0;
-            }
+            // El cliente siempre permanece Activo, aun con coincidencia en listas.
+            $cliente->Activo = 1;
             $cliente->save();
 
             DB::commit();
@@ -923,6 +923,7 @@ class ClientesControllerApi extends Controller
 
         NotificacionCumplimientoService::enviar([
             'asunto' => 'Aviso de detección en listas - PLD - '.$nombreCompleto,
+            'idCliente' => $cliente->IDCliente,
             'nombre' => $nombreCompleto ?: '—',
             'tipo' => $tipo,
             'fecha' => now()->translatedFormat('d \d\e F \d\e Y'),

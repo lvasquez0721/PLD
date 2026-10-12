@@ -24,7 +24,6 @@ const filtroUSD50K  = ref(false);
 const filtroUSDacum = ref(false);
 const filtroMXN300K = ref(false);
 const filtroMXN500K = ref(false);
-const filtroMXNacum = ref(false);
 
 const opcionesTipoPersona = [
     { value: '',  label: 'Todos' },
@@ -49,7 +48,6 @@ watch(monedaMXN, (val) => {
     if (!val) {
         filtroMXN300K.value = false;
         filtroMXN500K.value = false;
-        filtroMXNacum.value = false;
     }
 });
 
@@ -172,7 +170,6 @@ function buildParams(agrupado = modoAgrupado.value): URLSearchParams {
         usdAcum:     filtroUSDacum.value ? '1' : '0',
         mxn300k:     filtroMXN300K.value ? '1' : '0',
         mxn500k:     filtroMXN500K.value ? '1' : '0',
-        mxnAcum:     filtroMXNacum.value ? '1' : '0',
     });
 }
 
@@ -323,11 +320,6 @@ const labelUSDacum = computed(() => {
                                         :class="mxnThresholdsEnabled ? 'cursor-pointer text-slate-700 dark:text-neutral-300' : 'cursor-not-allowed opacity-40 text-slate-400'">
                                         <input type="checkbox" v-model="filtroMXN500K" :disabled="!mxnThresholdsEnabled" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                                         ≥ 500,000 MXN
-                                    </label>
-                                    <label class="flex items-center gap-2 text-sm"
-                                        :class="mxnThresholdsEnabled ? 'cursor-pointer text-slate-700 dark:text-neutral-300' : 'cursor-not-allowed opacity-40 text-slate-400'">
-                                        <input type="checkbox" v-model="filtroMXNacum" :disabled="!mxnThresholdsEnabled" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                                        ≥ 1,000,000 MXN acumulado
                                     </label>
                                 </div>
                             </div>

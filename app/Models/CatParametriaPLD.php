@@ -71,16 +71,19 @@ class CatParametriaPLD extends Model
         return $param->Valor;
     }
 
+    /** Umbral ID 2 en USD. */
     public static function getReporteadorMontoAcumulado()
     {
         return self::getValor(self::REPORTEADOR_MONTO_ACUMULADO, 75000);
     }
 
+    /** Umbral ID 1 en USD (comparar con convertirAUSD + Banxico). */
     public static function getOperacionesRelevantes()
     {
         return self::getValor(self::OPERACIONES_RELEVANTES, 7500);
     }
 
+    /** Umbral ID 14 en USD (comparar con convertirAUSD + Banxico). Límite superior PF/PM sigue en MXN. */
     public static function getMontoMinimoAlerta()
     {
         return self::getValor(self::MONTO_MINIMO_ALERTA, 7500);
