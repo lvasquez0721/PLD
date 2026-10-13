@@ -4,6 +4,7 @@
 // Versión responsive mejorada - OPTIMIZADO PARA RENDIMIENTO
 
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, shallowRef, watchEffect } from 'vue';
+import { parseFechaLocal } from '@/utils/fechas';
 import FadeIn from '../animation/fadeIn.vue';
 import "primeicons/primeicons.css";
 
@@ -160,12 +161,15 @@ function formatValue(value: any, format?: string): string {
         style: 'currency',
         currency: 'EUR'
       }).format(Number(value));
-    case 'date':
+    case 'date': {
+      const dt = parseFechaLocal(String(value));
+      if (!dt) return String(value);
       return new Intl.DateTimeFormat('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
-      }).format(new Date(value));
+      }).format(dt);
+    }
     default:
       return String(value);
   }

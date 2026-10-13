@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Select from '@/components/forms/Select.vue';
 import DateInput from '@/components/forms/DateInput.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
+import { formatFechaCorta } from '@/utils/fechas';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const tipoReporteFiltro = ref('Todos');
@@ -148,14 +149,6 @@ function toggleSeleccion(id: number) {
     }
 }
 
-function formatFechaCorta(fecha: string | null | undefined): string {
-    if (!fecha) return '—';
-    try {
-        const d = new Date(fecha);
-        if (isNaN(d.getTime())) return String(fecha).slice(0,10);
-        return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
-    } catch { return String(fecha).slice(0,10); }
-}
 function formatMonto(n: number | null | undefined): string {
     if (n == null || n === '') return '—';
     const num = Number(n);

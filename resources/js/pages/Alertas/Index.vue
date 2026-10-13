@@ -14,6 +14,7 @@ import SelectFile from '@/components/forms/SelectFile.vue';
 import { usePage, router as inertiaRouter } from '@inertiajs/vue3';
 import Toast from '@/components/ui/alert/Toast.vue';
 import InputError from '@/components/InputError.vue';
+import { formatFechaCorta, fechaEnRango } from '@/utils/fechas';
 
 // Badge coloring utility
 function colorFromString(str: string) {
@@ -374,18 +375,7 @@ function construirOpcionesFiltros() {
  * No filtra si ambos están vacíos. (fecha tipo YYYY-MM-DD)
  */
 function cumpleFiltroFecha(fecha: string): boolean {
-    if (!fecha) return false;
-    if (!fechaInicio.value && !fechaFin.value) return true;
-    const dateObj = new Date(fecha);
-    if (fechaInicio.value) {
-        const start = new Date(fechaInicio.value + 'T00:00:00');
-        if (dateObj < start) return false;
-    }
-    if (fechaFin.value) {
-        const end = new Date(fechaFin.value + 'T23:59:59');
-        if (dateObj > end) return false;
-    }
-    return true;
+    return fechaEnRango(fecha, fechaInicio.value || null, fechaFin.value || null);
 }
 
 function cumpleFiltroFolio(alerta: Alerta): boolean {
@@ -692,12 +682,7 @@ function formatCurrencyOp(n: any, moneda: string | null | undefined) {
     return `${info.simbolo}${new Intl.NumberFormat('es-MX', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))}`;
 }
 function formatDateOp(d: string | null | undefined) {
-    if (!d) return '—';
-    try {
-        const dt = new Date(d);
-        if (isNaN(dt.getTime())) return d;
-        return dt.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit' });
-    } catch { return d; }
+    return formatFechaCorta(d);
 }
 function tipoOperacionLabel(op: OperacionResumen | null | undefined): { label: string; class: string } | null {
     if (!op) return null;

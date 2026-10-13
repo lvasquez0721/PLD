@@ -661,10 +661,12 @@ class OperacionesController extends Controller
         $alerta->IDCliente = $cliente?->IDCliente ?? $operacion->IDCliente;
         $alerta->Cliente = $nombreCliente;
         $alerta->Poliza = $operacion->FolioPoliza ?? null;
-        $alerta->FechaDeteccion = now();
+        // Ambas fechas almacenan la Fecha de emisión de la operación.
+        $fechaEmision = $operacion->FechaEmision ?? $operacion->created_at;
+        $alerta->FechaDeteccion = $fechaEmision;
         $alerta->IDOperacion = $operacion->IDOperacion;
         $alerta->HoraDeteccion = now()->format('H:i:s');
-        $alerta->FechaOperacion = $operacion->created_at;
+        $alerta->FechaOperacion = $fechaEmision;
         $alerta->HoraOperacion = now()->format('H:i:s');
         $alerta->MontoOperacion = $operacion->PrimaTotal;
         $alerta->RFCAgente = $operacion->RFCAgente ?? null;

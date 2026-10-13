@@ -5,6 +5,7 @@
   import Titulo from '@/components/ui/Titulo.vue';
   import { ListX, FileText, Eye, X } from 'lucide-vue-next';
   import FadeIn from '@/components/ui/animation/fadeIn.vue';
+  import { formatFechaCorta } from '@/utils/fechas';
 
   const page = usePage();
   const isSubmitting = ref(false)
@@ -525,7 +526,7 @@
                                         Fecha Nacimiento 
                                         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                             <span class="font-semibold text-slate-600 dark:text-neutral-400 min-w-[80px] text-xs uppercase tracking-wide">Fecha Nac.:</span>
-                                            <span class="text-slate-900 dark:text-white">{{ item.FechaNacimiento ? new Date(item.FechaNacimiento).toLocaleDateString('es-MX') : 'N/A' }}</span>
+                                            <span class="text-slate-900 dark:text-white">{{ item.FechaNacimiento ? formatFechaCorta(item.FechaNacimiento) : 'N/A' }}</span>
                                         </div> -->
                                         <!-- Acuerdo -->
                                         <div v-if="item.Acuerdo" class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -768,7 +769,7 @@
                                                     {{ oficio.accion }}
                                                 </span>
                                                 <span class="text-xs text-slate-400 dark:text-neutral-500">•</span>
-                                                <span class="text-xs text-slate-500 dark:text-neutral-400">{{ new Date(oficio.fecha).toLocaleDateString('es-MX') }}</span>
+                                                <span class="text-xs text-slate-500 dark:text-neutral-400">{{ formatFechaCorta(oficio.fecha) }}</span>
                                             </div>
                                         </div>
                                         

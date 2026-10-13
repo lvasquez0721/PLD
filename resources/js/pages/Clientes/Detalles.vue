@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
+import { formatFechaLarga } from '@/utils/fechas'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { type BreadcrumbItem } from '@/types'
 import { computed, ref } from 'vue'
@@ -215,13 +216,8 @@ function formatEvidenceText(evidenceStr: string): string {
 
 function formatDate(dateStr?: string | null): string {
     if (!dateStr) return 'N/A'
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) return dateStr
-    return new Intl.DateTimeFormat('es-MX', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    }).format(date)
+    const f = formatFechaLarga(dateStr)
+    return f === '—' ? 'N/A' : f
 }
 
 function formatCurrency(value?: number | string | null): string {

@@ -10,6 +10,7 @@ import Toast from '@/components/ui/alert/Toast.vue'
 import { type BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes/index.js';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
+import { parseFechaLocal } from '@/utils/fechas';
 
 
 // Tipado del buzon
@@ -303,7 +304,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                                 {{ new Intl.DateTimeFormat('es-MX', {
                                                     day: '2-digit', month: '2-digit',
                                                     year: 'numeric'
-                                                }).format(new Date(item.Fecha)) }}
+                                                }).format(parseFechaLocal(item.Fecha) ?? new Date(item.Fecha)) }}
                                             </td>
                                             <td
                                                 class="px-5 py-4 text-sm font-normal text-gray-700 dark:text-neutral-300">

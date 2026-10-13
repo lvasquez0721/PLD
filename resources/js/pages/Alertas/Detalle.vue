@@ -13,6 +13,7 @@ import Select from '@/components/forms/Select.vue';
 import SelectFile from '@/components/forms/SelectFile.vue';
 import InputError from '@/components/InputError.vue';
 import Textarea from '@/components/forms/Textarea.vue';
+import { formatFechaCorta } from '@/utils/fechas';
 
 // ---- Toast Implementation ----
 const toastVisible = ref(false);
@@ -117,11 +118,8 @@ function personaTipoNombreFromObj(obj: any) {
 }
 function formatDate(date: string | null | undefined) {
     if (!date) return '-';
-    try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) return date;
-        return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit' });
-    } catch { return date; }
+    const f = formatFechaCorta(date);
+    return f === '—' ? '-' : f;
 }
 
 function numberFormat(n: any, moneda: string = 'MXN') {
