@@ -102,12 +102,25 @@ class PerfilTransaccionalController extends Controller
                     ], 500);
                 }
 
+                // Obtener el registro más reciente del perfil transaccional para el cliente
                 $registro = TbPerfilTransaccional::select(
                     'tbPerfilTransaccional.*',
-                    'tbClientes.Nombre',
-                    'tbClientes.ApellidoPaterno',
-                    'tbClientes.ApellidoMaterno'
-                )
+                     DB::raw("
+                            CASE
+                                WHEN NULLIF(TRIM(CONCAT_WS(' ',
+                                    NULLIF(TRIM(tbClientes.Nombre), ''),
+                                    NULLIF(TRIM(tbClientes.ApellidoPaterno), ''),
+                                    NULLIF(TRIM(tbClientes.ApellidoMaterno), '')
+                                )), '') IS NOT NULL
+                                THEN TRIM(CONCAT_WS(' ',
+                                    NULLIF(TRIM(tbClientes.Nombre), ''),
+                                    NULLIF(TRIM(tbClientes.ApellidoPaterno), ''),
+                                    NULLIF(TRIM(tbClientes.ApellidoMaterno), '')
+                                ))
+                                ELSE COALESCE(NULLIF(TRIM(tbClientes.RazonSocial), ''), '')
+                            END AS Nombre
+                        ")
+                    )
                     ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
                     ->where('tbPerfilTransaccional.IDCliente', $idCliente)
                     ->orderBy('tbPerfilTransaccional.IDRegistroPerfil', 'DESC')
@@ -142,10 +155,22 @@ class PerfilTransaccionalController extends Controller
             // $datos = TbPerfilTransaccional::whereDate('FechaEjecucción', $periodo)->get();
             $datos = TbPerfilTransaccional::select(
                 'tbPerfilTransaccional.*',
-                'tbClientes.Nombre',
-                'tbClientes.ApellidoPaterno',
-                'tbClientes.ApellidoMaterno'
-            )
+                DB::raw("
+                        CASE
+                            WHEN NULLIF(TRIM(CONCAT_WS(' ',
+                                NULLIF(TRIM(tbClientes.Nombre), ''),
+                                NULLIF(TRIM(tbClientes.ApellidoPaterno), ''),
+                                NULLIF(TRIM(tbClientes.ApellidoMaterno), '')
+                            )), '') IS NOT NULL
+                            THEN TRIM(CONCAT_WS(' ',
+                                NULLIF(TRIM(tbClientes.Nombre), ''),
+                                NULLIF(TRIM(tbClientes.ApellidoPaterno), ''),
+                                NULLIF(TRIM(tbClientes.ApellidoMaterno), '')
+                            ))
+                            ELSE COALESCE(NULLIF(TRIM(tbClientes.RazonSocial), ''), '')
+                        END AS Nombre
+                    ")
+                )
                 ->leftJoin('tbClientes', 'tbClientes.IDCliente', '=', 'tbPerfilTransaccional.IDCliente')
                 ->whereDate('FechaEjecucción', $periodo)
                 ->get();
@@ -178,7 +203,7 @@ class PerfilTransaccionalController extends Controller
                 fputcsv($archivo, [
                     $fila->IDCliente,
                     $fila->TipoSolicitante,
-                    $fila->Nombre.' '.$fila->ApellidoPaterno.' '.$fila->ApellidoMaterno,
+                    $fila->Nombre.' '.$fila->ApellidoPaterno.' '.$fila->ApellidoMaterno ? : $fila->RazonSocial,
                     $fila->IDEstadoNacimiento,
                     $fila->NivelRiesgoNac,
                     $fila->CalculoNacimiento,
@@ -242,29 +267,64 @@ class PerfilTransaccionalController extends Controller
         return Inertia::render('PerfilTransaccional/PerfilTransaccionalCliente');
     }
 
-    // Buscar clientes para el select2
+    //lista de clientes para select2
+    // Cargar la lista completa de clientes
+    public function listarClientes(Request $request)
+    {
+        try {
+            $clientes = TbClientes::select(
+                'IDCliente',
+                'RFC',
+                'IDTipoPersona',
+                'Nombre',
+                'ApellidoPaterno',
+                'ApellidoMaterno',
+                'RazonSocial',
+                DB::raw("
+                    CASE
+                    WHEN RazonSocial IS NOT NULL
+                         AND TRIM(RazonSocial) != ''
+                    THEN RazonSocial
+                    ELSE TRIM(CONCAT_WS(
+                        ' ',
+                        NULLIF(TRIM(Nombre), ''),
+                        NULLIF(TRIM(ApellidoPaterno), ''),
+                        NULLIF(TRIM(ApellidoMaterno), '')
+                    ))
+                END AS NombreCompleto
+                ")
+            )
+            ->orderBy('Nombre')
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'clientes' => $clientes
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function buscarClientes(Request $request)
     {
         try {
-            $search = $request->input('search');
-            $clientes = TbClientes::select(
-                    'IDCliente',
-                    DB::raw("
-                        CONCAT(
-                            Nombre, ' ',
-                            IFNULL(ApellidoPaterno, ''), ' ',
-                            IFNULL(ApellidoMaterno, '')
-                        ) as NombreCompleto
-                    ")
-                )
-                ->where(function($query) use ($search){
-                    $query->where('Nombre', 'LIKE', "%{$search}%")
-                        ->orWhere('ApellidoPaterno', 'LIKE', "%{$search}%")
-                        ->orWhere('ApellidoMaterno', 'LIKE', "%{$search}%")
-                        ->orWhere('IDCliente', 'LIKE', "%{$search}%");
+            $search = mb_strtolower(trim($request->input('search', '')));
+            // Recibir la lista de clientes previamente cargada
+            $listaClientes = collect($request->input('clientes', []));
+
+            // Filtrar los clientes en memoria
+            $clientes = $listaClientes ->filter(function ($cliente) use ($search) {
+                    $nombre = mb_strtolower($cliente['NombreCompleto'] ?? '');
+                    $id = mb_strtolower((string) ($cliente['IDCliente'] ?? ''));
+                    return $search === '' || mb_strpos($nombre, $search) !== false || mb_strpos($id, $search) !== false;
                 })
-                ->limit(20)
-                ->get();
+                ->take(20)
+                ->values();
 
             return response()->json([
                 'success' => true,

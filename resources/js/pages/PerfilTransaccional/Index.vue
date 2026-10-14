@@ -41,6 +41,17 @@ const props = defineProps<{
 }>()
 
 // -----------------------------------------
+// NORMALIZAR TEXTO: minúsculas y sin acentos
+// -----------------------------------------
+const normalizarTexto = (texto: unknown): string => {
+    return String(texto ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+}
+
+// -----------------------------------------
 // ESTADOS
 // -----------------------------------------
 const loading = ref(false)
@@ -49,7 +60,7 @@ const resultados = ref<any[]>([])
 const csvUrl = ref('')
 const filtroNombre = ref('')
 const filtroPerfil = ref<'todos' | 'bajo' | 'alto'>('todos')
-
+const filtroTipoPersona = ref<'todos' | 'fisica' | 'moral'>('todos')
 // -----------------------------------------
 // PAGINACIÓN
 // -----------------------------------------
@@ -57,7 +68,7 @@ const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
 // Resetear página cuando cambian los resultados o el filtro
-watch([resultados, filtroNombre,filtroPerfil], () => {
+watch([resultados, filtroNombre,filtroPerfil, filtroTipoPersona], () => {
     currentPage.value = 1
 })
 
@@ -235,6 +246,7 @@ const buscarInformacion = async () => {
             mostrarAlerta('success', data.mensaje)
             // Resetear filtros al cargar nuevos datos
             filtroPerfil.value = 'todos'
+            filtroTipoPersona.value = 'todos'
             filtroNombre.value = ''
         } else {
             mostrarAlerta('error', data.mensaje || 'No se encontraron registros.')
@@ -247,31 +259,39 @@ const buscarInformacion = async () => {
 }
 
 // -----------------------------------------
-// Filtrar resultados por nombre y perfil
+// Filtrar resultados por nombre, perfil y tipo de persona
 // -----------------------------------------
 const resultadosFiltrados = computed(() => {
-    // if (!filtroNombre.value) return resultados.value
+    let resultadosFiltradosTemp = [...resultados.value]
 
-    // const texto = filtroNombre.value.toLowerCase()
+     const textoBusqueda = normalizarTexto(filtroNombre.value)
 
-    // return resultados.value.filter((f: any) =>
-    //     `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
-    //         .toLowerCase()
-    //         .includes(texto)
-    // )
+    if (textoBusqueda) {
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) => {
+            const nombreCompleto = [
+                f.Nombre,
+                f.ApellidoPaterno,
+                f.ApellidoMaterno,
+                f.RazonSocial
+            ]
+                .filter(valor => valor != null && String(valor).trim() !== '')
+                .join(' ')
 
-     let resultadosFiltradosTemp = [...resultados.value]
-    
-    // Filtro por nombre
-    if (filtroNombre.value) {
-        const texto = filtroNombre.value.toLowerCase()
-        resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) =>
-            `${f.Nombre ?? ''} ${f.ApellidoPaterno ?? ''} ${f.ApellidoMaterno ?? ''}`
-                .toLowerCase()
-                .includes(texto)
+            return normalizarTexto(nombreCompleto).includes(textoBusqueda)
+        })
+    }
+
+    // Filtro por tipo de solicitante
+    if (filtroTipoPersona.value === 'fisica') {
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter(
+            (f: any) => String(f.TipoSolicitante ?? '').trim() === '1'
+        )
+    } else if (filtroTipoPersona.value === 'moral') {
+        resultadosFiltradosTemp = resultadosFiltradosTemp.filter(
+            (f: any) => ['0', '2'].includes(String(f.TipoSolicitante ?? '').trim()) //String(f.TipoSolicitante ?? '').trim() === '2'
         )
     }
-    
+        
     // Filtro por perfil (bajo: < 2, alto: >= 2)
     if (filtroPerfil.value === 'bajo') {
         resultadosFiltradosTemp = resultadosFiltradosTemp.filter((f: any) => f.Perfil < 2)
@@ -436,6 +456,10 @@ function formatFechaDMY(fechaString: string): string {
                                 class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
                                 {{ filtroPerfil === 'bajo' ? 'Filtrando: Bajos' : 'Filtrando: Altos' }}
                             </span>
+                            <span v-if="filtroTipoPersona !== 'todos'" 
+                                class="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950/50 dark:text-purple-400">
+                                {{ filtroTipoPersona === 'fisica' ? 'Filtrando: Física' : 'Filtrando: Moral' }}
+                            </span>
                         </div>
                         <a :href="csvUrl" target="_blank"
                             class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-green-700 transition-all duration-200 hover:bg-green-50 hover:text-green-800 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 dark:text-green-400 dark:hover:bg-green-950/30 dark:hover:text-green-300 dark:focus:ring-green-400 dark:focus:ring-offset-neutral-950">
@@ -453,6 +477,42 @@ function formatFechaDMY(fechaString: string): string {
                                     <th scope="col"
                                         class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">
                                         Nombre
+                                         <div class="flex flex-wrap gap-1">
+                                            <button @click="filtroTipoPersona = 'todos'"
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroTipoPersona === 'todos'
+                                                        ? 'bg-gray-700 text-white'
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-neutral-700 dark:text-neutral-300'
+                                                ]"
+                                            >
+                                                Todos
+                                            </button>
+
+                                            <button
+                                                @click="filtroTipoPersona = 'fisica'"
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroTipoPersona === 'fisica'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-400'
+                                                ]"
+                                            >
+                                                Física
+                                            </button>
+
+                                            <button
+                                                @click="filtroTipoPersona = 'moral'"
+                                                :class="[
+                                                    'rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:scale-105',
+                                                    filtroTipoPersona === 'moral'
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-950/50 dark:text-purple-400'
+                                                ]"
+                                            >
+                                                Moral
+                                            </button>
+                                        </div>
                                     </th>
                                     <th scope="col"
                                         class="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300">

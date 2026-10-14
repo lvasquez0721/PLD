@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::get('/perfil-transaccional-cliente', [PerfilTransaccionalController::class, 'perfilClienteView']);
+Route::get('/perfil-transaccional-clientes-list', [PerfilTransaccionalController::class, 'listarClientes']);
 Route::get('/perfil-transaccional-clientes-search', [PerfilTransaccionalController::class, 'buscarClientes']);
 Route::post('/perfil-transaccional-cliente-buscar', [PerfilTransaccionalController::class, 'buscarPerfilCliente']);
 
