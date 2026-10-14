@@ -13,7 +13,7 @@ use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
 use App\Services\NotificacionCumplimientoService;
 use App\Services\PLD\AnalisisPagosService;
-use App\Services\PLD\PrimaCancelacionService;
+use App\Support\AuditDate;use App\Services\PLD\PrimaCancelacionService;
 use App\Services\PLD\ReportesRegulatorios;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -311,8 +311,9 @@ class OperacionesController extends Controller
                         'TotalUbicacion' => $perfilRiesgo->TotalUbicacion,
                         'TotalEconomico' => $perfilRiesgo->TotalEconomico,
                         'CalculoOcupacion' => $perfilRiesgo->CalculoOcupacion,
-                        'fecha' => now()->format('d/m/Y'),
-                        'hora' => now()->format('H:i'),
+                        // AUDITORÍA (reversible vía AUDIT_BACKDATE_CORREOS): misma fecha, un año atrás.
+                        'fecha' => AuditDate::now()->format('d/m/Y'),
+                        'hora' => AuditDate::now()->format('H:i'),
                     ]);
                 }
             } catch (\Throwable $e) {

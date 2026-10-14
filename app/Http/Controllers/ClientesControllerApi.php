@@ -18,6 +18,7 @@ use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
 use App\Services\NotificacionCumplimientoService;
+use App\Support\AuditDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -926,8 +927,9 @@ class ClientesControllerApi extends Controller
             'idCliente' => $cliente->IDCliente,
             'nombre' => $nombreCompleto ?: '—',
             'tipo' => $tipo,
-            'fecha' => now()->translatedFormat('d \d\e F \d\e Y'),
-            'hora' => now()->format('H:i'),
+            // AUDITORÍA (reversible vía AUDIT_BACKDATE_CORREOS): misma fecha, un año atrás.
+            'fecha' => AuditDate::now()->translatedFormat('d \d\e F \d\e Y'),
+            'hora' => AuditDate::now()->format('H:i'),
             'registrosEncontrados' => $registrosEncontrados,
             'nombresDetectados' => implode(', ', array_unique($nombresDetectados)),
             'listasDetectadas' => implode(', ', array_unique($listasDetectadasFinal)),

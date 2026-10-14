@@ -9,7 +9,7 @@
         <p style="margin:0 0 16px;">Estimado Oficial de Cumplimiento:</p>
 
         <p style="margin:0 0 16px;">
-            Se han generado <strong>{{ count($datos['alertas'] ?? []) }}</strong> alerta(s) en el sistema PLD el {{ $datos['fecha'] ?? now()->format('d/m/Y') }} a las {{ $datos['hora'] ?? now()->format('H:i') }} hrs.
+            Se han generado <strong>{{ count($datos['alertas'] ?? []) }}</strong> alerta(s) en el sistema PLD el {{ $datos['fecha'] ?? \App\Support\AuditDate::now()->format('d/m/Y') }} a las {{ $datos['hora'] ?? \App\Support\AuditDate::now()->format('H:i') }} hrs.
         </p>
 
         @if(!empty($datos['alertas']))

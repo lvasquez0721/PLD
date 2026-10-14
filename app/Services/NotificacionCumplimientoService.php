@@ -6,6 +6,7 @@ use App\Mail\AvisoAlertaConsolidada;
 use App\Mail\AvisoOficialCumplimiento;
 use App\Mail\AvisoRiesgoAlto;
 use App\Models\CatCorreoNotificacion;
+use App\Support\AuditDate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -121,13 +122,14 @@ class NotificacionCumplimientoService
 
             $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
 
+            // AUDITORÍA (reversible vía AUDIT_BACKDATE_CORREOS): misma fecha, un año atrás.
             $datos = [
-                'asunto' => 'Alerta PLD - '.count($alertas).' alerta(s) generada(s) - '.now()->format('d/m/Y H:i'),
+                'asunto' => 'Alerta PLD - '.count($alertas).' alerta(s) generada(s) - '.AuditDate::now()->format('d/m/Y H:i'),
                 'alertas' => $alertas,
                 'operacion' => $operacion,
                 'cliente' => $cliente,
-                'fecha' => now()->format('d/m/Y'),
-                'hora' => now()->format('H:i'),
+                'fecha' => AuditDate::now()->format('d/m/Y'),
+                'hora' => AuditDate::now()->format('H:i'),
             ];
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoAlertaConsolidada($datos));
