@@ -9,6 +9,7 @@ use App\Http\Controllers\ConfiguracionCumplimientoController;
 use App\Http\Controllers\ConsultaInusualidadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ListaNegraController;
+use App\Http\Controllers\CorreosController;
 use App\Http\Controllers\ListasUIFController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\ParametriaPLDController;
@@ -113,6 +114,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/logs', [LogsController::class, 'index'])->name('logs.index');
     Route::get('/logs/{id}', [LogsController::class, 'show'])->name('logs.show');
+});
+
+// Correos emitidos por el sistema
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/correos', [CorreosController::class, 'index'])->name('correos.index');
+    Route::get('/correos/{id}', [CorreosController::class, 'show'])->name('correos.show');
 });
 
 // Listas UIF

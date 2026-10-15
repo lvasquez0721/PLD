@@ -6,7 +6,6 @@ use App\Models\CatCampos;
 use App\Models\CatParametrosPerfilTrans;
 use App\Models\Clientes\TbClientes;
 use App\Models\TbPerfilTransaccional;
-use App\Support\AuditDate;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -260,25 +259,21 @@ class PerfilTransaccionalController extends Controller
             // Ejecuta SP sin parámetros (como tu ejemplo)
             DB::statement('CALL SP_PerfilTransaccional()');
 
-            // AUDITORÍA (reversible vía AUDIT_BACKDATE_PERFIL): el SP fija
+            // TODO AUDITORES (temporal, hardcodeado): el SP fija
             // FechaEjecucción con la fecha real; reescribimos solo el lote
-            // recién creado a la misma fecha con un año menos (2025).
-            if (AuditDate::perfilEnabled()) {
-                $hoy = Carbon::now()->toDateString();
-                // Misma fecha, un año atrás (no usa AuditDate::now() porque
-                // ese depende del flag de correos, no del de perfil).
-                $audit = Carbon::now()->subYear()->toDateString();
+            // recién creado a la misma fecha pero con año 2025.
+            $hoy = Carbon::now()->toDateString();
+            $audit = Carbon::now()->copy()->setYear(2025)->toDateString();
 
-                $afectados = TbPerfilTransaccional::whereDate('FechaEjecucción', $hoy)
-                    ->where('IDTipoEjecuccion', 1)
-                    ->update(['FechaEjecucción' => $audit]);
+            $afectados = TbPerfilTransaccional::whereDate('FechaEjecucción', $hoy)
+                ->where('IDTipoEjecuccion', 1)
+                ->update(['FechaEjecucción' => $audit]);
 
-                Log::info('[Auditoria] Perfil transaccional backdateado a 2025', [
-                    'de' => $hoy,
-                    'a' => $audit,
-                    'registros' => $afectados,
-                ]);
-            }
+            Log::info('[Auditoria-temporal] Perfil transaccional forzado a 2025', [
+                'de' => $hoy,
+                'a' => $audit,
+                'registros' => $afectados,
+            ]);
 
             return redirect()->back()->with('success', 'Ejecución completada correctamente');
         } catch (\Exception $e) {

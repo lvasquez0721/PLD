@@ -24,6 +24,7 @@ import {
     Gavel,
     LayoutGrid,
     ListX,
+    Mail,
     MailWarning,
     ScrollText,
     Settings,
@@ -81,6 +82,7 @@ const allNavItems: NavItem[] = [
     { title: 'Exportar Layout', href: '/exportar-layout', icon: Download },
     { title: 'Reporteador PLD', href: '/reporteador-pld', icon: BarChart3 },
     { title: 'Logs de Endpoints', href: '/logs', icon: ScrollText },
+    { title: 'Correos Emitidos', href: '/correos', icon: Mail },
 ];
 
 function pick(titles: string[]): NavItem[] {
@@ -116,7 +118,7 @@ const navGroups = computed<NavGroup[]>(() => {
                 'Exportar Layout',
             ]),
         },
-        { label: 'Sistema', items: pick(['Logs de Endpoints']) },
+        { label: 'Sistema', items: pick(['Logs de Endpoints', 'Correos Emitidos']) },
     ];
 });
 

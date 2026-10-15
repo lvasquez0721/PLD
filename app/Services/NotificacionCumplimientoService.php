@@ -6,9 +6,11 @@ use App\Mail\AvisoAlertaConsolidada;
 use App\Mail\AvisoOficialCumplimiento;
 use App\Mail\AvisoRiesgoAlto;
 use App\Models\CatCorreoNotificacion;
+use App\Models\LogCorreo;
 use App\Support\AuditDate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 
 class NotificacionCumplimientoService
 {
@@ -38,6 +40,7 @@ class NotificacionCumplimientoService
                     'idCliente' => $datos['idCliente'] ?? null,
                     'nombre' => $datos['nombre'] ?? null,
                 ]);
+                self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'OmitidoSinConfig', null);
 
                 return false;
             }
@@ -45,6 +48,7 @@ class NotificacionCumplimientoService
             $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoOficialCumplimiento($datos));
+            self::registrarLog('OficialCumplimiento', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'Enviado', null, $datos['idCliente'] ?? null);
 
             return true;
         } catch (\Exception $e) {
@@ -52,6 +56,7 @@ class NotificacionCumplimientoService
                 'trace' => $e->getTraceAsString(),
                 'idCliente' => $datos['idCliente'] ?? null,
             ]);
+            self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD', $datos, 'Fallido', $e->getMessage(), $datos['idCliente'] ?? null);
 
             return false;
         }
@@ -72,6 +77,7 @@ class NotificacionCumplimientoService
                     'IDOperacion' => $datos['IDOperacion'] ?? null,
                     'Perfil' => $datos['Perfil'] ?? null,
                 ]);
+                self::registrarLog('RiesgoAlto', null, null, $datos['asunto'] ?? 'Aviso riesgo alto PLD', $datos, 'OmitidoSinConfig', null, $datos['idCliente'] ?? null, $datos['IDOperacion'] ?? null);
 
                 return false;
             }
@@ -79,6 +85,7 @@ class NotificacionCumplimientoService
             $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoRiesgoAlto($datos));
+            self::registrarLog('RiesgoAlto', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso riesgo alto PLD', $datos, 'Enviado', null, $datos['idCliente'] ?? null, $datos['IDOperacion'] ?? null);
 
             Log::info('[NotificacionCumplimiento] Correo de riesgo alto enviado', [
                 'correo' => $config->Correo,
@@ -94,6 +101,7 @@ class NotificacionCumplimientoService
                 'idCliente' => $datos['idCliente'] ?? null,
                 'IDOperacion' => $datos['IDOperacion'] ?? null,
             ]);
+            self::registrarLog('RiesgoAlto', null, null, $datos['asunto'] ?? 'Aviso riesgo alto PLD', $datos, 'Fallido', $e->getMessage(), $datos['idCliente'] ?? null, $datos['IDOperacion'] ?? null);
 
             return false;
         }
@@ -116,6 +124,7 @@ class NotificacionCumplimientoService
                 Log::warning('No se configuró el correo del oficial de cumplimiento. Se omite aviso de alertas.', [
                     'alertas_count' => count($alertas),
                 ]);
+                self::registrarLog('AlertaConsolidada', null, null, 'Alerta PLD - '.count($alertas).' alerta(s)', ['alertas' => $alertas], 'OmitidoSinConfig', null, null, null, $alertas);
 
                 return false;
             }
@@ -133,6 +142,7 @@ class NotificacionCumplimientoService
             ];
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoAlertaConsolidada($datos));
+            self::registrarLog('AlertaConsolidada', $config->Correo, $destinatario, $datos['asunto'], $datos, 'Enviado', null, null, null, $alertas);
 
             Log::info('[NotificacionCumplimiento] Correo consolidado enviado', [
                 'correo' => $config->Correo,
@@ -147,7 +157,59 @@ class NotificacionCumplimientoService
                 'alertas_count' => count($alertas ?? []),
             ]);
 
+            self::registrarLog('AlertaConsolidada', null, null, 'Alerta PLD', ['alertas' => $alertas ?? []], 'Fallido', $e->getMessage(), null, null, $alertas ?? []);
+
             return false;
+        }
+    }
+
+    private static function mailableParaTipo(string $tipo, array $datos): ?\Illuminate\Mail\Mailable
+    {
+        return match ($tipo) {
+            'OficialCumplimiento' => new AvisoOficialCumplimiento($datos),
+            'RiesgoAlto' => new AvisoRiesgoAlto($datos),
+            'AlertaConsolidada' => new AvisoAlertaConsolidada($datos),
+            default => null,
+        };
+    }
+
+    private static function registrarLog(string $tipo, ?string $correo, ?string $nombre, ?string $asunto, array $datos, string $estado, ?string $error = null, $idCliente = null, $idOperacion = null, array $alertas = []): void
+    {
+        try {
+            if (! Schema::hasTable('logCorreos')) {
+                return;
+            }
+            $html = null;
+            $truncado = false;
+            try {
+                $mailable = self::mailableParaTipo($tipo, $datos);
+                if ($mailable) {
+                    $html = $mailable->render();
+                    if (is_string($html) && strlen($html) > 20000) {
+                        $html = substr($html, 0, 20000).'... [TRUNCADO]';
+                        $truncado = true;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $html = null;
+            }
+            $patrones = collect($alertas)->map(fn ($a) => is_object($a) ? ($a->Patron ?? null) : ($a['patron'] ?? $a['Patron'] ?? null))->filter()->values()->toArray();
+            LogCorreo::create([
+                'Destinatario' => $correo,
+                'NombreDestinatario' => $nombre,
+                'Asunto' => $asunto ? mb_substr($asunto, 0, 500) : null,
+                'Tipo' => $tipo,
+                'IDCliente' => is_numeric($idCliente) ? (int) $idCliente : null,
+                'IDOperacion' => is_numeric($idOperacion) ? (int) $idOperacion : null,
+                'Patrones' => ! empty($patrones) ? json_encode($patrones, JSON_UNESCAPED_UNICODE) : null,
+                'AlertasCount' => count($alertas),
+                'CuerpoHtml' => $html,
+                'Truncado' => $truncado,
+                'Estado' => $estado,
+                'Error' => $error ? mb_substr($error, 0, 2000) : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[LogCorreos] No se pudo registrar el correo.', ['error' => $e->getMessage(), 'tipo' => $tipo]);
         }
     }
 }
