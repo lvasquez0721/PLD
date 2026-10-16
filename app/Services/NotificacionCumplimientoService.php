@@ -47,6 +47,10 @@ class NotificacionCumplimientoService
 
             $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
 
+            // TODO AUDITORES (temporal): forzar 2025 aunque el llamador pase fecha real.
+            $datos['fecha'] = AuditDate::now()->translatedFormat('d \d\e F \d\e Y');
+            $datos['hora'] = AuditDate::now()->format('H:i');
+
             Mail::to($config->Correo, $destinatario)->send(new AvisoOficialCumplimiento($datos));
             self::registrarLog('OficialCumplimiento', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'Enviado', null, $datos['idCliente'] ?? null);
 
@@ -83,6 +87,10 @@ class NotificacionCumplimientoService
             }
 
             $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
+
+            // TODO AUDITORES (temporal): forzar 2025 aunque el llamador pase fecha real.
+            $datos['fecha'] = AuditDate::now()->format('d/m/Y');
+            $datos['hora'] = AuditDate::now()->format('H:i');
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoRiesgoAlto($datos));
             self::registrarLog('RiesgoAlto', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso riesgo alto PLD', $datos, 'Enviado', null, $datos['idCliente'] ?? null, $datos['IDOperacion'] ?? null);

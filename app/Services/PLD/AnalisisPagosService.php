@@ -214,7 +214,10 @@ class AnalisisPagosService
             if ($montoPagoUSD < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
                 $resultado->esMontoInusual = true; // Set to true if any payment is inusual
 
-                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.$operacion->IDMoneda.') equivalente a USD '.number_format($montoPagoUSD, 2).' / MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido [USD '.number_format($limiteInferior, 2).', MXN '.number_format($limiteSuperior, 2).']';
+                $tipoCambio = $this->obtenerTipoCambio();
+                $limiteInferiorMXN = $limiteInferior * $tipoCambio;
+
+                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.$operacion->IDMoneda.') equivalente a MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido [MXN '.number_format($limiteInferiorMXN, 2).', MXN '.number_format($limiteSuperior, 2).']';
 
                 $alertData = [
                     'patron' => self::PATRON_MONTO_INUSUAL,

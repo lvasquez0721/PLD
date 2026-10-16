@@ -29,13 +29,11 @@ class AuditDate
     }
 
     /**
-     * "Misma fecha, un año atrás": 13/10/2026 10:42 -> 13/10/2025 10:42.
-     * Si el flag está apagado, devuelve la hora real.
+     * TODO AUDITORES (temporal, hardcodeado): misma fecha con año 2025.
+     * Revertir al terminar auditoría al condicional con correosEnabled().
      */
     public static function now(): Carbon
     {
-        $now = Carbon::now();
-
-        return self::correosEnabled() ? $now->copy()->subYear() : $now;
+        return Carbon::now()->copy()->setYear(2025);
     }
 }
