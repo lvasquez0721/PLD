@@ -247,7 +247,7 @@ class OperacionesController extends Controller
                 $alertaDataPPE = [
                     'patron' => AnalisisPagosService::PATRON_PPE,
                     'descripcion' => 'Persona Políticamente Expuesta',
-                    'razones' => 'Operación realizada por cliente PPE (IDCliente '.$cliente->IDCliente.')',
+                    'razones' => 'Operación de cliente catalogado como persona políticamente expuesta (IDCliente '.$cliente->IDCliente.').',
                 ];
                 $evidenciasPPE = [
                     'tipo' => 'PPE_Operacion',
@@ -403,7 +403,7 @@ class OperacionesController extends Controller
                     'FechaPago' => 'required|date',
                     'detallePagos' => 'required|array|min:1',
                     'detallePagos.*.IDMoneda' => 'required|string',
-                    'detallePagos.*.TipoCambio' => 'required|numeric',
+                    'detallePagos.*.TipoCambio' => 'required|numeric|min:0.000001',
                     'detallePagos.*.IDCliente' => 'required|integer',
                     'detallePagos.*.PagaTercero' => 'required|boolean',
                     'detallePagos.*.AvisoDeCobro' => 'nullable|string',
@@ -594,7 +594,7 @@ class OperacionesController extends Controller
                         $alertaDataPPE = [
                             'patron' => AnalisisPagosService::PATRON_PPE,
                             'descripcion' => 'Persona Políticamente Expuesta',
-                            'razones' => 'Pago realizado por cliente PPE (IDCliente '.$clientePPE->IDCliente.') en operación '.$idOperacion,
+                            'razones' => 'Operación de cliente catalogado como persona políticamente expuesta (IDCliente '.$clientePPE->IDCliente.') en operación '.$idOperacion,
                         ];
                         $evidenciasPPE = array_merge($evidencias, [
                             'tipo' => 'PPE_Pago',
@@ -752,9 +752,9 @@ class OperacionesController extends Controller
 
         if ($operacion) {
             $montoMinimoUSD = CatParametriaPLD::getMontoMinimoAlerta();
-            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
+            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda, null, $operacion->FechaEmision);
 
-            if ($primaTotalUSD < $montoMinimoUSD) {
+            if ($primaTotalUSD !== null && $primaTotalUSD < $montoMinimoUSD) {
                 return AnalisisPagosService::ESTATUS_CERRADO;
             }
         }
@@ -1075,11 +1075,11 @@ class OperacionesController extends Controller
     }
 
     /**
-     * Evalúa si debe generarse alerta de cancelación para un endoso.
-     * Reglas: 1) No duplicar alerta para mismo FolioPoliza en tbAlertas
-     *         2) Debe existir operación base (primer registro con mismo FolioPoliza)
-     *         3) Base debe tener al menos un pago emitido
-     *         4) Diferencia entre FechaEmision del endoso y FechaPago del último pago <=31 días (solo fechas)
+     * Spec Patrón 3 Cancelación: alerta cuando el cliente cancela su póliza antes
+     * de que transcurra el 17% del plazo entre FechaInicioVigencia y FechaFinVigencia
+     * de la operación base.
+     * ratio = (FechaCancelación - InicioVigencia) / (FinVigencia - InicioVigencia).
+     * FechaCancelación = FechaEmision del endoso. Si ratio < 0.17 => alerta.
      */
     private function evaluarReglasCancelacion(TbOperaciones $endoso): array
     {
@@ -1123,69 +1123,71 @@ class OperacionesController extends Controller
             ];
         }
 
-        // 3) Pagos emitidos en la base (aunque parcial)
-        $ultimoPago = TbOperacionesPagos::where('IDOperacion', $base->IDOperacion)
-            ->orderByDesc('FechaPago')
-            ->orderByDesc('IDOperacionPago')
-            ->first();
-
-        if (! $ultimoPago) {
-            return [
-                'generarAlerta' => false,
-                'motivo' => 'SIN_PAGOS: La operación base no tiene pagos emitidos',
-                'razones' => 'No se genera alerta: la operación base no tiene pagos emitidos',
-                'base' => $base,
-                'ultimoPago' => null,
-                'dias' => null,
-            ];
-        }
-
-        // 4) Ventana 31 días: FechaEmision endoso vs FechaPago último pago (solo fechas)
+        // 3) Regla 17% del plazo de vigencia de la base
         try {
-            $fEmision = Carbon::parse($endoso->FechaEmision)->startOfDay();
-            $fPago = Carbon::parse($ultimoPago->FechaPago)->startOfDay();
+            $inicio = Carbon::parse($base->FechaInicioVigencia)->startOfDay();
+            $fin = Carbon::parse($base->FechaFinVigencia)->startOfDay();
+            $fCancel = Carbon::parse($endoso->FechaEmision)->startOfDay();
         } catch (\Exception $e) {
             return [
                 'generarAlerta' => false,
                 'motivo' => 'FECHA_INVALIDA: '.$e->getMessage(),
                 'razones' => 'No se genera alerta: fecha inválida',
                 'base' => $base,
-                'ultimoPago' => $ultimoPago,
+                'ultimoPago' => null,
                 'dias' => null,
             ];
         }
 
-        $dias = $fPago->diffInDays($fEmision, false);
-
-        if ($dias < 0) {
+        $plazoDias = $inicio->diffInDays($fin, false);
+        if ($plazoDias <= 0) {
             return [
                 'generarAlerta' => false,
-                'motivo' => "FECHA_ANTERIOR: Endoso {$fEmision->toDateString()} es anterior al último pago {$fPago->toDateString()} ({$dias} días)",
-                'razones' => "No se genera alerta: la fecha de emisión del endoso es anterior a la del último pago",
+                'motivo' => 'VIGENCIA_INVALIDA: el plazo entre inicio y fin de vigencia no es positivo',
+                'razones' => 'No se genera alerta: vigencia inválida en la operación base',
                 'base' => $base,
-                'ultimoPago' => $ultimoPago,
-                'dias' => $dias,
+                'ultimoPago' => null,
+                'dias' => null,
             ];
         }
 
-        if ($dias > 31) {
+        $transcurridos = $inicio->diffInDays($fCancel, false);
+        $ratio = $transcurridos / $plazoDias;
+
+        if ($ratio < 0) {
             return [
                 'generarAlerta' => false,
-                'motivo' => "VENTANA_EXCEDIDA: {$dias} días >31 desde último pago {$fPago->toDateString()} hasta emisión {$fEmision->toDateString()}",
-                'razones' => "No se genera alerta: el endoso supera 31 días desde el último pago ({$dias} días)",
+                'motivo' => 'FECHA_ANTERIOR: la cancelación es anterior al inicio de vigencia',
+                'razones' => 'No se genera alerta: la fecha de cancelación es anterior al inicio de vigencia',
                 'base' => $base,
-                'ultimoPago' => $ultimoPago,
-                'dias' => $dias,
+                'ultimoPago' => null,
+                'dias' => $transcurridos,
             ];
         }
+
+        if ($ratio >= 0.17) {
+            return [
+                'generarAlerta' => false,
+                'motivo' => 'PLAZO_EXCEDIDO: '.round($ratio * 100, 2).'% del plazo transcurrido (>=17%)',
+                'razones' => 'No se genera alerta: la cancelación ocurrió al '.round($ratio * 100, 2).'% del plazo de vigencia (>=17%)',
+                'base' => $base,
+                'ultimoPago' => null,
+                'dias' => $transcurridos,
+            ];
+        }
+
+        $ultimoPago = TbOperacionesPagos::where('IDOperacion', $base->IDOperacion)
+            ->orderByDesc('FechaPago')
+            ->orderByDesc('IDOperacionPago')
+            ->first();
 
         return [
             'generarAlerta' => true,
             'motivo' => 'OK',
-            'razones' => "Endoso de cancelación válido: último pago hace {$dias} días (≤31) y base con pagos emitidos",
+            'razones' => 'Póliza cancelada a los '.$transcurridos.' días de '.$plazoDias.' de vigencia ('.round($ratio * 100, 2).'%). La regla alerta antes del 17%.',
             'base' => $base,
             'ultimoPago' => $ultimoPago,
-            'dias' => $dias,
+            'dias' => $transcurridos,
         ];
     }
 

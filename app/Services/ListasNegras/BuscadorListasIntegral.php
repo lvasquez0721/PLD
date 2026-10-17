@@ -288,7 +288,7 @@ class BuscadorListasIntegral
             'HoraOperacion' => now()->format('H:i:s'),
             'Estatus' => 'Generado',
             'Descripcion' => 'Lista de Personas Bloqueadas',
-            'Razones' => "Se ha detectado coincidencia con '{$cadena}' en listas negras. Nombres detectados: {$nombresDetectados}",
+            'Razones' => "Operación de persona localizada en listas de la UIF (coincidencia: {$nombresDetectados}).",
             'created_at' => now(),
             'updated_at' => now(),
         ]);

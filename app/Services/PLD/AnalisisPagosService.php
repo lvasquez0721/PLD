@@ -8,6 +8,8 @@ use App\Models\Clientes\TbClientes;
 use App\Models\State\ResultadoAnalisisPago;
 use App\Models\TbOperaciones;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AnalisisPagosService
 {
@@ -63,54 +65,58 @@ class AnalisisPagosService
 
     private function analizarPagosFraccionados(TbOperaciones $operacion, array $pagos, ResultadoAnalisisPago $resultado): void
     {
+        // Spec Patrón 1 Fraccionado: múltiples pagos en cualquier forma para liquidar
+        // la prima => alerta, EXCEPTO si uno de los pagos corresponde a gastos de
+        // emisión con tolerancia ±10%.
         if (count($pagos) <= 1 || ! $resultado->operacionTotalmentePagada) {
             return;
         }
 
-        $resultado->esFraccionado = true;
-
-        // Obtener tolerancia
-        $toleranciaPorcentaje = CatParametriaPLD::getToleranciaPagosFraccionados();
-
-        // Validar pagos individuales contra prima total (GastosEmision ya incluido en PrimaTotal)
-        $montoEsperadoPago = (float) $operacion->PrimaTotal;
-        $tolerancia = $montoEsperadoPago * ($toleranciaPorcentaje / 100);
-        $limiteInferior = $montoEsperadoPago - $tolerancia;
-        $limiteSuperior = $montoEsperadoPago + $tolerancia;
-
-        $pagosDentroTolerancia = 0;
+        $toleranciaPorcentaje = (float) CatParametriaPLD::getToleranciaPagosFraccionados();
+        $gastosEmision = (float) ($operacion->GastosEmision ?? 0);
         $detalles = [];
+        $coincideGastos = false;
 
         foreach ($pagos as $pago) {
             $montoPago = (float) $pago['Monto'];
-            $dentroTolerancia = ($montoPago >= $limiteInferior && $montoPago <= $limiteSuperior);
-
-            if ($dentroTolerancia) {
-                $pagosDentroTolerancia++;
+            if ($gastosEmision > 0) {
+                $tolerancia = abs($gastosEmision) * ($toleranciaPorcentaje / 100);
+                $dentro = abs($montoPago - $gastosEmision) <= $tolerancia;
+            } else {
+                $tolerancia = 0;
+                $dentro = false;
             }
-
+            if ($dentro) {
+                $coincideGastos = true;
+            }
             $detalles[] = [
                 'monto_pago' => $montoPago,
-                'esperado' => $montoEsperadoPago,
-                'dentro_tolerance' => $dentroTolerancia,
-                'diferencia' => abs($montoPago - $montoEsperadoPago),
+                'gastos_emision' => $gastosEmision,
+                'tolerancia_pct' => $toleranciaPorcentaje,
+                'es_gastos_emision' => $dentro,
+                'diferencia' => abs($montoPago - $gastosEmision),
             ];
         }
 
         $resultado->detallesFraccionado = $detalles;
 
-        // Si todos los pagos están dentro de tolerancia, se descarta la alerta
-        if ($pagosDentroTolerancia === count($pagos)) {
+        // Si algún pago fue por gastos de emisión (±10%), la alerta NO se genera.
+        if ($coincideGastos) {
+            $resultado->esFraccionado = false;
             $resultado->esFraccionadoDescartado = true;
             $resultado->alertasDescartar[] = self::PATRON_FRACCIONADO;
-            $resultado->motivos[] = 'Pagos fraccionados dentro de tolerancia permitida';
-        } else {
-            $resultado->alertasGenerar[] = [
-                'patron' => self::PATRON_FRACCIONADO,
-                'descripcion' => 'Pagos fraccionados detectados',
-                'razones' => 'La operación tiene múltiples pagos que exceden la tolerancia permitida',
-            ];
+            $resultado->motivos[] = 'Pagos fraccionados no alertados: uno de los pagos corresponde a gastos de emisión (±'.$toleranciaPorcentaje.'%)';
+
+            return;
         }
+
+        $resultado->esFraccionado = true;
+        $montos = collect($pagos)->map(fn ($p) => number_format((float) $p['Monto'], 2).' '.($p['IDMoneda'] ?? $operacion->IDMoneda))->implode(' + ');
+        $resultado->alertasGenerar[] = [
+            'patron' => self::PATRON_FRACCIONADO,
+            'descripcion' => 'Pagos fraccionados detectados',
+            'razones' => 'Prima liquidada en '.count($pagos).' pagos ('.$montos.'). Ningún pago corresponde a gastos de emisión ('.number_format((float) ($operacion->GastosEmision ?? 0), 2).', margen 10%).',
+        ];
     }
 
     private function analizarPagosAcumuladosEfectivo(TbOperaciones $operacion, array $pagos, ResultadoAnalisisPago $resultado): void
@@ -125,22 +131,40 @@ class AnalisisPagosService
 
         if ($resultado->todosEfectivo && count($pagos) > 1) {
             $resultado->esAcumuladoEfectivo = true;
+            $montos = collect($pagos)->map(fn ($p) => number_format((float) $p['Monto'], 2).' '.($p['IDMoneda'] ?? $operacion->IDMoneda))->implode(' + ');
             $resultado->alertasGenerar[] = [
                 'patron' => self::PATRON_ACUMULADO_EFECTIVO,
                 'descripcion' => 'Acumulados',
-                'razones' => 'Pagos acumulados en efectivo: Operación totalmente pagada con múltiples pagos en efectivo',
+                'razones' => 'Prima liquidada en '.count($pagos).' pagos, todos en efectivo ('.$montos.').',
             ];
         }
     }
 
     private function analizarMontoRelevante(TbOperaciones $operacion, array $pagos, ResultadoAnalisisPago $resultado): void
     {
+        // Spec Patrón 2 Monto: pago en UNA SOLA EXHIBICIÓN de la prima, en efectivo,
+        // por monto >= 7,500 USD o equivalente en MN.
+        if (count($pagos) !== 1) {
+            return;
+        }
+        $pago = $pagos[0];
+        if ((int) ($pago['IDFormaPago'] ?? 0) !== 1) {
+            return; // solo efectivo
+        }
         // Solo pagos en efectivo. Umbral ID 1 (Operaciones relevantes) en USD vía Banxico.
         $pagosEfectivo = collect($pagos)->filter(fn ($pago) => $pago['IDFormaPago'] == 1);
         $umbralRelevante = CatParametriaPLD::getOperacionesRelevantes();
 
         foreach ($pagosEfectivo as $pago) {
-            $montoEnUSD = $this->convertirAUSD($pago['Monto'], $operacion->IDMoneda);
+            $monedaPago = $pago['IDMoneda'] ?? $operacion->IDMoneda;
+            $fechaPago = $pago['FechaPago'] ?? $operacion->FechaEmision;
+            $tcReal = $this->resolverTipoCambioReal($pago, $monedaPago, $fechaPago);
+            $montoEnUSD = $this->convertirAUSD((float) $pago['Monto'], $monedaPago, $tcReal, $fechaPago);
+
+            if ($montoEnUSD === null) {
+                $resultado->motivos[] = 'Monto relevante no evaluado: sin tipo de cambio real (TC no disponible)';
+                continue;
+            }
 
             if ($montoEnUSD >= $umbralRelevante) {
                 $resultado->esMontoRelevante = true;
@@ -149,7 +173,7 @@ class AnalisisPagosService
                 $resultado->alertasGenerar[] = [
                     'patron' => self::PATRON_MONTO_RELEVANTE,
                     'descripcion' => 'Operaciones por monto',
-                    'razones' => "Monto en efectivo excede umbral PLD: USD {$montoEnUSD}",
+                    'razones' => 'Pago único en efectivo por '.number_format((float) $pago['Monto'], 2).' '.$monedaPago.' (equivale a '.number_format($montoEnUSD, 2).' USD con tipo de cambio del día del pago), igual o mayor al umbral de '.number_format($umbralRelevante, 2).' USD.',
                     'monto_usd' => $montoEnUSD,
                     'genera_reporte' => true,
                 ];
@@ -173,129 +197,218 @@ class AnalisisPagosService
             $resultado->alertasGenerar[] = [
                 'patron' => self::PATRON_PPE,
                 'descripcion' => 'Persona Políticamente Expuesta',
-                'razones' => 'Operación realizada por cliente PPE',
+                'razones' => 'Operación de cliente catalogado como persona políticamente expuesta.',
             ];
         }
     }
 
     private function analizarMontoInusual(TbOperaciones $operacion, ResultadoAnalisisPago $resultado, array $pagos, ?TbClientes $cliente): void
     {
+        // Spec Patrón 7 Monto Inusual: al emitir una póliza se calcula promedio y
+        // desviación estándar del historial del cliente; intervalo =
+        // [promedio - 3σ, promedio + 3σ]. Requiere >= 3 pólizas emitidas y pagadas
+        // y σ != 0.
         if (! $resultado->operacionTotalmentePagada) {
             return;
         }
 
-        // Obtener límites de parametría (rango mixto confirmado):
-        // Límite Inferior: ID 14 (Monto mínimo alerta) en USD vía Banxico.
-        // Límite Superior: ID 17 (PM) o ID 16 (PF) en MXN.
-        $limiteInferior = CatParametriaPLD::getMontoMinimoAlerta();
+        $idCliente = $cliente?->IDCliente ?? $operacion->IDCliente;
+        if (empty($idCliente)) {
+            return;
+        }
 
-        // Determinar si es Persona Moral (IDTipoPersona = 2)
-        // Si no hay cliente o no es moral, se asume Persona Física (IDTipoPersona = 1)
-        $esMoral = ($cliente && $cliente->IDTipoPersona == 2);
+        // Historial: operaciones previas del mismo cliente, excluyendo la actual,
+        // consideradas emitidas y pagadas (total pagado >= PrimaTotal).
+        $historial = TbOperaciones::where('IDCliente', $idCliente)
+            ->where('IDOperacion', '!=', $operacion->IDOperacion ?? 0)
+            ->get(['IDOperacion', 'PrimaTotal']);
 
-        // Límite Superior: ID 17 (PM) o ID 16 (PF)
-        $limiteSuperior = $esMoral
-            ? CatParametriaPLD::getValor(CatParametriaPLD::MONTO_AUTORIZACION_EFECTIVO_PM, 500000)
-            : CatParametriaPLD::getValor(CatParametriaPLD::MONTO_AUTORIZACION_EFECTIVO_PF, 300000);
+        $primasHistoricas = [];
+        foreach ($historial as $opHist) {
+            $totalPagadoHist = (float) DB::table('tbOperacionesPagos')
+                ->where('IDOperacion', $opHist->IDOperacion)
+                ->sum('Monto');
+            if ($totalPagadoHist >= (float) $opHist->PrimaTotal && (float) $opHist->PrimaTotal > 0) {
+                $primasHistoricas[] = (float) $opHist->PrimaTotal;
+            }
+        }
 
-        // Set limits in result object, as they are relevant for any inusual monto
+        if (count($primasHistoricas) < 3) {
+            $resultado->motivos[] = 'Monto inusual no evaluado: el cliente requiere al menos tres pólizas emitidas y pagadas ('.count($primasHistoricas).' encontradas)';
+
+            return;
+        }
+
+        $n = count($primasHistoricas);
+        $promedio = array_sum($primasHistoricas) / $n;
+        $varianza = 0.0;
+        foreach ($primasHistoricas as $v) {
+            $varianza += pow($v - $promedio, 2);
+        }
+        $varianza /= $n; // desviación estándar poblacional
+        $desviacion = sqrt($varianza);
+
+        if ($desviacion == 0.0) {
+            $resultado->motivos[] = 'Monto inusual no evaluado: desviación estándar igual a cero';
+
+            return;
+        }
+
+        $limiteInferior = $promedio - 3 * $desviacion;
+        $limiteSuperior = $promedio + 3 * $desviacion;
+
         $resultado->limiteInferior = $limiteInferior;
         $resultado->limiteSuperior = $limiteSuperior;
 
-        foreach ($pagos as $index => $pago) {
-            $montoPago = (float) $pago['Monto'];
+        $primaEmitida = (float) $operacion->PrimaTotal;
 
-            // Comparar cada límite en su moneda: inferior en USD, superior en MXN.
-            // Assuming all payments for an operation are in the same currency as the operation
-            $montoPagoUSD = $this->convertirAUSD($montoPago, $operacion->IDMoneda);
-            $montoPagoMXN = $this->convertirAMXN($montoPago, $operacion->IDMoneda);
-
-            // Validar si el monto del pago está fuera de rango
-            if ($montoPagoUSD < $limiteInferior || $montoPagoMXN > $limiteSuperior) {
-                $resultado->esMontoInusual = true; // Set to true if any payment is inusual
-
-                $tipoCambio = $this->obtenerTipoCambio();
-                $limiteInferiorMXN = $limiteInferior * $tipoCambio;
-
-                $razones = 'El pago #'.($index + 1).' (Monto: '.number_format($montoPago, 2).' '.$operacion->IDMoneda.') equivalente a MXN '.number_format($montoPagoMXN, 2).' está fuera de rango permitido [MXN '.number_format($limiteInferiorMXN, 2).', MXN '.number_format($limiteSuperior, 2).']';
-
-                $alertData = [
-                    'patron' => self::PATRON_MONTO_INUSUAL,
-                    'descripcion' => 'Pago inusual detectado',
-                    'razones' => $razones,
-                    'monto_mxn' => $montoPagoMXN,
-                    'monto_usd' => $montoPagoUSD,
-                ];
-
-                if (isset($pago['IDPago'])) {
-                    $alertData['id_pago'] = $pago['IDPago'];
-                }
-
-                $resultado->alertasGenerar[] = $alertData;
-            }
+        if ($primaEmitida < $limiteInferior || $primaEmitida > $limiteSuperior) {
+            $resultado->esMontoInusual = true;
+            $moneda = trim((string) ($operacion->IDMoneda ?? ''));
+            $resultado->alertasGenerar[] = [
+                'patron' => self::PATRON_MONTO_INUSUAL,
+                'descripcion' => 'Prima fuera del comportamiento histórico del cliente',
+                'razones' => 'Prima de '.number_format($primaEmitida, 2).' '.$moneda.', fuera del comportamiento del cliente (habitual entre '.number_format($limiteInferior, 2).' '.$moneda.' y '.number_format($limiteSuperior, 2).' '.$moneda.' según sus últimas '.$n.' pólizas pagadas).',
+                'promedio' => $promedio,
+                'desviacion_estandar' => $desviacion,
+                'n_historicas' => $n,
+            ];
         }
     }
 
-    private function obtenerTipoCambio(): float
+    /**
+     * Obtiene el FIX Banxico REAL (MXN por USD) a una fecha dada.
+     * Fuente 1: tabla histórica local catTipoCambio (Fecha, DOFDolar).
+     * Fuente 2: API Banxico a esa misma fecha (retrocede a día hábil).
+     * Si ambas fallan retorna null: NUNCA se inventa un tipo de cambio.
+     */
+    private function obtenerFixReal($fecha): ?float
     {
         try {
-            $client = new Client;
+            $dia = $fecha ? \Carbon\Carbon::parse($fecha) : now();
+        } catch (\Throwable $e) {
+            $dia = now();
+        }
 
-            // Obtener tipo de cambio del día hábil anterior
-            $fecha = now()->subDay();
-            while ($fecha->isWeekend()) {
-                $fecha->subDay();
+        // Retroceder a día hábil (FIX no se publica fines de semana)
+        $intentos = 0;
+        while ($dia->isWeekend() && $intentos < 5) {
+            $dia->subDay();
+            $intentos++;
+        }
+        $fechaStr = $dia->format('Y-m-d');
+
+        // 1) Tabla histórica local
+        try {
+            $local = DB::table('catTipoCambio')->where('Fecha', $fechaStr)->value('DOFDolar');
+            if (is_numeric($local) && (float) $local > 0) {
+                return (float) $local;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[PLD] No se pudo leer catTipoCambio: '.$e->getMessage());
+        }
+
+        // 2) Banxico a esa fecha; se persiste en catTipoCambio para futuras consultas
+        try {
+            $token = config('services.banxico.token');
+            if (empty($token)) {
+                Log::error('[PLD] Sin token Banxico (BANXICO_TOKEN). No hay TC real disponible.');
+
+                return null;
             }
 
-            $fechaFormateada = $fecha->format('Y-m-d');
-            $url = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/{$fechaFormateada}/{$fechaFormateada}?token=dafb7f16f4ec83af4c269688bde5bab13903be80138f5d19773a7e83346c5aae";
-
-            $response = $client->request('GET', $url);
+            $client = new Client;
+            $url = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/{$fechaStr}/{$fechaStr}?token={$token}";
+            $response = $client->request('GET', $url, ['timeout' => 15]);
             $data = json_decode($response->getBody(), true);
+            $dato = $data['bmx']['series'][0]['datos'][0]['dato'] ?? null;
 
-            return (float) ($data['bmx']['series'][0]['datos'][0]['dato'] ?? 20.0);
-        } catch (\Exception $e) {
-            // Fallback a tipo de cambio fijo
-            return 20.0;
+            if (is_numeric($dato) && (float) $dato > 0) {
+                try {
+                    DB::table('catTipoCambio')->updateOrInsert(
+                        ['Fecha' => $fechaStr],
+                        ['DOFDolar' => (float) $dato]
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('[PLD] No se pudo persistir FIX en catTipoCambio: '.$e->getMessage());
+                }
+
+                return (float) $dato;
+            }
+
+            Log::error("[PLD] Banxico sin dato FIX para {$fechaStr}. No se evalúa monto.");
+        } catch (\Throwable $e) {
+            Log::error("[PLD] Banxico no disponible para {$fechaStr}: ".$e->getMessage().'. No se evalúa monto.');
         }
+
+        return null;
     }
 
-    public function convertirAUSD(float $monto, $idMoneda): float
+    /**
+     * Resuelve el tipo de cambio REAL (MXN por USD) para un pago.
+     * - Pago en USD: se usa el TipoCambio capturado en el pago (obligatorio).
+     * - Pago en MXN: se usa el FIX Banxico a FechaPago (histórico real).
+     * Retorna null si no hay TC real (el llamador debe omitir la evaluación).
+     */
+    private function resolverTipoCambioReal(array $pago, $monedaPago, $fechaPago): ?float
+    {
+        $moneda = strtoupper(trim((string) $monedaPago));
+
+        if ($moneda === 'USD') {
+            $tc = isset($pago['TipoCambio']) ? (float) $pago['TipoCambio'] : 0;
+            if ($tc > 0) {
+                return $tc;
+            }
+            Log::error('[PLD] Pago en USD sin TipoCambio válido. No se evalúa monto.', ['pago' => $pago['IDOperacionPago'] ?? null]);
+
+            return null;
+        }
+
+        if ($moneda === 'MXN') {
+            return $this->obtenerFixReal($fechaPago);
+        }
+
+        Log::error('[PLD] Moneda no soportada para conversión: '.$moneda.'. No se evalúa monto.');
+
+        return null;
+    }
+
+    public function convertirAUSD(float $monto, $idMoneda, ?float $tipoCambioReal = null, $fechaPago = null): ?float
     {
         // Normalizar a string mayúsculas
-        $moneda = strtoupper((string) $idMoneda);
+        $moneda = strtoupper(trim((string) $idMoneda));
 
         if ($moneda === 'USD') {
             return $monto;
         }
 
         if ($moneda === 'MXN') {
-            $tipoCambio = $this->obtenerTipoCambio();
+            $tc = $tipoCambioReal ?? $this->obtenerFixReal($fechaPago);
 
-            return $monto / $tipoCambio;
+            return ($tc && $tc > 0) ? $monto / $tc : null;
         }
 
-        // Otras monedas, sin conversión por ahora (se devuelve el monto original)
-        return $monto;
+        // Otras monedas: sin TC real conocido, no se convierte (null, no inventar)
+        return null;
     }
 
-    private function convertirAMXN(float $monto, $idMoneda): float
+    private function convertirAMXN(float $monto, $idMoneda, ?float $tipoCambioReal = null, $fechaPago = null): ?float
     {
         // Normalizar a string mayúsculas
-        $moneda = strtoupper((string) $idMoneda);
+        $moneda = strtoupper(trim((string) $idMoneda));
 
         if ($moneda === 'MXN') {
             return $monto;
         }
 
         if ($moneda === 'USD') {
-            $tipoCambio = $this->obtenerTipoCambio();
+            $tc = $tipoCambioReal ?? $this->obtenerFixReal($fechaPago);
 
-            return $monto * $tipoCambio;
+            return ($tc && $tc > 0) ? $monto * $tc : null;
         }
 
-        // Otras monedas, sin conversión por ahora (se devuelve el monto original)
-        return $monto;
+        // Otras monedas: sin TC real conocido, no se convierte (null, no inventar)
+        return null;
     }
 
     private function determinarEstatusFinal(ResultadoAnalisisPago $resultado, TbOperaciones $operacion): void
@@ -312,13 +425,19 @@ class AnalisisPagosService
             // Verificar si el monto total de la prima es menor al monto mínimo de alerta (USD vía Banxico)
             $montoMinimoAlertaUSD = CatParametriaPLD::getMontoMinimoAlerta();
 
-            // Convertir PrimaTotal a USD para comparar
-            $primaTotalUSD = $this->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda);
+            // Convertir PrimaTotal a USD con TC real (FIX a FechaEmision). Sin TC no se cierra.
+            $monedaOp = $operacion->IDMoneda;
+            $tcOp = (strtoupper(trim((string) $monedaOp)) === 'USD')
+                ? null // Prima en USD no requiere TC
+                : $this->obtenerFixReal($operacion->FechaEmision);
+            $primaTotalUSD = $this->convertirAUSD((float) $operacion->PrimaTotal, $monedaOp, $tcOp, $operacion->FechaEmision);
 
             // Si la prima total es menor al umbral mínimo, se cierra automáticamente
-            // Esto aplica para alertas generadas por Fraccionado o AcumuladoEfectivo
-            // donde el riesgo se mitiga si el monto es bajo.
-            if ($primaTotalUSD < $montoMinimoAlertaUSD) {
+            // donde el riesgo se mitiga si el monto es bajo. Sin TC real no se cierra.
+            if ($primaTotalUSD === null) {
+                $resultado->motivos[] = 'Cierre automático no aplicado: sin tipo de cambio real (TC no disponible)';
+                $resultado->estatusFinal = self::ESTATUS_GENERADO;
+            } elseif ($primaTotalUSD < $montoMinimoAlertaUSD) {
                 $resultado->estatusFinal = self::ESTATUS_CERRADO;
             } else {
                 $resultado->estatusFinal = self::ESTATUS_GENERADO;

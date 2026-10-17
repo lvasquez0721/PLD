@@ -661,7 +661,7 @@ class AlertasController extends Controller
             $cliente = null;
             $tipoPersona = null;
         } else {
-            $operacion = TbOperaciones::with('pagos')->find($alerta->IDOperacion);
+            $operacion = TbOperaciones::with(['pagos.formaPagoRel'])->find($alerta->IDOperacion);
             $reportes = TbReporteRegulatorioPLD::where('IDRegistroAlerta', $alerta->IDRegistroAlerta)->get();
             if ($reportes->isEmpty()) {
                 $reportes = null;
@@ -682,7 +682,7 @@ class AlertasController extends Controller
             $historialPoliza = null;
             if ($operacion && !empty($operacion->FolioPoliza)) {
                 $historialPoliza = TbOperaciones::where('FolioPoliza', $operacion->FolioPoliza)
-                    ->with('pagos')
+                    ->with(['pagos.formaPagoRel'])
                     ->orderBy('FechaEmision')
                     ->orderBy('IDOperacion')
                     ->get();

@@ -679,10 +679,6 @@ function submitEditarAlerta(e: Event) {
                                 </span>
                             </div>
                             <div>
-                                <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Forma de Pago</span>
-                                <span class="font-medium text-gray-900 dark:text-neutral-100">{{ formaPagoNombre(operacion.IDFormaPago) }}</span>
-                            </div>
-                            <div>
                                 <span class="block text-[11px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Esquema de Pago</span>
                                 <span class="font-mono font-medium text-gray-900 dark:text-neutral-100">{{ operacion.EsquemaDePago || '-' }}</span>
                             </div>
@@ -897,7 +893,7 @@ function submitEditarAlerta(e: Event) {
                                         <tbody>
                                             <tr v-for="(pago, i) in detallePagos.length ? detallePagos : pagosOperacion" :key="i">
                                                 <td class="px-3 py-2 whitespace-nowrap">{{ pago.fecha_pago ?? pago.FechaPago ?? '-' }}</td>
-                                                <td class="px-3 py-2 whitespace-nowrap">{{ pago.forma_pago ?? '-' }}</td>
+                                                <td class="px-3 py-2 whitespace-nowrap">{{ pago.forma_pago ?? (pago.formaPago?.FormaPago ?? formaPagoNombre(pago.IDFormaPago)) ?? pago.InstrumentoMonetario ?? '-' }}</td>
                                                 <td class="px-3 py-2 whitespace-nowrap">
                                                     {{ numberFormat(pago.monto ?? pago.Monto, String(pago.moneda ?? pago.IDMoneda ?? 'MXN')) }}
                                                 </td>
