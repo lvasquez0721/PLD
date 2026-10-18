@@ -15,7 +15,7 @@ class CatLocalidad extends Model
 
     public $incrementing = false;
 
-    protected $keyType = 'int';
+    protected $keyType = 'string';
 
     public $timestamps = true;
 
@@ -23,5 +23,6 @@ class CatLocalidad extends Model
         'IDLocalidad',
         'Localidad',
         'IDMunicipio',
+        'IDEstado',
     ];
 }

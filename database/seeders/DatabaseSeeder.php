@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         $this->call(TipoPersonaSeeder::class);
         $this->call(OcupacionGiroSeeder::class);
         $this->call(EstadoSeeder::class);
+        $this->call(LocalidadSeeder::class);
         $this->call(SistemaOrigenSeeder::class);
         $this->call(TipoMonedaSeeder::class);
         $this->call(FormaPagoSeeder::class);

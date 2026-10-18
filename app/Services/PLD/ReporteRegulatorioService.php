@@ -11,6 +11,7 @@ use App\Models\Clientes\TbClientes;
 use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
 use App\Models\TbReporteRegulatorioPLD;
+use App\Support\Curp;
 
 class ReporteRegulatorioService
 {
@@ -68,12 +69,11 @@ class ReporteRegulatorioService
 
         $reporte->TipoReporte         = $tipoReporteNombre;
         $reporte->IDTipoReporte       = $idTipoReporte;
-        // Periodo: YYMM para monto (tipo 1) y YYMMDD para monto inusual/nuevo, tomado de FechaDeteccion
-        $fechaPeriodo = $alerta->FechaDeteccion ?? $alerta->FechaOperacion ?? $hoy;
-        $tsPeriodo = strtotime((string) $fechaPeriodo);
+        // Periodo: fecha de generación del reporte (hoy), igual para todos los registros.
+        // Monto usa YYYYMM; Monto Inusual/Nuevo usan YYYYMMDD.
         $reporte->PeriodoReporte      = $idTipoReporte === 1
-            ? ($tsPeriodo ? date('ym', $tsPeriodo) : now()->format('ym'))
-            : ($tsPeriodo ? date('ymd', $tsPeriodo) : now()->format('ymd'));
+            ? now()->format('Ym')
+            : now()->format('Ymd');
         $reporte->Folio               = $alerta->Folio;
         $reporte->OrganoSupervisor    = '001003';
         $reporte->CveSujetoObligado   = '022123';
@@ -147,20 +147,35 @@ class ReporteRegulatorioService
             $reporte->CURP        = $cliente?->CURP;
         }
         $reporte->RFC                 = $cliente?->RFC ?? $alerta->RFCAgente;
-        // Fecha nacimiento/constitucion según #8
+        // Fecha nacimiento/constitucion según #8.
+        // En personas físicas se obtiene de la CURP; si no es válida, se usan
+        // las fechas capturadas (el alta puede guardar la de nacimiento en
+        // FechaConstitucion).
         if ($esPM) {
             $reporte->FechaNacimiento = $cliente?->FechaConstitucion ?? $cliente?->FechaNacimiento;
         } else {
-            $reporte->FechaNacimiento = $cliente?->FechaNacimiento;
+            $reporte->FechaNacimiento = Curp::fechaNacimiento($cliente?->CURP)
+                ?? $cliente?->FechaNacimiento
+                ?? $cliente?->FechaConstitucion;
         }
         $reporte->Domicilio           = $domicilio;
         $reporte->Colonia             = $colonia;
         $reporte->Ciudad              = $ciudad;
         $reporte->Telefono            = $telefono;
-        $reporte->Ocupacion           = $cliente?->IDOcupacionGiro
-            ? CatOcupacionesGiros::where('IDOcupacionGiro', $cliente->IDOcupacionGiro)->value('OcupacionGiro')
-            : null;
-        // Si ocupacion viene como nombre, se mapea a CVE en exportar; aqui guardamos texto tal cual
+        // Ocupación: guardar la clave CVE_GIRO. Si el ID del catálogo no existe,
+        // el valor capturado se conserva como clave numérica para que no se pierda.
+        $idOcupacion = $cliente?->IDOcupacionGiro;
+        if ($idOcupacion) {
+            $cveGiro = CatOcupacionesGiros::where('IDOcupacionGiro', $idOcupacion)->value('CVE_GIRO');
+            if ($cveGiro === null) {
+                $cveGiro = is_numeric($idOcupacion)
+                    ? str_pad((string) $idOcupacion, 7, '0', STR_PAD_LEFT)
+                    : (string) $idOcupacion;
+            }
+            $reporte->Ocupacion = $cveGiro;
+        } else {
+            $reporte->Ocupacion = null;
+        }
         // Agente: priorizar desglose de tbOperaciones, fallback split del string completo (col.29-31)
         [$nomAg, $patAg, $matAg] = $this->fraccionarAgente(
             $alerta->Agente,

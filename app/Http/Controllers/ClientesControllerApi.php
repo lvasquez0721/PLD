@@ -298,8 +298,8 @@ class ClientesControllerApi extends Controller
                     'Colonia' => $dom['colonia'],
                     'CP' => $dom['CP'],
                     'IDEstado' => $dom['IDEstado'],
-                    'IDMunicipio' => $dom['municipio'],
-                    'IDLocalidad' => $dom['localidad'] ?? null,
+                    'Municipio' => $dom['municipio'],
+                    'Localidad' => $dom['localidad'] ?? null,
                     'Telefono' => $dom['telefono'] ?? null,
                 ]);
                 $domiciliosInsertados[] = $domObj;

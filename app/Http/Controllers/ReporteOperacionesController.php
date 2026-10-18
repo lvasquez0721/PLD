@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatFormaPagos;
+use App\Models\Clientes\CatLocalidad;
 use App\Models\Clientes\CatNacionalidad;
 use App\Models\Clientes\CatOcupacionesGiros;
 use App\Models\Clientes\CatTipoPersona;
+use App\Models\Clientes\TbClientes;
 use App\Models\TbAlertas;
 use App\Models\TbReporteRegulatorioPLD;
 use App\Services\PLD\ReporteRegulatorioService;
+use App\Support\Curp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -172,6 +175,7 @@ class ReporteOperacionesController extends Controller
             }));
 
             $primeraLinea = true;
+            $totalColumnas = count(self::LAYOUT_HEADERS);
 
             if ($conHeaders) {
                 fwrite($file, implode(';', self::LAYOUT_HEADERS).';');
@@ -182,6 +186,15 @@ class ReporteOperacionesController extends Controller
                 if (! $primeraLinea) {
                     fwrite($file, "\r\n");
                 }
+
+                // Garantizar siempre las 41 columnas y el delimitador final.
+                $fila = array_values((array) $fila);
+                if (count($fila) < $totalColumnas) {
+                    $fila = array_pad($fila, $totalColumnas, '');
+                } elseif (count($fila) > $totalColumnas) {
+                    $fila = array_slice($fila, 0, $totalColumnas);
+                }
+
                 fwrite($file, implode(';', $fila).';');
                 $primeraLinea = false;
             }
@@ -313,91 +326,52 @@ class ReporteOperacionesController extends Controller
      * Nombre del archivo conforme al Anexo 2:
      * TIPO(1) + CLAVE_SUJETO(6) + PERIODO(YYMM 4 / YYMMDD 6) + "." + ORGANO_SUPERVISOR(3).
      * Ej. 2022123260731.003 => 2 022123 260731 .003
-     * Periodo tomado de FechaDeteccion del primer reporte del lote, fallback now().
+     * El periodo corresponde a la fecha de generación del reporte (hoy).
      */
     private function nombreArchivo(string $tipo, $reportes = null): string
     {
-        $prefijo = match ($tipo) {
-            'Monto'         => '1',
-            'Monto Inusual' => '2',
-            'Nuevo'         => '3',
-            default         => '0',
-        };
-
-        $fechaRef = null;
-        if ($reportes && $reportes->isNotEmpty()) {
-            $first = $reportes->first();
-            $fechaRef = $first->FechaDeteccion ?? $first->FechaOperacion ?? null;
-            if (empty($fechaRef) && ! empty($first->PeriodoReporte)) {
-                // Si no hay fecha pero hay periodo almacenado, usarlo directamente
-                $raw = preg_replace('/\D/', '', (string) $first->PeriodoReporte);
-                if ($tipo === 'Monto' && strlen($raw) >= 4) {
-                    $periodo = substr($raw, -4);
-                    if (strlen($periodo) === 4) {
-                        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
-                    }
-                } elseif (strlen($raw) >= 6) {
-                    $periodo = substr($raw, -6);
-                    if (strlen($periodo) === 6) {
-                        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
-                    }
-                }
-            }
-        }
-
-        if ($fechaRef) {
-            $ts = strtotime((string) $fechaRef);
-            $periodo = $tipo === 'Monto'
-                ? ($ts ? date('ym', $ts) : now()->format('ym'))
-                : ($ts ? date('ymd', $ts) : now()->format('ymd'));
-        } else {
-            $periodo = $tipo === 'Monto'
-                ? now()->format('ym')
-                : now()->format('ymd');
-        }
-
-        return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
+        return $this->construirNombreArchivo($tipo);
     }
 
     private function nombreArchivoDesdeAlertas(string $tipo, $alertas): string
     {
+        return $this->construirNombreArchivo($tipo);
+    }
+
+    private function construirNombreArchivo(string $tipo): string
+    {
         $prefijo = match ($tipo) {
             'Monto'         => '1',
             'Monto Inusual' => '2',
             'Nuevo'         => '3',
             default         => '0',
         };
-        $first = $alertas->first();
-        $fechaRef = $first->FechaDeteccion ?? $first->FechaOperacion ?? $first->created_at ?? null;
-        if ($fechaRef) {
-            $ts = strtotime((string) $fechaRef);
-            $periodo = $tipo === 'Monto'
-                ? ($ts ? date('ym', $ts) : now()->format('ym'))
-                : ($ts ? date('ymd', $ts) : now()->format('ymd'));
-        } else {
-            $periodo = $tipo === 'Monto' ? now()->format('ym') : now()->format('ymd');
-        }
+
+        $periodo = $tipo === 'Monto' ? now()->format('ym') : now()->format('ymd');
+
         return $prefijo.self::CLAVE_SUJETO_OBLIGADO.$periodo.'.'.self::ORGANO_SUPERVISOR.'.csv';
     }
 
     private function mapearFilasDesdeAlertas($alertas): array
     {
-        // Mapeo simplificado desde alertas cuando aún no existe reporte regulatorio.
+        // Mapeo desde alertas cuando aún no existe reporte regulatorio.
         // No crea registro, solo genera filas para descarga sin cambiar estatus.
         $codigosMoneda = ['MXN' => '1', 'USD' => '2', '001' => '1', '002' => '2', '01' => '1', '02' => '2', '1' => '1', '2' => '2'];
+        $ocupacionesPorId = CatOcupacionesGiros::pluck('CVE_GIRO', 'IDOcupacionGiro');
+
+        [, $clientes] = $this->contextoClientes($alertas);
+
         $folio = 0;
-        return $alertas->map(function ($a) use ($codigosMoneda, &$folio) {
+        return $alertas->map(function ($a) use ($codigosMoneda, $ocupacionesPorId, $clientes, &$folio) {
             $folio++;
             $tipoReporte = match ($a->Patron) {
                 'Monto' => '1',
                 'Nuevo' => '3',
                 default => '2',
             };
-            $fechaDet = $a->FechaDeteccion ?? $a->FechaOperacion ?? null;
-            $ts = $fechaDet ? strtotime((string) $fechaDet) : null;
-            $periodo = $tipoReporte === '1'
-                ? ($ts ? date('ym', $ts) : '')
-                : ($ts ? date('ymd', $ts) : '');
+            // El periodo del reporte corresponde a la fecha de generación (hoy),
+            // no a la fecha de operación/detección. Es el mismo para todos los registros.
+            $periodo = $this->periodoDesdeFechaGeneracion($tipoReporte);
             $rawMoneda = strtoupper(trim((string) ($a->IDMoneda ?? '')));
             $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '1');
             $moneda = ltrim((string) $moneda, '0');
@@ -419,6 +393,24 @@ class ReporteOperacionesController extends Controller
                 $a->OperacionRazonSocialAgente ?? null
             );
 
+            $cliente = $clientes->get($a->IDCliente);
+            $domicilio = $cliente?->domicilios->first();
+
+            $idTipoPersona = (string) ($cliente?->IDTipoPersona ?? '');
+            $tipoPersonaVal = in_array($idTipoPersona, ['1', '2'], true) ? $idTipoPersona : '';
+            $esPF = $tipoPersonaVal === '1';
+            $esPM = $tipoPersonaVal === '2';
+
+            $razonSocial = $esPM ? $cliente?->RazonSocial : ($esPF ? '' : $cliente?->RazonSocial);
+            $nombre = $esPF || ! $esPM ? ($cliente?->Nombre ?? $a->Cliente) : '';
+            $aPaterno = $esPF ? $cliente?->ApellidoPaterno : '';
+            $aMaterno = $esPF ? $cliente?->ApellidoMaterno : '';
+            $curp = $esPF ? $cliente?->CURP : '';
+
+            $fechaNacimiento = $this->fechaNacimientoCliente($cliente, $tipoPersonaVal);
+            $ciudad = $this->claveLocalidad($domicilio);
+            $ocupacion = $this->claveOcupacion($cliente?->IDOcupacionGiro, $ocupacionesPorId);
+
             return [
                 $this->limpiar($tipoReporte),
                 $this->limpiar($periodo),
@@ -435,26 +427,25 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar($this->formatearFecha($a->FechaOperacion)),
                 $this->limpiar($fechaDeteccion),
                 $this->limpiar('MX'),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar($a->Cliente),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar($a->RFCAgente),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar(''),
-                $this->limpiar(''),
+                $this->limpiar($tipoPersonaVal),
+                $this->limpiar($razonSocial),
+                $this->limpiar($nombre),
+                $this->limpiar($aPaterno),
+                $this->limpiar($aMaterno),
+                $this->limpiar($cliente?->RFC ?? $a->RFCAgente),
+                $this->limpiar($curp),
+                $this->limpiar($this->formatearFecha($fechaNacimiento)),
+                $this->limpiar($this->domicilioTexto($domicilio)),
+                $this->limpiar($domicilio?->Colonia),
+                $this->limpiar($ciudad),
+                $this->limpiar($domicilio?->Telefono),
+                $this->limpiar($ocupacion),
                 $this->limpiar($nomAg),
                 $this->limpiar($patAg),
                 $this->limpiar($matAg),
                 $this->limpiar($a->RFCAgente),
                 $this->limpiar(''),
                 $this->limpiar('00'),
-                $this->limpiar(''),
                 $this->limpiar(''),
                 $this->limpiar(''),
                 $this->limpiar(''),
@@ -474,6 +465,16 @@ class ReporteOperacionesController extends Controller
         $formasPago     = CatFormaPagos::pluck('IDFormaPago', 'FormaPago');
         $nacionalidades = CatNacionalidad::pluck('IDNacionalidad', 'Nacionalidad');
         $ocupaciones    = CatOcupacionesGiros::pluck('CVE_GIRO', 'OcupacionGiro');
+        $ocupacionesPorId = CatOcupacionesGiros::pluck('CVE_GIRO', 'IDOcupacionGiro');
+
+        // Datos actuales de cliente/domicilio para completar campos que el
+        // reporte regulatorio haya guardado vacíos (p. ej. fecha de nacimiento,
+        // ciudad u ocupación). No se sobreescriben valores ya capturados.
+        $alertasReporte = TbAlertas::whereIn(
+            'IDRegistroAlerta',
+            $reportes->pluck('IDRegistroAlerta')->filter()->unique()->values()
+        )->get();
+        [$alertasPorRegistro, $clientes] = $this->contextoClientes($alertasReporte);
 
         // Mapas normalizados upper para lookup insensible a mayúsculas
         $formasPagoUpper = [];
@@ -495,8 +496,12 @@ class ReporteOperacionesController extends Controller
 
         $folio = 0;
 
-        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupaciones, $formasPagoUpper, $tiposPersonaUpper, $nacionalidadesUpper, $ocupacionesUpper, &$folio) {
+        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupaciones, $ocupacionesPorId, $alertasPorRegistro, $clientes, $formasPagoUpper, $tiposPersonaUpper, $nacionalidadesUpper, $ocupacionesUpper, &$folio) {
             $folio++;
+
+            $alerta = $alertasPorRegistro->get($r->IDRegistroAlerta);
+            $cliente = $alerta ? $clientes->get($alerta->IDCliente) : null;
+            $domicilio = $cliente?->domicilios->first();
 
             // Instrumento monetario: siempre 2 dígitos, default 01 (Efectivo) si vacío
             $rawInst = trim((string) ($r->InstrumentoMonetario ?? ''));
@@ -553,10 +558,11 @@ class ReporteOperacionesController extends Controller
                 $tipoPersonaVal = '';
             }
 
-            // Ocupacion: clave CVE_GIRO
-            $rawOcup = trim((string) ($r->Ocupacion ?? ''));
-            $ocupUpper = mb_strtoupper($rawOcup);
-            $ocupacion = $ocupaciones[$rawOcup] ?? $ocupacionesUpper[$ocupUpper] ?? $rawOcup;
+            // Ocupacion: clave CVE_GIRO. Si el reporte la guardó vacía, se toma del cliente.
+            $ocupacion = $this->claveOcupacion($r->Ocupacion, $ocupacionesPorId, $ocupacionesUpper);
+            if ($ocupacion === '' && $cliente) {
+                $ocupacion = $this->claveOcupacion($cliente->IDOcupacionGiro, $ocupacionesPorId);
+            }
 
             // Coherencia PF/PM para columnas Nombre/RazonSocial/CURP (defensa en capa de exportación)
             $isPF = ((string) $tipoPersonaVal === '1');
@@ -574,6 +580,18 @@ class ReporteOperacionesController extends Controller
                 $aMaterno = '';
                 $curp = '';
             }
+
+            // Para PF la fecha se toma de la CURP (aunque el snapshot tenga otra);
+            // para PM se respeta la fecha del reporte y se completa si viene vacía.
+            if ($isPF) {
+                $fechaNacimiento = $this->fechaNacimientoCliente($cliente, '1') ?: $r->FechaNacimiento;
+            } else {
+                $fechaNacimiento = $r->FechaNacimiento ?: $this->fechaNacimientoCliente($cliente, $tipoPersonaVal);
+            }
+            $domicilioTexto = $r->Domicilio ?: $this->domicilioTexto($domicilio);
+            $colonia = $r->Colonia ?: $domicilio?->Colonia;
+            $ciudad = $this->claveLocalidad($domicilio) ?: $r->Ciudad;
+            $telefono = $r->Telefono ?: $domicilio?->Telefono;
 
             // Col.14 FechaDeteccion vacía solo en Monto (IDTipoReporte 1)
             $esRelevante = ((int) ($r->IDTipoReporte ?? 0) === 1);
@@ -611,11 +629,11 @@ class ReporteOperacionesController extends Controller
                 $this->limpiar($aMaterno),
                 $this->limpiar($r->RFC),
                 $this->limpiar($curp),
-                $this->limpiar($this->formatearFecha($r->FechaNacimiento)),
-                $this->limpiar($r->Domicilio),
-                $this->limpiar($r->Colonia),
-                $this->limpiar($r->Ciudad),
-                $this->limpiar($r->Telefono),
+                $this->limpiar($this->formatearFecha($fechaNacimiento)),
+                $this->limpiar($domicilioTexto),
+                $this->limpiar($colonia),
+                $this->limpiar($ciudad),
+                $this->limpiar($telefono),
                 $this->limpiar($ocupacion),
                 $this->limpiar($nomAg),
                 $this->limpiar($patAg),
@@ -636,31 +654,9 @@ class ReporteOperacionesController extends Controller
 
     private function periodoReporte($r): string
     {
-        $tipo    = (int) ($r->IDTipoReporte ?? 1);
-        $periodo = preg_replace('/\D/', '', (string) ($r->PeriodoReporte ?? ''));
-
-        if ($tipo === 1) {
-            // Monto: YYMM (4) segun ejemplo 2022123260731.003 -> yymm
-            if (strlen($periodo) >= 4) {
-                // Si viene YYYYMM (6) convertir a YYMM
-                if (strlen($periodo) >= 6) {
-                    return substr($periodo, -4);
-                }
-                return substr($periodo, 0, 4);
-            }
-            return $r->FechaDeteccion ? date('ym', strtotime((string) $r->FechaDeteccion)) : '';
-        }
-
-        // Monto Inusual/Nuevo: YYMMDD (6)
-        if (strlen($periodo) >= 6) {
-            if (strlen($periodo) >= 8) {
-                // YYYYMMDD -> YYMMDD
-                return substr($periodo, -6);
-            }
-            return substr($periodo, 0, 6);
-        }
-
-        return $r->FechaDeteccion ? date('ymd', strtotime((string) $r->FechaDeteccion)) : '';
+        // El periodo del reporte corresponde a la fecha de generación (hoy),
+        // no a la fecha de operación/detección. Es el mismo para todos los registros.
+        return $this->periodoDesdeFechaGeneracion($r->IDTipoReporte ?? 1);
     }
 
     private function formatearFecha($fecha): string
@@ -672,6 +668,188 @@ class ReporteOperacionesController extends Controller
         $timestamp = strtotime((string) $fecha);
 
         return $timestamp ? date('Ymd', $timestamp) : '';
+    }
+
+    /**
+     * Indexa alertas y clientes para completar datos faltantes del reporte.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function contextoClientes($alertas): array
+    {
+        $alertasPorRegistro = collect($alertas)->keyBy('IDRegistroAlerta');
+        $idsClientes = $alertasPorRegistro->pluck('IDCliente')->filter()->unique()->values()->all();
+
+        $clientes = empty($idsClientes)
+            ? collect()
+            : TbClientes::with('domicilios')->whereIn('IDCliente', $idsClientes)->get()->keyBy('IDCliente');
+
+        return [$alertasPorRegistro, $clientes];
+    }
+
+    /**
+     * Periodo del reporte con la fecha de generación (hoy).
+     * Monto usa YYYYMM; Monto Inusual/Nuevo usan YYYYMMDD.
+     */
+    private function periodoDesdeFechaGeneracion($tipoReporte): string
+    {
+        return (int) $tipoReporte === 1
+            ? now()->format('Ym')
+            : now()->format('Ymd');
+    }
+
+    /**
+     * Fecha de nacimiento (PF) o de constitución (PM). Para personas físicas
+     * se obtiene de la CURP y, si no es válida, se usan las fechas capturadas.
+     */
+    private function fechaNacimientoCliente(?TbClientes $cliente, string $tipoPersona)
+    {
+        if (! $cliente) {
+            return null;
+        }
+
+        if ($tipoPersona === '1') {
+            return Curp::fechaNacimiento($cliente->CURP)
+                ?? $cliente->FechaNacimiento
+                ?? $cliente->FechaConstitucion;
+        }
+
+        if ($tipoPersona === '2') {
+            return $cliente->FechaConstitucion ?? $cliente->FechaNacimiento;
+        }
+
+        return $cliente->FechaNacimiento ?? $cliente->FechaConstitucion;
+    }
+
+    private function domicilioTexto($domicilio): string
+    {
+        if (! $domicilio) {
+            return '';
+        }
+
+        return trim(implode(' ', array_filter([
+            $domicilio->Calle ?? '',
+            $domicilio->NoExterior ?? '',
+            $domicilio->NoInterior ?? '',
+            $domicilio->CP ? 'CP: '.$domicilio->CP : '',
+        ])));
+    }
+
+    /**
+     * Resuelve la clave de ocupación/giro (CVE_GIRO). Acepta el ID del catálogo,
+     * el nombre de la ocupación o directamente la clave numérica.
+     */
+    private function claveOcupacion($valor, $porId = [], $porNombre = []): string
+    {
+        $raw = trim((string) ($valor ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+
+        if (isset($porId[$raw])) {
+            return (string) $porId[$raw];
+        }
+
+        $upper = mb_strtoupper($raw);
+        if (isset($porNombre[$upper])) {
+            return (string) $porNombre[$upper];
+        }
+
+        // Si no está en el catálogo pero es numérico, se considera clave de giro.
+        if (is_numeric($raw)) {
+            return str_pad($raw, 7, '0', STR_PAD_LEFT);
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Resuelve la clave de localidad de 8 digitos (EE MM LLLL) a partir del
+     * domicilio del cliente. Compara el texto libre de
+     * tbClientesDomicilio.Municipio/Localidad contra el catalogo de
+     * localidades y se queda con la coincidencia mas semejante.
+     */
+    private function claveLocalidad($domicilio): string
+    {
+        $municipio = trim((string) ($domicilio->Municipio ?? ''));
+        $localidad = trim((string) ($domicilio->Localidad ?? ''));
+        $objetivo  = $municipio !== '' ? $municipio : $localidad;
+        if ($objetivo === '') {
+            return '';
+        }
+
+        $catalogo = $this->catalogoLocalidades();
+
+        $mejorClave = '';
+        $mejorSim   = -1;
+        foreach ($catalogo as $clave => $nombreNorm) {
+            $sim = similar_text($this->normalizarTexto($objetivo), $nombreNorm);
+            if ($sim > $mejorSim) {
+                $mejorSim = $sim;
+                $mejorClave = $clave;
+            }
+        }
+
+        return $mejorClave !== '' ? (string) $mejorClave : '';
+    }
+
+    /**
+     * Devuelve el catalogo de localidades indexado por cveLocalidad con el
+     * nombre ya normalizado (sin sufijos de estado ni tildes).
+     */
+    private function catalogoLocalidades(): array
+    {
+        static $catalogo = null;
+        if ($catalogo !== null) {
+            return $catalogo;
+        }
+
+        $catalogo = [];
+        foreach (CatLocalidad::pluck('Localidad', 'IDLocalidad') as $cve => $nombre) {
+            $catalogo[(string) $cve] = $this->normalizarNombreLocalidad((string) $nombre);
+        }
+
+        return $catalogo;
+    }
+
+    /**
+     * Normaliza un texto para comparacion: minusculas, sin tildes, sin
+     * caracteres no alfanumericos y espacios colapsados.
+     */
+    private function normalizarTexto($texto): string
+    {
+        $texto = mb_strtolower((string) $texto);
+        $texto = @iconv('UTF-8', 'ASCII//TRANSLIT', $texto) ?? $texto;
+        $texto = preg_replace('/[^a-z0-9ñ ]/u', '', $texto);
+        $texto = preg_replace('/\s+/', ' ', $texto);
+
+        return trim($texto);
+    }
+
+    /**
+     * Normaliza el nombre de una localidad del catalogo quitando especificadores
+     * de municipio/localidad y sufijos de estado (p. ej. " MEX", " OAX").
+     */
+    private function normalizarNombreLocalidad($nombre): string
+    {
+        $nombre = $this->normalizarTexto($nombre);
+
+        $nombre = preg_replace('/\b(municipio|localidad) de /', ' ', $nombre);
+
+        $estados = [
+            'ags', 'bc', 'bcs', 'camp', 'coah', 'col', 'chis', 'chih', 'df',
+            'dur', 'gto', 'gro', 'hgo', 'jal', 'mex', 'mich', 'mor', 'nay',
+            'nl', 'oax', 'pue', 'qro', 'qroo', 'slp', 'sin', 'son', 'tab',
+            'tamps', 'tlax', 'ver', 'yuc', 'zac',
+        ];
+        foreach ($estados as $estado) {
+            $sufijo = ' '.$estado;
+            if (str_ends_with($nombre, $sufijo)) {
+                $nombre = rtrim(substr($nombre, 0, -strlen($sufijo)));
+            }
+        }
+
+        return trim($nombre);
     }
 
     /**

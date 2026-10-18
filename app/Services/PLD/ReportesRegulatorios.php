@@ -10,6 +10,7 @@ use App\Models\Clientes\CatOcupacionesGiros;
 use App\Models\Clientes\CatTipoPersona;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\TbReporteRegulatorioPLD;
+use App\Support\Curp;
 
 class ReportesRegulatorios
 {
@@ -129,7 +130,9 @@ class ReportesRegulatorios
                 $reporte->APaterno = $cliente->ApellidoPaterno ?? null;
                 $reporte->AMaterno = $cliente->ApellidoMaterno ?? null;
                 $reporte->CURP = $cliente->CURP ?? null;
-                $reporte->FechaNacimiento = $cliente->FechaNacimiento ?? null;
+                $reporte->FechaNacimiento = Curp::fechaNacimiento($cliente->CURP ?? null)
+                    ?? $cliente->FechaNacimiento
+                    ?? null;
             } elseif ($esPM) {
                 $reporte->RazonSocial = $cliente->RazonSocial ?? null;
                 $reporte->Nombre = null;
