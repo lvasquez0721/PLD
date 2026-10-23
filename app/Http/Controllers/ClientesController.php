@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CatFormaPagos;
+use App\Models\CatMonedas;
+use App\Models\CatTipoPago;
 use App\Models\Clientes\CatIDClientesSistema;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
@@ -11,6 +14,8 @@ use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
 use App\Models\TbOperacionesPagos;
 use App\Models\TbPerfilTransaccional;
+use App\Services\PLD\EvaluadorRiesgoCliente;
+use App\Services\PLD\IndicadoresOperacionesCliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -320,21 +325,10 @@ class ClientesController extends Controller
             ->with('pagos')
             ->get();
 
-        $polizas = $operacionesRaw->groupBy('FolioPoliza')->map(function ($ops, $folioPoliza) {
-            $operacionesPrincipales = $ops->filter(fn($op) => empty($op->FolioEndoso))->values();
-            $endosos = $ops->filter(fn($op) => !empty($op->FolioEndoso))->values();
-            $balancePrimaTotal = $ops->sum('PrimaTotal');
+        // Indicadores económicos del cliente (promedios y sumas de primas).
+        $indicadores = app(IndicadoresOperacionesCliente::class)->calcular($operacionesRaw);
 
-            return [
-                'folio_poliza' => $folioPoliza,
-                'operaciones' => $operacionesPrincipales,
-                'endosos' => $endosos,
-                'todas_operaciones' => $ops->values(),
-                'balance_prima_total' => $balancePrimaTotal,
-            ];
-        })->values();
         $alertas = TbAlertas::where('IDCliente', $cliente->IDCliente)->get();
-
         // Buscar en CNSF por RFC O CURP del cliente (algunos registros podrían carecer de uno u otro)
         $clienteRFC = strtoupper(trim($cliente->RFC ?? ''));
         $clienteCURP = strtoupper(trim($cliente->CURP ?? ''));
@@ -380,17 +374,299 @@ class ClientesController extends Controller
             ->with('sistema')
             ->get();
 
+        // Factores que motivan la marca de alto riesgo del cliente
+        $evaluadorRiesgo = app(EvaluadorRiesgoCliente::class);
+        $datosRiesgo = $evaluadorRiesgo->evaluar(
+            $cliente->IDOcupacionGiro,
+            $domicilios->map(fn ($d) => ['IDEstado' => $d->IDEstado])->toArray(),
+            $listasNegras->isNotEmpty() || $listasUIF->isNotEmpty(),
+            (bool) $cliente->EsPPEActivo
+        );
+
         return inertia('Clientes/Detalles', [
             'cliente' => $cliente,
             'domicilios' => $domicilios,
             'operaciones' => $operacionesRaw,
-            'polizas' => $polizas,
             'alertas' => $alertas,
             'listasNegras' => $listasNegras,
             'perfilTransaccional' => $perfilTransaccional,
             'listasUIF' => $listasUIF,
             'sistemasDelCliente' => $sistemasDelCliente,
+            'esAltoRiesgo' => (bool) $cliente->EsAltoRiesgo,
+            'factoresRiesgo' => $datosRiesgo['factores'],
+            'indicadores' => $indicadores,
+            'catalogos' => $this->catalogosOperaciones(),
         ]);
+    }
+
+    /**
+     * Catálogos usados por los filtros de la pestaña de Operaciones.
+     */
+    private function catalogosOperaciones(): array
+    {
+        return [
+            'monedas' => CatMonedas::orderBy('IDMoneda')->get(['IDMoneda', 'Moneda']),
+            'formasPago' => CatFormaPagos::orderBy('FormaPago')->get(['IDFormaPago', 'FormaPago']),
+            'tiposPago' => CatTipoPago::orderBy('TipoPago')->get(['IDTipoPago', 'TipoPago']),
+        ];
+    }
+
+    /**
+     * Exporta a CSV todas las operaciones del cliente (emisiones y endosos).
+     */
+    public function exportOperacionesCsv(TbClientes $id_cliente)
+    {
+        $cliente = $id_cliente;
+
+        $operaciones = TbOperaciones::where('IDCliente', $cliente->IDCliente)
+            ->with('pagos')
+            ->orderBy('FolioPoliza')
+            ->orderByRaw("CASE WHEN FolioEndoso IS NULL OR FolioEndoso = '' THEN 0 ELSE 1 END")
+            ->orderBy('FechaEmision')
+            ->orderBy('IDOperacion')
+            ->get();
+
+        if ($operaciones->isEmpty()) {
+            return redirect()->back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El cliente no tiene operaciones registradas para exportar.'
+            ]);
+        }
+
+        $indicadoresService = app(IndicadoresOperacionesCliente::class);
+
+        $nombreCliente = trim((string) ($cliente->RazonSocial ?? '')) !== ''
+            ? $cliente->RazonSocial
+            : trim(implode(' ', array_filter([
+                $cliente->Nombre,
+                $cliente->ApellidoPaterno,
+                $cliente->ApellidoMaterno,
+            ])));
+
+        $formasPago = CatFormaPagos::pluck('FormaPago', 'IDFormaPago');
+        $tiposPago = CatTipoPago::pluck('TipoPago', 'IDTipoPago');
+
+        $fileName = 'operaciones_cliente_' . $cliente->IDCliente . '_' . date('Ymd_His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ];
+
+        $callback = function () use ($operaciones, $cliente, $nombreCliente, $indicadoresService, $formasPago, $tiposPago) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8
+
+            fputcsv($file, [
+                'ID Cliente',
+                'Nombre/Razón Social',
+                'RFC',
+                'ID Operación',
+                'Folio Póliza',
+                'Folio Endoso',
+                'Tipo de operación',
+                'Fecha Emisión',
+                'Inicio Vigencia',
+                'Fin Vigencia',
+                'Prima Total',
+                'Moneda',
+                'Gastos Emisión',
+                'Agente',
+                'RFC Agente',
+                'CURP Agente',
+                'Forma de Pago',
+                'Tipo de Pago',
+                'Paga Tercero',
+                'Esquema de Pago',
+                'Núm. Pagos',
+                'Total Pagado',
+                'Saldo Pendiente',
+                'Cancelada',
+            ]);
+
+            foreach ($operaciones as $op) {
+                $moneda = strtoupper(trim((string) ($op->IDMoneda ?? '')));
+                $prima = $indicadoresService->prima($op);
+
+                // El total pagado se acumula solo con los pagos en la misma moneda
+                // de la operación, para no mezclar importes entre monedas.
+                $totalPagado = 0.0;
+                $numPagos = 0;
+                foreach ($op->pagos ?? [] as $pago) {
+                    if (strtoupper(trim((string) ($pago->IDMoneda ?? ''))) !== $moneda) {
+                        continue;
+                    }
+                    $totalPagado += round((float) ($pago->Monto ?? 0), 2);
+                    $numPagos++;
+                }
+
+                $idFormaPago = $op->IDFormaPago ?? null;
+                if ($idFormaPago === null || $idFormaPago === '') {
+                    $primerPago = ($op->pagos ?? collect())->first();
+                    $idFormaPago = $primerPago->IDFormaPago ?? null;
+                }
+
+                fputcsv($file, [
+                    $cliente->IDCliente,
+                    $nombreCliente,
+                    $cliente->RFC,
+                    $op->IDOperacion,
+                    $op->FolioPoliza,
+                    $op->FolioEndoso,
+                    $indicadoresService->tipoOperacion($op),
+                    $op->FechaEmision,
+                    $op->FechaInicioVigencia,
+                    $op->FechaFinVigencia,
+                    number_format($prima, 2, '.', ''),
+                    $op->IDMoneda,
+                    number_format((float) ($op->GastosEmision ?? 0), 2, '.', ''),
+                    trim(implode(' ', array_filter([
+                        $op->NombreAgente,
+                        $op->APaternoAgente,
+                        $op->AMaternoAgente,
+                    ]))),
+                    $op->RFCAgente,
+                    $op->CURPAgente,
+                    $idFormaPago !== null && $idFormaPago !== ''
+                        ? ($formasPago[$idFormaPago] ?? $idFormaPago)
+                        : '',
+                    $op->IDTipoPago !== null && $op->IDTipoPago !== ''
+                        ? ($tiposPago[$op->IDTipoPago] ?? $op->IDTipoPago)
+                        : '',
+                    $op->PagaTercero !== null ? ($op->PagaTercero ? 'Sí' : 'No') : '',
+                    $op->EsquemaDePago,
+                    $numPagos,
+                    number_format($totalPagado, 2, '.', ''),
+                    number_format($prima - $totalPagado, 2, '.', ''),
+                    $indicadoresService->esCancelacion($op) ? 'Sí' : 'No',
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Exporta a CSV las estadísticas del cliente, con una fila por moneda.
+     */
+    public function exportEstadisticasCsv(TbClientes $id_cliente)
+    {
+        $cliente = $id_cliente;
+
+        $operaciones = TbOperaciones::where('IDCliente', $cliente->IDCliente)
+            ->with('pagos')
+            ->get();
+
+        if ($operaciones->isEmpty()) {
+            return redirect()->back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El cliente no tiene operaciones registradas para exportar sus estadísticas.'
+            ]);
+        }
+
+        $indicadores = app(IndicadoresOperacionesCliente::class)->calcular($operaciones);
+
+        $nombreCliente = trim((string) ($cliente->RazonSocial ?? '')) !== ''
+            ? $cliente->RazonSocial
+            : trim(implode(' ', array_filter([
+                $cliente->Nombre,
+                $cliente->ApellidoPaterno,
+                $cliente->ApellidoMaterno,
+            ])));
+
+        $fileName = 'estadisticas_cliente_' . $cliente->IDCliente . '_' . date('Ymd_His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ];
+
+        $callback = function () use ($indicadores, $cliente, $nombreCliente) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8
+
+            fputcsv($file, [
+                'ID Cliente',
+                'Nombre/Razón Social',
+                'RFC',
+                'Moneda',
+                'Total operaciones',
+                'Emisiones',
+                'Endosos',
+                'Endosos de aumento',
+                'Endosos de disminución',
+                'Endosos de cancelación',
+                'Endosos sin cambio',
+                'Operaciones canceladas',
+                'Pólizas',
+                'Pagos',
+                'Suma prima total',
+                'Prima promedio por operación',
+                'Prima total modal',
+                'Frecuencia de la moda',
+                'Suma prima emisiones',
+                'Prima promedio emisiones',
+                'Suma aumentos',
+                'Prima promedio aumentos',
+                'Suma disminuciones',
+                'Prima promedio disminuciones',
+                'Prima cancelaciones',
+                'Prima máxima',
+                'Prima mínima',
+                'Gastos de emisión',
+                'Promedio gastos de emisión',
+                'Balance de pólizas',
+                'Balance promedio por póliza',
+                'Total pagado',
+                'Saldo pendiente',
+            ]);
+
+            foreach ($indicadores['por_moneda'] as $ind) {
+                $moda = $ind['moda_prima_total'];
+
+                fputcsv($file, [
+                    $cliente->IDCliente,
+                    $nombreCliente,
+                    $cliente->RFC,
+                    $ind['moneda'],
+                    $ind['total_operaciones'],
+                    $ind['total_emisiones'],
+                    $ind['total_endosos'],
+                    $ind['total_aumentos'],
+                    $ind['total_disminuciones'],
+                    $ind['total_cancelaciones'],
+                    $ind['total_sin_cambio'],
+                    $ind['total_operaciones_canceladas'],
+                    $ind['num_polizas'],
+                    $ind['num_pagos'],
+                    number_format($ind['suma_prima_total'], 2, '.', ''),
+                    number_format($ind['promedio_prima_total'], 2, '.', ''),
+                    $moda === null ? '' : number_format($moda, 2, '.', ''),
+                    $ind['moda_prima_total_frecuencia'],
+                    number_format($ind['suma_prima_emisiones'], 2, '.', ''),
+                    number_format($ind['promedio_prima_emisiones'], 2, '.', ''),
+                    number_format($ind['suma_aumentos'], 2, '.', ''),
+                    number_format($ind['promedio_aumentos'], 2, '.', ''),
+                    number_format($ind['suma_disminuciones'], 2, '.', ''),
+                    number_format($ind['promedio_disminuciones'], 2, '.', ''),
+                    number_format($ind['suma_prima_cancelaciones'], 2, '.', ''),
+                    number_format($ind['prima_max'], 2, '.', ''),
+                    number_format($ind['prima_min'], 2, '.', ''),
+                    number_format($ind['suma_gastos_emision'], 2, '.', ''),
+                    number_format($ind['promedio_gastos_emision'], 2, '.', ''),
+                    number_format($ind['suma_balance_polizas'], 2, '.', ''),
+                    number_format($ind['promedio_balance_por_poliza'], 2, '.', ''),
+                    number_format($ind['total_pagado'], 2, '.', ''),
+                    number_format($ind['saldo_pendiente'], 2, '.', ''),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function activarCliente(TbClientes $id_cliente)

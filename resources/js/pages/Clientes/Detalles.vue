@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
-import { formatFechaLarga } from '@/utils/fechas'
+import { fechaEnRango, formatFechaLarga } from '@/utils/fechas'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { type BreadcrumbItem } from '@/types'
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import {
     User,
     Home,
@@ -19,7 +19,11 @@ import {
     BadgeCheck,
     Paperclip,
     ArrowLeft,
-    AlertCircle
+    AlertCircle,
+    Gauge,
+    Download,
+    Filter,
+    X
 } from 'lucide-vue-next'
 
 // --- PROPS & BREADCRUMBS ---
@@ -27,12 +31,15 @@ const props = defineProps<{
     cliente: any
     domicilios: any[]
     operaciones: any[]
-    polizas: any[]
     alertas: any[]
     listasNegras: any[]
     perfilTransaccional: any
     listasUIF: any[]
     sistemasDelCliente: any[]
+    esAltoRiesgo?: boolean
+    factoresRiesgo?: string[]
+    indicadores?: any
+    catalogos?: any
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,6 +57,7 @@ const navItems = [
     { id: 'info', label: 'Datos Generales', icon: User },
     { id: 'dom', label: 'Domicilios', icon: Home },
     { id: 'op', label: 'Operaciones', icon: Briefcase },
+    { id: 'detalles', label: 'Estadísticas cliente', icon: Gauge },
     { id: 'alertas', label: 'Alertas PLD', icon: ShieldAlert },
     { id: 'listas', label: 'Listas de Observación', icon: BookX },
     { id: 'perfil', label: 'Perfil Transaccional', icon: ClipboardList },
@@ -119,6 +127,14 @@ const clienteEstatusClass = computed(() => {
         ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
         : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
 })
+
+// --- Cliente de alto riesgo ---
+const esAltoRiesgo = computed(() => {
+    if (props.esAltoRiesgo === true) return true
+    const flag = props.cliente?.EsAltoRiesgo
+    return flag === true || flag === 1 || flag === '1'
+})
+const factoresRiesgo = computed(() => props.factoresRiesgo ?? [])
 
 const personaTipo = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? 'Persona Física' : 'Persona Moral')
 const personaIcon = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? UserCircle : Building)
@@ -229,20 +245,41 @@ function formatCurrency(value?: number | string | null): string {
     }).format(numberValue)
 }
 
-function tipoOperacionLabel(op: any, isEndoso: boolean = false): { label: string; class: string } | null {
-    const esCancelacion = op.cancelaPoliza === 1 || op.cancelaPoliza === true
-        || op.operacionCancelada === 1 || op.operacionCancelada === true
-        || op.EsEndosoCancelacion === 1 || op.EsEndosoCancelacion === true
-    if (esCancelacion) {
-        return { label: 'Cancelación', class: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' }
-    }
-    if (!isEndoso) {
-        return null
-    }
+const CLASES_CANCELACION = 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+const CLASES_AUMENTO = 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
+const CLASES_DISMINUCION = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+const CLASES_SIN_CAMBIO = 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200'
+
+/**
+ * Clasifica la operación en una categoría excluyente:
+ * emision | aumento | disminucion | cancelacion | sin_cambio
+ */
+function clasificarOperacion(op: any): string {
+    if (esCancelacionEndoso(op)) return 'cancelacion'
+    if (!op.FolioEndoso || String(op.FolioEndoso).trim() === '') return 'emision'
     const prima = parseFloat(op.PrimaTotal) || 0
-    if (prima > 0) return { label: 'Aumento', class: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' }
-    if (prima < 0) return { label: 'Disminución', class: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' }
-    return { label: 'Sin cambio', class: 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200' }
+    if (prima > 0) return 'aumento'
+    if (prima < 0) return 'disminucion'
+    return 'sin_cambio'
+}
+
+function tipoOperacionLabel(op: any, isEndoso: boolean = false): { label: string; class: string } | null {
+    const tipo = clasificarOperacion(op)
+
+    if (tipo === 'cancelacion') {
+        return { label: 'Cancelación', class: CLASES_CANCELACION }
+    }
+    if (tipo === 'emision') {
+        // Las emisiones no llevan etiqueta, salvo que se pidan como endoso.
+        return isEndoso ? { label: 'Sin cambio', class: CLASES_SIN_CAMBIO } : null
+    }
+    if (tipo === 'aumento') {
+        return { label: 'Aumento', class: CLASES_AUMENTO }
+    }
+    if (tipo === 'disminucion') {
+        return { label: 'Disminución', class: CLASES_DISMINUCION }
+    }
+    return { label: 'Sin cambio', class: CLASES_SIN_CAMBIO }
 }
 
 function esCancelacionEndoso(op: any): boolean {
@@ -259,6 +296,370 @@ function riesgoNombre(n: number): string {
         default: return 'Desconocido'
     }
 }
+
+// ============================================================================
+// FILTROS DE OPERACIONES (se aplican en memoria sobre las operaciones cargadas)
+// ============================================================================
+const filtroBusqueda = ref('')
+const filtroFechaDesde = ref('')
+const filtroFechaHasta = ref('')
+const filtroTipoOperacion = ref('')
+const filtroMoneda = ref('')
+const filtroFormaPago = ref('')
+const filtroTipoPago = ref('')
+const filtroEstado = ref('')
+const filtroPrimaMin = ref('')
+const filtroPrimaMax = ref('')
+const filtroPoliza = ref('')
+const filtroSoloConPagos = ref(false)
+
+function normalizarTexto(valor: any): string {
+    return String(valor ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+}
+
+const operacionesBase = computed<any[]>(() => props.operaciones ?? [])
+
+const foliosDisponibles = computed<string[]>(() => {
+    const folios = new Set<string>()
+    for (const op of operacionesBase.value) {
+        const folio = String(op.FolioPoliza ?? '').trim()
+        if (folio !== '') folios.add(folio)
+    }
+    return Array.from(folios).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))
+})
+
+const operacionesFiltradas = computed<any[]>(() => {
+    const tokens = normalizarTexto(filtroBusqueda.value).trim().split(/\s+/).filter(Boolean)
+    const primaMin = filtroPrimaMin.value === '' ? NaN : parseFloat(filtroPrimaMin.value)
+    const primaMax = filtroPrimaMax.value === '' ? NaN : parseFloat(filtroPrimaMax.value)
+
+    return operacionesBase.value.filter((op) => {
+        if (tokens.length) {
+            const texto = normalizarTexto([
+                op.FolioPoliza,
+                op.FolioEndoso,
+                op.NombreAgente,
+                op.APaternoAgente,
+                op.AMaternoAgente,
+                op.RazonSocialAgente,
+                op.RFCAgente,
+                op.CURPAgente,
+                op.IDMoneda,
+            ].join(' '))
+            if (!tokens.every((token) => texto.includes(token))) return false
+        }
+
+        if (!fechaEnRango(op.FechaEmision, filtroFechaDesde.value, filtroFechaHasta.value)) return false
+
+        if (filtroTipoOperacion.value && clasificarOperacion(op) !== filtroTipoOperacion.value) return false
+
+        if (filtroMoneda.value && String(op.IDMoneda ?? '') !== filtroMoneda.value) return false
+
+        if (filtroFormaPago.value) {
+            const formaOperacion = String(op.IDFormaPago ?? '')
+            const formasPagos = (op.pagos ?? []).map((p: any) => String(p.IDFormaPago ?? ''))
+            if (formaOperacion !== filtroFormaPago.value && !formasPagos.includes(filtroFormaPago.value)) return false
+        }
+
+        if (filtroTipoPago.value && String(op.IDTipoPago ?? '') !== filtroTipoPago.value) return false
+
+        if (filtroEstado.value === 'canceladas' && !esCancelacionEndoso(op)) return false
+        if (filtroEstado.value === 'vigentes' && esCancelacionEndoso(op)) return false
+
+        const prima = parseFloat(op.PrimaTotal) || 0
+        if (!isNaN(primaMin) && prima < primaMin) return false
+        if (!isNaN(primaMax) && prima > primaMax) return false
+
+        if (filtroPoliza.value && String(op.FolioPoliza ?? '') !== filtroPoliza.value) return false
+
+        if (filtroSoloConPagos.value && !(op.pagos && op.pagos.length)) return false
+
+        return true
+    })
+})
+
+/** Re-agrupa las operaciones filtradas por póliza (misma estructura que el backend). */
+const polizasFiltradas = computed<any[]>(() => {
+    const grupos = new Map<string, any>()
+
+    for (const op of operacionesFiltradas.value) {
+        const folio = String(op.FolioPoliza ?? '')
+        if (!grupos.has(folio)) {
+            grupos.set(folio, {
+                folio_poliza: folio,
+                operaciones: [] as any[],
+                endosos: [] as any[],
+                todas_operaciones: [] as any[],
+                balance_prima_total: 0,
+            })
+        }
+        const grupo = grupos.get(folio)
+        grupo.todas_operaciones.push(op)
+        grupo.balance_prima_total += parseFloat(op.PrimaTotal) || 0
+        if (!op.FolioEndoso || String(op.FolioEndoso).trim() === '') {
+            grupo.operaciones.push(op)
+        } else {
+            grupo.endosos.push(op)
+        }
+    }
+
+    return Array.from(grupos.values()).map((grupo) => ({
+        ...grupo,
+        balance_prima_total: Math.round(grupo.balance_prima_total * 100) / 100,
+    }))
+})
+
+const hasFiltrosActivos = computed<boolean>(() => (
+    filtroBusqueda.value.trim() !== ''
+    || filtroFechaDesde.value !== ''
+    || filtroFechaHasta.value !== ''
+    || filtroTipoOperacion.value !== ''
+    || filtroMoneda.value !== ''
+    || filtroFormaPago.value !== ''
+    || filtroTipoPago.value !== ''
+    || filtroEstado.value !== ''
+    || filtroPrimaMin.value !== ''
+    || filtroPrimaMax.value !== ''
+    || filtroPoliza.value !== ''
+    || filtroSoloConPagos.value
+))
+
+function limpiarFiltros() {
+    filtroBusqueda.value = ''
+    filtroFechaDesde.value = ''
+    filtroFechaHasta.value = ''
+    filtroTipoOperacion.value = ''
+    filtroMoneda.value = ''
+    filtroFormaPago.value = ''
+    filtroTipoPago.value = ''
+    filtroEstado.value = ''
+    filtroPrimaMin.value = ''
+    filtroPrimaMax.value = ''
+    filtroPoliza.value = ''
+    filtroSoloConPagos.value = false
+}
+
+/** Exporta TODAS las operaciones del cliente (no solo las filtradas). */
+function exportarOperacionesCsv() {
+    window.location.href = `/clientes/${props.cliente.IDCliente}/operaciones/exportar`
+}
+
+/** Exporta las estadísticas del cliente, con una fila por moneda. */
+function exportarEstadisticasCsv() {
+    window.location.href = `/clientes/${props.cliente.IDCliente}/estadisticas/exportar`
+}
+
+// ============================================================================
+// INDICADORES DEL CLIENTE (promedios y sumas de primas)
+// ============================================================================
+const indicadores = computed<any>(() => props.indicadores ?? {
+    total_operaciones: 0,
+    moneda_principal: null,
+    por_moneda: {},
+})
+
+const catalogos = computed<any>(() => props.catalogos ?? { monedas: [], formasPago: [], tiposPago: [] })
+
+const monedasIndicadores = computed<any[]>(() => Object.values(indicadores.value.por_moneda ?? {}))
+
+const monedaSeleccionada = ref('')
+
+watchEffect(() => {
+    if (!monedaSeleccionada.value && indicadores.value.moneda_principal) {
+        monedaSeleccionada.value = indicadores.value.moneda_principal
+    }
+})
+
+const indicadoresMoneda = computed<any>(() => indicadores.value.por_moneda?.[monedaSeleccionada.value] ?? null)
+
+function formatMoneda(value?: number | string | null, moneda: string = 'MXN'): string {
+    const numero = Number(value)
+    if (value === null || value === undefined || isNaN(numero)) return '—'
+    if (!moneda || moneda === 'SIN MONEDA') {
+        return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(numero)
+    }
+    try {
+        return new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: moneda,
+        }).format(numero)
+    } catch {
+        return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(numero)
+    }
+}
+
+/** Tarjetas de primas del apartado "Detalles cliente". */
+const tarjetasPrimas = computed(() => {
+    const ind = indicadoresMoneda.value
+    if (!ind) return []
+
+    const verde = 'text-emerald-700 dark:text-emerald-300'
+    const rojo = 'text-red-700 dark:text-red-300'
+    const neutro = 'text-gray-900 dark:text-neutral-100'
+
+    return [
+        {
+            titulo: 'Prima total acumulada (neta)',
+            valor: formatMoneda(ind.suma_prima_total, ind.moneda),
+            ayuda: 'Suma de las emisiones y de todos los endosos (aumento, disminución y cancelación).',
+            color: ind.suma_prima_total < 0 ? rojo : neutro,
+        },
+        {
+            titulo: 'Prima promedio por operación (neta)',
+            valor: formatMoneda(ind.promedio_prima_total, ind.moneda),
+            ayuda: 'Prima total acumulada dividida entre el número de operaciones del cliente.',
+            color: ind.promedio_prima_total < 0 ? rojo : neutro,
+        },
+        {
+            titulo: 'Prima total modal',
+            valor: ind.moda_prima_total === null || ind.moda_prima_total === undefined
+                ? 'Sin moda'
+                : formatMoneda(ind.moda_prima_total, ind.moneda),
+            ayuda: ind.moda_prima_total === null || ind.moda_prima_total === undefined
+                ? 'Ningún importe de prima se repite entre las operaciones del cliente.'
+                : `${ind.moda_prima_total_frecuencia} operación(es) comparten esta prima. En caso de empate se muestra el importe menor.`,
+            color: neutro,
+        },
+        {
+            titulo: 'Prima promedio de emisiones',
+            valor: formatMoneda(ind.promedio_prima_emisiones, ind.moneda),
+            ayuda: `Promedio de las ${ind.total_emisiones} póliza(s) emitida(s).`,
+            color: neutro,
+        },
+        {
+            titulo: 'Prima promedio de endosos de aumento',
+            valor: formatMoneda(ind.promedio_aumentos, ind.moneda),
+            ayuda: `Promedio de los ${ind.total_aumentos} endoso(s) de aumento (prima positiva).`,
+            color: ind.total_aumentos ? verde : neutro,
+        },
+        {
+            titulo: 'Prima promedio de endosos de disminución',
+            valor: formatMoneda(ind.promedio_disminuciones, ind.moneda),
+            ayuda: `Promedio de los ${ind.total_disminuciones} endoso(s) de disminución (prima negativa).`,
+            color: ind.total_disminuciones ? rojo : neutro,
+        },
+        {
+            titulo: 'Balance promedio por póliza',
+            valor: formatMoneda(ind.promedio_balance_por_poliza, ind.moneda),
+            ayuda: `Balance neto (emisión + endosos) de las ${ind.num_polizas} póliza(s) del cliente.`,
+            color: ind.promedio_balance_por_poliza < 0 ? rojo : neutro,
+        },
+    ]
+})
+
+/** Tarjetas de sumas y pagos. */
+const tarjetasSumas = computed(() => {
+    const ind = indicadoresMoneda.value
+    if (!ind) return []
+
+    return [
+        {
+            titulo: 'Suma de aumentos',
+            valor: formatMoneda(ind.suma_aumentos, ind.moneda),
+            ayuda: `${ind.total_aumentos} endoso(s) de aumento.`,
+            color: 'text-emerald-700 dark:text-emerald-300',
+        },
+        {
+            titulo: 'Suma de disminuciones',
+            valor: formatMoneda(ind.suma_disminuciones, ind.moneda),
+            ayuda: `${ind.total_disminuciones} endoso(s) de disminución.`,
+            color: 'text-red-700 dark:text-red-300',
+        },
+        {
+            titulo: 'Prima de cancelaciones (espejo)',
+            valor: formatMoneda(ind.suma_prima_cancelaciones, ind.moneda),
+            ayuda: 'Prima negativa de los endosos de cancelación: deja el balance de la póliza en cero.',
+            color: 'text-red-700 dark:text-red-300',
+        },
+        {
+            titulo: 'Gastos de emisión acumulados',
+            valor: formatMoneda(ind.suma_gastos_emision, ind.moneda),
+            ayuda: 'Suma de los gastos de emisión de las operaciones.',
+            color: 'text-gray-900 dark:text-neutral-100',
+        },
+        {
+            titulo: 'Total pagado',
+            valor: formatMoneda(ind.total_pagado, ind.moneda),
+            ayuda: `${ind.num_pagos} pago(s) registrado(s).`,
+            color: 'text-gray-900 dark:text-neutral-100',
+        },
+        {
+            titulo: 'Saldo pendiente',
+            valor: formatMoneda(ind.saldo_pendiente, ind.moneda),
+            ayuda: 'Prima total acumulada menos el total pagado.',
+            color: ind.saldo_pendiente > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-neutral-100',
+        },
+    ]
+})
+
+/** Resumen de volumen de operaciones. */
+const tarjetasVolumen = computed(() => {
+    const ind = indicadoresMoneda.value
+    if (!ind) return []
+
+    return [
+        { titulo: 'Operaciones', valor: ind.total_operaciones },
+        { titulo: 'Emisiones', valor: ind.total_emisiones },
+        { titulo: 'Endosos de aumento', valor: ind.total_aumentos },
+        { titulo: 'Endosos de disminución', valor: ind.total_disminuciones },
+        { titulo: 'Endosos de cancelación', valor: ind.total_cancelaciones },
+        { titulo: 'Pólizas', valor: ind.num_polizas },
+        { titulo: 'Pagos', valor: ind.num_pagos },
+        { titulo: 'Operaciones canceladas', valor: ind.total_operaciones_canceladas },
+    ]
+})
+
+// --- Opciones de los filtros a partir de los catálogos y del propio cliente ---
+const opcionesMoneda = computed(() => {
+    const nombres: Record<string, string> = {}
+    for (const m of catalogos.value.monedas ?? []) nombres[String(m.IDMoneda)] = m.Moneda
+
+    const usadas = Array.from(new Set(
+        operacionesBase.value.map((op) => String(op.IDMoneda ?? '').trim()).filter(Boolean)
+    ))
+
+    const prioridad = (id: string) => (id === 'MXN' ? 0 : id === 'USD' ? 1 : 2)
+    usadas.sort((a, b) => prioridad(a) - prioridad(b) || a.localeCompare(b))
+
+    return usadas.map((id) => ({ value: id, label: nombres[id] ? `${id} — ${nombres[id]}` : id }))
+})
+
+const opcionesFormaPago = computed(() => {
+    const nombres: Record<string, string> = {}
+    for (const f of catalogos.value.formasPago ?? []) nombres[String(f.IDFormaPago)] = f.FormaPago
+
+    const usadas = new Set<string>()
+    for (const op of operacionesBase.value) {
+        const id = String(op.IDFormaPago ?? '').trim()
+        if (id !== '') usadas.add(id)
+        for (const p of op.pagos ?? []) {
+            const pid = String(p.IDFormaPago ?? '').trim()
+            if (pid !== '') usadas.add(pid)
+        }
+    }
+
+    return Array.from(usadas)
+        .map((id) => ({ value: id, label: nombres[id] ?? `Forma de pago ${id}` }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es'))
+})
+
+const opcionesTipoPago = computed(() => {
+    const nombres: Record<string, string> = {}
+    for (const t of catalogos.value.tiposPago ?? []) nombres[String(t.IDTipoPago)] = t.TipoPago
+
+    const usadas = new Set<string>()
+    for (const op of operacionesBase.value) {
+        const id = String(op.IDTipoPago ?? '').trim()
+        if (id !== '') usadas.add(id)
+    }
+
+    return Array.from(usadas)
+        .map((id) => ({ value: id, label: nombres[id] ?? `Tipo de pago ${id}` }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es'))
+})
 </script>
 
 <template>
@@ -359,6 +760,13 @@ function riesgoNombre(n: number): string {
                             {{ onBlacklist ? 'En Listas' : 'Sin coincidencias' }}
                         </span>
                         <span
+                            v-if="esAltoRiesgo"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-800 dark:bg-red-900/40 dark:text-red-200"
+                        >
+                            <ShieldAlert class="h-3.5 w-3.5" />
+                            Alto riesgo
+                        </span>
+                        <span
                           v-if="isExtranjero"
                           class="inline-flex items-center gap-1.5 rounded-full bg-pink-100 text-pink-800 px-2.5 py-1 font-medium dark:bg-pink-900/40 dark:text-pink-200"
                         >
@@ -404,6 +812,20 @@ function riesgoNombre(n: number): string {
                               </div>
                             </div>
                             <!-- /Nueva Sección -->
+
+                            <!-- Cliente de alto riesgo -->
+                            <div v-if="esAltoRiesgo" class="rounded-xl border-2 border-dashed border-red-400 bg-red-50/60 p-6 text-center flex flex-col items-center gap-2 dark:border-red-700 dark:bg-red-900/30">
+                              <ShieldAlert class="w-8 h-8 text-red-500 mb-1" />
+                              <h3 class="font-bold text-red-800 dark:text-red-200 text-lg mb-1">Cliente de alto riesgo</h3>
+                              <div class="text-sm text-red-700 dark:text-red-200">
+                                <span>Se detectó un perfil de alto riesgo por:</span>
+                                <ul v-if="factoresRiesgo.length" class="mt-2 list-disc list-inside text-left mx-auto w-fit">
+                                  <li v-for="factor in factoresRiesgo" :key="factor">{{ factor }}</li>
+                                </ul>
+                                <p v-else class="mt-2">Perfil de alto riesgo detectado al momento de su registro.</p>
+                              </div>
+                            </div>
+                            <!-- /Cliente de alto riesgo -->
 
                              <!-- Alertas Activas -->
                             <div v-if="hasAlerts">
@@ -503,6 +925,12 @@ function riesgoNombre(n: number): string {
                                              </span>
                                          </dd>
                                      </div>
+                                     <div>
+                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Perfil de Riesgo</dt>
+                                         <dd class="mt-1 font-semibold" :class="esAltoRiesgo ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'">
+                                             {{ esAltoRiesgo ? 'Alto riesgo' : 'Sin alto riesgo' }}
+                                         </dd>
+                                     </div>
                                      <div v-if="props.cliente.Preguntas" class="sm:col-span-2 lg:col-span-3"><dt class="font-medium text-gray-500 dark:text-neutral-400">Notas / Perfil PLD</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.Preguntas }}</dd></div>
                                  </dl>
                             </div>
@@ -527,7 +955,169 @@ function riesgoNombre(n: number): string {
 
                         <!-- OPERACIONES -->
                         <section v-if="activeTab === 'op'" class="space-y-6">
-                             <div v-if="props.polizas.length" v-for="(poliza, pidx) in props.polizas" :key="pidx"
+                            <!-- Encabezado + exportar CSV -->
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Operaciones</h2>
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">
+                                        <template v-if="hasFiltrosActivos">
+                                            Mostrando <span class="font-semibold text-gray-700 dark:text-neutral-200">{{ operacionesFiltradas.length }}</span>
+                                            de {{ operacionesBase.length }} operación(es) del cliente.
+                                        </template>
+                                        <template v-else>
+                                            {{ operacionesBase.length }} operación(es) registrada(s) en {{ polizasFiltradas.length }} póliza(s).
+                                        </template>
+                                    </p>
+                                </div>
+                                <button @click="exportarOperacionesCsv" type="button"
+                                    :disabled="operacionesBase.length === 0"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:border-emerald-500 dark:bg-emerald-500 dark:shadow-black/20 dark:hover:bg-emerald-600 dark:hover:shadow-black/30 dark:ring-offset-neutral-950"
+                                    :title="operacionesBase.length === 0 ? 'El cliente no tiene operaciones para exportar' : 'Exporta todas las operaciones del cliente a CSV'">
+                                    <Download class="h-4 w-4" />
+                                    Exportar CSV
+                                </button>
+                            </div>
+
+                            <!-- Filtros -->
+                            <div class="rounded-2xl border border-gray-200/70 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-all duration-300 ease-out focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-neutral-800/80 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20 dark:focus-within:border-blue-500/80 dark:focus-within:ring-blue-400/10">
+                                <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                    <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-500">
+                                        <Filter class="h-3.5 w-3.5" />
+                                        Filtros
+                                    </p>
+                                    <button v-if="hasFiltrosActivos" @click="limpiarFiltros" type="button"
+                                        class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline dark:text-neutral-400 dark:hover:text-white">
+                                        <X class="h-3 w-3" />
+                                        Limpiar filtros
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                                    <!-- Búsqueda -->
+                                    <div class="relative w-full lg:col-span-2 xl:col-span-2">
+                                        <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-gray-400 dark:text-neutral-500">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.5 15.5 20 20m-3-9a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+                                            </svg>
+                                        </span>
+                                        <input v-model="filtroBusqueda" type="search" aria-label="Buscar operaciones"
+                                            class="w-full rounded-lg border border-gray-300/80 bg-gray-50/50 py-2.5 pl-10 pr-3 text-sm text-gray-900 placeholder-gray-400 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70"
+                                            placeholder="Buscar por folio, endoso o agente…" />
+                                    </div>
+
+                                    <!-- Fecha desde -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-fecha-desde" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Emisión desde</label>
+                                        <input id="filtro-fecha-desde" v-model="filtroFechaDesde" type="date"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                                    </div>
+
+                                    <!-- Fecha hasta -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-fecha-hasta" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Emisión hasta</label>
+                                        <input id="filtro-fecha-hasta" v-model="filtroFechaHasta" type="date"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                                    </div>
+
+                                    <!-- Tipo de operación -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-tipo-operacion" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Tipo de operación</label>
+                                        <select id="filtro-tipo-operacion" v-model="filtroTipoOperacion"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todos los tipos</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="emision">Emisión</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="aumento">Endoso de aumento</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="disminucion">Endoso de disminución</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="cancelacion">Cancelación</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="sin_cambio">Endoso sin cambio</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Moneda -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-moneda" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Moneda</label>
+                                        <select id="filtro-moneda" v-model="filtroMoneda"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todas las monedas</option>
+                                            <option v-for="opcion in opcionesMoneda" :key="opcion.value" class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" :value="opcion.value">
+                                                {{ opcion.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Forma de pago -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-forma-pago" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Forma de pago</label>
+                                        <select id="filtro-forma-pago" v-model="filtroFormaPago"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todas las formas</option>
+                                            <option v-for="opcion in opcionesFormaPago" :key="opcion.value" class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" :value="opcion.value">
+                                                {{ opcion.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Tipo de pago -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-tipo-pago" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Tipo de pago</label>
+                                        <select id="filtro-tipo-pago" v-model="filtroTipoPago"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todos los tipos</option>
+                                            <option v-for="opcion in opcionesTipoPago" :key="opcion.value" class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" :value="opcion.value">
+                                                {{ opcion.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Estado -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-estado" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Estado</label>
+                                        <select id="filtro-estado" v-model="filtroEstado"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todos los estados</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="vigentes">Vigentes</option>
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="canceladas">Canceladas</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Prima mínima -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-prima-min" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Prima mínima</label>
+                                        <input id="filtro-prima-min" v-model="filtroPrimaMin" type="number" step="0.01" placeholder="Sin mínimo"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                                    </div>
+
+                                    <!-- Prima máxima -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-prima-max" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Prima máxima</label>
+                                        <input id="filtro-prima-max" v-model="filtroPrimaMax" type="number" step="0.01" placeholder="Sin máximo"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70" />
+                                    </div>
+
+                                    <!-- Póliza -->
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="filtro-poliza" class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">Póliza</label>
+                                        <select id="filtro-poliza" v-model="filtroPoliza"
+                                            class="rounded-lg border border-gray-300/80 bg-gray-50/50 px-3 py-2.5 text-xs text-gray-900 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 hover:border-gray-400/90 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:shadow-none dark:hover:border-neutral-600 dark:focus:border-blue-400/80 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70">
+                                            <option class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" value="">Todas las pólizas</option>
+                                            <option v-for="folio in foliosDisponibles" :key="folio" class="bg-white text-gray-900 dark:bg-neutral-900 dark:text-white" :value="folio">
+                                                {{ folio }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Solo con pagos -->
+                                    <div class="flex items-center gap-2 pt-6 lg:pt-0">
+                                        <label for="filtro-solo-con-pagos" class="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-neutral-300">
+                                            <input id="filtro-solo-con-pagos" v-model="filtroSoloConPagos" type="checkbox"
+                                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900" />
+                                            Solo operaciones con pagos
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="polizasFiltradas.length" v-for="(poliza, pidx) in polizasFiltradas" :key="pidx"
                                 class="rounded-xl border-2 border-blue-200/80 bg-white/70 shadow-lg shadow-blue-200/40 backdrop-blur-lg dark:border-blue-500/20 dark:bg-neutral-950/70 dark:shadow-black/20 overflow-hidden">
 
                                 <!-- Cabecera de la Póliza -->
@@ -632,7 +1222,111 @@ function riesgoNombre(n: number): string {
                                     </div>
                                 </div>
                              </div>
-                             <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin operaciones registradas.</div>
+                             <div v-else class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 py-10 text-center dark:border-neutral-700 dark:bg-neutral-900/40">
+                                <p class="text-gray-500 dark:text-neutral-400 italic">
+                                    <template v-if="hasFiltrosActivos">Sin operaciones que coincidan con los filtros aplicados.</template>
+                                    <template v-else>Sin operaciones registradas.</template>
+                                </p>
+                                <button v-if="hasFiltrosActivos" @click="limpiarFiltros" type="button"
+                                    class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-blue-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-blue-300">
+                                    <X class="h-3.5 w-3.5" />
+                                    Limpiar filtros
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- ESTADÍSTICAS CLIENTE -->
+                        <section v-if="activeTab === 'detalles'" class="space-y-6">
+                            <div class="rounded-xl border border-gray-200/80 bg-white/70 p-6 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Estadísticas cliente</h2>
+                                        <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">
+                                            Promedios, sumas y moda de las primas de todas las operaciones del cliente.
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <!-- Selector de moneda -->
+                                        <div v-if="monedasIndicadores.length > 1" class="flex flex-wrap items-center gap-1 rounded-lg border border-gray-200/80 bg-gray-50/70 p-1 dark:border-neutral-800 dark:bg-neutral-900/60">
+                                            <button v-for="m in monedasIndicadores" :key="m.moneda" @click="monedaSeleccionada = m.moneda" type="button"
+                                                class="rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                                                :class="monedaSeleccionada === m.moneda
+                                                        ? 'bg-blue-600 text-white shadow-sm dark:bg-blue-500'
+                                                        : 'text-gray-600 hover:bg-gray-200/70 dark:text-neutral-300 dark:hover:bg-neutral-800'">
+                                                {{ m.moneda }}
+                                                <span class="ml-1 text-[10px] font-normal opacity-80">({{ m.total_operaciones }})</span>
+                                            </button>
+                                        </div>
+                                        <button @click="exportarEstadisticasCsv" type="button"
+                                            :disabled="operacionesBase.length === 0"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:border-emerald-500 dark:bg-emerald-500 dark:shadow-black/20 dark:hover:bg-emerald-600 dark:hover:shadow-black/30 dark:ring-offset-neutral-950"
+                                            :title="operacionesBase.length === 0 ? 'El cliente no tiene operaciones para exportar' : 'Exporta las estadísticas de todas las monedas del cliente a CSV'">
+                                            <Download class="h-4 w-4" />
+                                            Exportar CSV
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div v-if="!indicadoresMoneda" class="mt-6 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 py-10 text-center text-sm text-gray-500 italic dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400">
+                                    Este cliente no tiene operaciones registradas, por lo que no hay indicadores que mostrar.
+                                </div>
+
+                                <template v-else>
+                                    <!-- Primas -->
+                                    <div class="mt-6">
+                                        <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-neutral-400">Primas</h3>
+                                        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                            <div v-for="tarjeta in tarjetasPrimas" :key="tarjeta.titulo"
+                                                class="rounded-lg border border-gray-200/70 bg-gray-50/50 p-4 dark:border-neutral-700/60 dark:bg-neutral-900/30">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">{{ tarjeta.titulo }}</p>
+                                                <p class="mt-1 text-xl font-bold" :class="tarjeta.color">{{ tarjeta.valor }}</p>
+                                                <p class="mt-1 text-[11px] leading-snug text-gray-400 dark:text-neutral-500">{{ tarjeta.ayuda }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sumas y pagos -->
+                                    <div class="mt-6">
+                                        <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-neutral-400">Sumas y pagos</h3>
+                                        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                            <div v-for="tarjeta in tarjetasSumas" :key="tarjeta.titulo"
+                                                class="rounded-lg border border-gray-200/70 bg-gray-50/50 p-4 dark:border-neutral-700/60 dark:bg-neutral-900/30">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-400">{{ tarjeta.titulo }}</p>
+                                                <p class="mt-1 text-xl font-bold" :class="tarjeta.color">{{ tarjeta.valor }}</p>
+                                                <p class="mt-1 text-[11px] leading-snug text-gray-400 dark:text-neutral-500">{{ tarjeta.ayuda }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Volumen -->
+                                    <div class="mt-6">
+                                        <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-neutral-400">Volumen de operaciones</h3>
+                                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            <div v-for="tarjeta in tarjetasVolumen" :key="tarjeta.titulo"
+                                                class="rounded-lg border border-gray-200/70 bg-white/70 p-3 text-center dark:border-neutral-700/60 dark:bg-neutral-900/30">
+                                                <p class="text-2xl font-bold text-gray-800 dark:text-neutral-100">{{ tarjeta.valor }}</p>
+                                                <p class="mt-0.5 text-[11px] text-gray-500 dark:text-neutral-400">{{ tarjeta.titulo }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Nota de cálculo -->
+                            <div class="rounded-xl border border-blue-200/80 bg-blue-50/60 p-5 dark:border-blue-500/20 dark:bg-blue-900/20">
+                                <h3 class="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
+                                    <Gauge class="h-4 w-4" />
+                                    Cómo se calculan los indicadores
+                                </h3>
+                                <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-blue-900/80 dark:text-blue-200/80">
+                                    <li>La <b>prima total acumulada</b> suma la prima de todas las operaciones del cliente: emisiones más endosos.</li>
+                                    <li>Los <b>endosos de aumento</b> traen prima positiva y los de <b>disminución</b> prima negativa, por lo que se suman y se restan del balance de la póliza.</li>
+                                    <li>El <b>endoso de cancelación</b> se autocorrige con la prima espejo (negación del historial previo de la póliza), por lo que una póliza cancelada queda con balance en cero.</li>
+                                    <li>El <b>promedio por operación</b> es la prima total acumulada entre el número de operaciones; los promedios por tipo (emisiones, aumentos, disminuciones) se muestran por separado para que los endosos no distorsionen la lectura.</li>
+                                    <li>La <b>prima total modal</b> es el importe de prima que más se repite entre todas las operaciones de la moneda; si hay empate se muestra el importe menor y, si ningún importe se repite, se indica “Sin moda”.</li>
+                                    <li>Los indicadores se calculan <b>por moneda</b>: PrimaTotal depende de la moneda de la operación y no se guarda tipo de cambio, por lo que no se suman importes en MXN y USD.</li>
+                                </ul>
+                            </div>
                         </section>
 
                         <!-- ALERTAS -->

@@ -267,15 +267,15 @@ class AlertasController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'idAlerta' => 'required|integer',
-            'instrumento' => 'required|string',
-            'patron' => 'required|string', // Se sigue validando para cumplir requisitos de frontend/form, pero se ignorará abajo
-            'estatus' => 'required|string|in:Generado,Analizado,Cerrado,Por reportar,Enviado',
-            'nombre' => 'required|string',
-            'noCliente' => 'required|integer',
-            'poliza' => 'required|string',
-            'agente' => 'required|integer',
-            'idMoneda' => 'required',
-            'monto' => 'required|numeric',
+            'instrumento' => 'sometimes|nullable|string',
+            'patron' => 'sometimes|nullable|string', // Se sigue enviando desde el frontend, pero se ignora abajo
+            'estatus' => 'sometimes|nullable|string|in:Generado,Analizado,Cerrado,Por reportar,Enviado',
+            'nombre' => 'sometimes|nullable|string',
+            'noCliente' => 'sometimes|nullable|integer',
+            'poliza' => 'sometimes|nullable|string',
+            'agente' => 'sometimes|nullable|integer',
+            'idMoneda' => 'sometimes|nullable|string',
+            'monto' => 'sometimes|nullable|numeric',
             'descripcionOperacion' => 'required|string',
             'razones' => 'required|string',
             'evidencias' => 'sometimes|array',
@@ -334,7 +334,11 @@ class AlertasController extends Controller
                 }
             }
 
-            $agenteCliente = TbClientes::find($request->input('agente'));
+            // El agente es opcional: sólo se recalcula cuando se envió uno,
+            // de lo contrario se conserva el que ya tenía la alerta.
+            $agenteCliente = $request->filled('agente')
+                ? TbClientes::find($request->input('agente'))
+                : null;
             $agenteNombre = $agenteCliente
                 ? (($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
                     ? $agenteCliente->RazonSocial
@@ -349,21 +353,38 @@ class AlertasController extends Controller
             $fechaActualYMD = date('Y-m-d');
 
             // Se respeta el estatus enviado por el usuario para que el
-            // cambio se refleje en la interfaz.
-            $estatus = $request->input('estatus');
+            // cambio se refleje en la interfaz. Si no se envió, se conserva
+            // el estatus actual de la alerta.
+            $estatus = $request->filled('estatus')
+                ? $request->input('estatus')
+                : $alerta->Estatus;
 
             // El patrón siempre es "Nuevo" según la instrucción (buzón solo emite Nuevo)
             $alerta->Patron = "Nuevo";
 
             $alerta->Folio = $request->input('idAlerta');
-            $alerta->IDCliente = $request->input('noCliente');
-            $alerta->Cliente = $request->input('nombre');
-            $alerta->Poliza = $request->input('poliza');
-            $alerta->MontoOperacion = $request->input('monto');
-            $alerta->InstrumentoMonetario = $request->input('instrumento');
-            $alerta->RFCAgente = $agenteCliente ? ($agenteCliente->RFC ?? null) : null;
-            $alerta->Agente = $agenteNombre;
-            $alerta->IDMoneda = $request->input('idMoneda');
+            if ($request->filled('noCliente')) {
+                $alerta->IDCliente = $request->input('noCliente');
+            }
+            if ($request->filled('nombre')) {
+                $alerta->Cliente = $request->input('nombre');
+            }
+            if ($request->filled('poliza')) {
+                $alerta->Poliza = $request->input('poliza');
+            }
+            if ($request->filled('monto')) {
+                $alerta->MontoOperacion = $request->input('monto');
+            }
+            if ($request->filled('instrumento')) {
+                $alerta->InstrumentoMonetario = $request->input('instrumento');
+            }
+            if ($agenteCliente) {
+                $alerta->RFCAgente = $agenteCliente->RFC ?? null;
+                $alerta->Agente = $agenteNombre;
+            }
+            if ($request->filled('idMoneda')) {
+                $alerta->IDMoneda = $request->input('idMoneda');
+            }
             $alerta->Estatus = $estatus;
             $alerta->Descripcion = $request->input('descripcionOperacion');
             $alerta->Razones = $request->input('razones');

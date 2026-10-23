@@ -35,6 +35,7 @@ class TbClientes extends Model
         'FolioMercantil',
         'CoincideEnListasNegras',
         'EsPPEActivo',
+        'EsAltoRiesgo',
         'IDNacionalidad',
         'IDEstadoNacimiento',
         'Activo',
@@ -45,6 +46,7 @@ class TbClientes extends Model
     protected $casts = [
         'IDTipoPersona' => 'integer',
         'EsPPEActivo' => 'boolean',
+        'EsAltoRiesgo' => 'boolean',
         'Activo' => 'boolean',
         'FechaNacimiento' => 'date',
         'FechaConstitucion' => 'date',
@@ -68,5 +70,10 @@ class TbClientes extends Model
     public function tipoPersona()
     {
         return $this->belongsTo(CatTipoPersona::class, 'IDTipoPersona', 'IDTipoPersona');
+    }
+
+    public function ocupacionGiro()
+    {
+        return $this->belongsTo(CatOcupacionesGiros::class, 'IDOcupacionGiro', 'IDOcupacionGiro');
     }
 }

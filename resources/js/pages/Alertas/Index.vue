@@ -495,6 +495,25 @@ const downloadCsv = async () => {
 };
 
 const actualizarAlerta = async () => {
+    // Únicos campos obligatorios del formulario: descripción y razones.
+    const errores: Record<string, string[]> = {};
+    if (!String(descripcionOperacion.value ?? '').trim()) {
+        errores.descripcionOperacion = [
+            'La descripción de la operación es obligatoria.',
+        ];
+    }
+    if (!String(razones.value ?? '').trim()) {
+        errores.razones = ['Las razones son obligatorias.'];
+    }
+    if (Object.keys(errores).length) {
+        erroresValidacion.value = errores;
+        errorGeneral.value = 'Completa los campos obligatorios.';
+        toastType.value = 'error';
+        toastMessage.value = 'Revisa los campos obligatorios.';
+        toastVisible.value = true;
+        return;
+    }
+
     try {
         submitLoading.value = true;
         errorGeneral.value = null;
@@ -510,7 +529,7 @@ const actualizarAlerta = async () => {
         formData.append('agente', String(agente.value));
         formData.append('instrumento', instrumentoLabel);
         formData.append('poliza', String(poliza.value));
-        formData.append('monto', isNaN(montoNum) ? '0' : String(montoNum));
+        formData.append('monto', isNaN(montoNum) ? '' : String(montoNum));
         formData.append('descripcionOperacion', String(descripcionOperacion.value));
         formData.append('razones', String(razones.value));
         if (selectedAlertaId.value !== null) {
@@ -1081,46 +1100,46 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 </div>
                                 <div class="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2">
                                     <div>
-                                        <Input label="Patrón" type="text" id="patron" v-model="patron" disabled required />
+                                        <Input label="Patrón" type="text" id="patron" v-model="patron" disabled />
                                     </div>
                                     <div>
                                         <Select label="Estatus" :options="opcionesEstatus" v-model="estatus"
-                                            placeholder="Seleccionar estatus" id="estatus" name="estatus" required />
+                                            placeholder="Seleccionar estatus" id="estatus" name="estatus" />
                                         <InputError :message="erroresValidacion.estatus?.[0]" />
                                     </div>
                                     <div>
                                         <Select label="Nombre" :options="opcionesNombre" v-model="nombre"
-                                            placeholder="Seleccionar nombre" id="nombre" name="nombre" required />
+                                            placeholder="Seleccionar nombre" id="nombre" name="nombre" />
                                         <InputError :message="erroresValidacion.nombre?.[0]" />
                                     </div>
                                     <div>
                                         <Input label="No. cliente" type="text" id="noCliente" v-model="noCliente"
-                                            placeholder="Ingresar No. de cliente" disabled required />
+                                            placeholder="Ingresar No. de cliente" disabled />
                                         <InputError :message="erroresValidacion.noCliente?.[0]" />
                                     </div>
                                     <div>
                                         <Select label="Folio póliza" :options="opcionesPoliza" v-model="poliza"
-                                            placeholder="Seleccionar folio" id="poliza" name="poliza" required />
+                                            placeholder="Seleccionar folio" id="poliza" name="poliza" />
                                         <InputError :message="erroresValidacion.poliza?.[0]" />
                                     </div>
                                     <div>
                                         <Select label="Agente" :options="opcionesAgente" v-model="agente"
-                                            placeholder="Seleccionar agente" id="agente" name="agente" required />
+                                            placeholder="Seleccionar agente" id="agente" name="agente" />
                                         <InputError :message="erroresValidacion.agente?.[0]" />
                                     </div>
                                     <div>
                                         <Input label="Monto" type="float" id="monto" v-model="monto" prefix="$"
-                                            placeholder="Ingresar monto" required />
+                                            placeholder="Ingresar monto" />
                                         <InputError :message="erroresValidacion.monto?.[0]" />
                                     </div>
                                     <div>
                                         <Select label="Moneda" :options="opcionesMoneda" v-model="moneda"
                                             placeholder="Seleccionar moneda" id="moneda" name="moneda" />
-                                        <InputError :message="erroresValidacion.IDMoneda?.[0]" />
+                                        <InputError :message="erroresValidacion.idMoneda?.[0]" />
                                     </div>
                                     <div>
                                         <Select label="Instrumento" :options="opcionesInstrumento" v-model="instrumento"
-                                            placeholder="Seleccionar instrumento" id="instrumento" name="instrumento" required />
+                                            placeholder="Seleccionar instrumento" id="instrumento" name="instrumento" />
                                         <InputError :message="erroresValidacion.instrumento?.[0]" />
                                     </div>
                                     <div class="md:col-span-2">
@@ -1136,7 +1155,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     </div>
                                     <div class="md:col-span-2">
                                         <SelectFile label="Evidencias" id="evidencias" name="evidencias"
-                                            accept=".pdf,.jpg,.png,.doc,.docx" v-model="evidencias" required />
+                                            accept=".pdf,.jpg,.png,.doc,.docx" v-model="evidencias" />
                                         <InputError
                                             :message="(erroresValidacion['evidencias']?.[0] || erroresValidacion['evidencias.*']?.[0])" />
                                     </div>

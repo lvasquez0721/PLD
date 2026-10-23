@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\AvisoAlertaConsolidada;
 use App\Mail\AvisoOficialCumplimiento;
 use App\Mail\AvisoRiesgoAlto;
+use App\Mail\ReenvioCorreo;
 use App\Models\CatCorreoNotificacion;
 use App\Models\LogCorreo;
 use App\Support\AuditDate;
@@ -27,6 +28,53 @@ class NotificacionCumplimientoService
     }
 
     /**
+     * Reenvía al oficial de cumplimiento el contenido HTML de un correo ya registrado.
+     */
+    public static function reenviarCorreoOficial(LogCorreo $correo): array
+    {
+        $asunto = 'Reenvío: '.($correo->Asunto ?: 'Aviso PLD');
+
+        try {
+            $config = self::getConfiguracionOficial();
+
+            if (! $config || empty($config->Correo)) {
+                Log::warning('No se configuró el correo del oficial de cumplimiento. Se omite el reenvío.', [
+                    'correo_log_id' => $correo->id,
+                ]);
+                self::registrarLog('Reenvio', null, null, $asunto, [], 'OmitidoSinConfig', null, $correo->IDCliente, $correo->IDOperacion, [], $correo->CuerpoHtml, (bool) $correo->Truncado);
+
+                return ['ok' => false, 'message' => 'No se configuró el correo del oficial de cumplimiento.'];
+            }
+
+            if (empty($correo->CuerpoHtml)) {
+                self::registrarLog('Reenvio', $config->Correo, $config->Nombre, $asunto, [], 'Fallido', 'El correo original no tiene contenido HTML.', $correo->IDCliente, $correo->IDOperacion);
+
+                return ['ok' => false, 'message' => 'El correo no tiene contenido HTML para reenviar.'];
+            }
+
+            $destinatario = $config->Nombre ? $config->Nombre : $config->Correo;
+
+            Mail::to($config->Correo, $destinatario)->send(new ReenvioCorreo($asunto, $correo->CuerpoHtml));
+            self::registrarLog('Reenvio', $config->Correo, $destinatario, $asunto, [], 'Enviado', null, $correo->IDCliente, $correo->IDOperacion, [], $correo->CuerpoHtml, (bool) $correo->Truncado);
+
+            Log::info('[NotificacionCumplimiento] Correo reenviado al oficial de cumplimiento', [
+                'correo_log_id' => $correo->id,
+                'correo' => $config->Correo,
+            ]);
+
+            return ['ok' => true, 'message' => 'Correo reenviado al oficial de cumplimiento.'];
+        } catch (\Throwable $e) {
+            Log::error('Error al reenviar correo al oficial de cumplimiento: '.$e->getMessage(), [
+                'correo_log_id' => $correo->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            self::registrarLog('Reenvio', null, null, $asunto, [], 'Fallido', $e->getMessage(), $correo->IDCliente, $correo->IDOperacion, [], $correo->CuerpoHtml, (bool) $correo->Truncado);
+
+            return ['ok' => false, 'message' => 'No se pudo reenviar el correo.'];
+        }
+    }
+
+    /**
      * Envía el aviso al oficial de cumplimiento cuando se detecta un cliente
      * en listas negras o como PPE. No revierte ni rompe el flujo principal.
      */
@@ -40,7 +88,7 @@ class NotificacionCumplimientoService
                     'idCliente' => $datos['idCliente'] ?? null,
                     'nombre' => $datos['nombre'] ?? null,
                 ]);
-                self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'OmitidoSinConfig', null);
+                self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'OmitidoSinConfig', null, $datos['idCliente'] ?? null, null, $datos['patrones'] ?? []);
 
                 return false;
             }
@@ -52,7 +100,7 @@ class NotificacionCumplimientoService
             $datos['hora'] = AuditDate::now()->format('H:i');
 
             Mail::to($config->Correo, $destinatario)->send(new AvisoOficialCumplimiento($datos));
-            self::registrarLog('OficialCumplimiento', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'Enviado', null, $datos['idCliente'] ?? null);
+            self::registrarLog('OficialCumplimiento', $config->Correo, $destinatario, $datos['asunto'] ?? 'Aviso PLD - Tláloc Seguros', $datos, 'Enviado', null, $datos['idCliente'] ?? null, null, $datos['patrones'] ?? []);
 
             return true;
         } catch (\Exception $e) {
@@ -60,7 +108,7 @@ class NotificacionCumplimientoService
                 'trace' => $e->getTraceAsString(),
                 'idCliente' => $datos['idCliente'] ?? null,
             ]);
-            self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD', $datos, 'Fallido', $e->getMessage(), $datos['idCliente'] ?? null);
+            self::registrarLog('OficialCumplimiento', null, null, $datos['asunto'] ?? 'Aviso PLD', $datos, 'Fallido', $e->getMessage(), $datos['idCliente'] ?? null, null, $datos['patrones'] ?? []);
 
             return false;
         }
@@ -181,25 +229,30 @@ class NotificacionCumplimientoService
         };
     }
 
-    private static function registrarLog(string $tipo, ?string $correo, ?string $nombre, ?string $asunto, array $datos, string $estado, ?string $error = null, $idCliente = null, $idOperacion = null, array $alertas = []): void
+    private static function registrarLog(string $tipo, ?string $correo, ?string $nombre, ?string $asunto, array $datos, string $estado, ?string $error = null, $idCliente = null, $idOperacion = null, array $alertas = [], ?string $htmlOverride = null, ?bool $truncadoOverride = null): void
     {
         try {
             if (! Schema::hasTable('logCorreos')) {
                 return;
             }
-            $html = null;
-            $truncado = false;
-            try {
-                $mailable = self::mailableParaTipo($tipo, $datos);
-                if ($mailable) {
-                    $html = $mailable->render();
-                    if (is_string($html) && strlen($html) > 20000) {
-                        $html = substr($html, 0, 20000).'... [TRUNCADO]';
-                        $truncado = true;
-                    }
-                }
-            } catch (\Throwable $e) {
+            if ($htmlOverride !== null) {
+                $html = $htmlOverride;
+                $truncado = (bool) $truncadoOverride;
+            } else {
                 $html = null;
+                $truncado = false;
+                try {
+                    $mailable = self::mailableParaTipo($tipo, $datos);
+                    if ($mailable) {
+                        $html = $mailable->render();
+                        if (is_string($html) && strlen($html) > 20000) {
+                            $html = substr($html, 0, 20000).'... [TRUNCADO]';
+                            $truncado = true;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $html = null;
+                }
             }
             $patrones = collect($alertas)->map(fn ($a) => is_object($a) ? ($a->Patron ?? null) : ($a['patron'] ?? $a['Patron'] ?? null))->filter()->values()->toArray();
             LogCorreo::create([

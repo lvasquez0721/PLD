@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LogCorreo;
+use App\Services\NotificacionCumplimientoService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -116,6 +117,32 @@ class CorreosController extends Controller
             'correos' => $correos,
             'filters' => $request->only(['search', 'tipo', 'estado', 'fecha_desde', 'fecha_hasta', 'q_cuerpo', 'sort', 'direction', 'per_page']),
             'filterOptions' => $this->filterOptions(),
+            'toast' => session('toast'),
+            'oficialCorreo' => NotificacionCumplimientoService::getConfiguracionOficial()?->Correo,
+        ]);
+    }
+
+    public function reenviar($id)
+    {
+        $correo = LogCorreo::find($id);
+
+        if (! $correo) {
+            return redirect()->back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Correo no encontrado.',
+            ]);
+        }
+
+        $resultado = NotificacionCumplimientoService::reenviarCorreoOficial($correo);
+
+        $message = $resultado['message'];
+        if ($resultado['ok'] && $correo->Truncado) {
+            $message .= ' El contenido original está truncado; se envió el HTML almacenado.';
+        }
+
+        return redirect()->back()->with('toast', [
+            'type' => $resultado['ok'] ? 'success' : 'error',
+            'message' => $message,
         ]);
     }
 
@@ -150,7 +177,7 @@ class CorreosController extends Controller
 
     private function filterOptions(): array
     {
-        return Cache::remember('correos_filter_options_v1', 300, function () {
+        return Cache::remember('correos_filter_options_v2', 300, function () {
             $destinatarios = LogCorreo::query()
                 ->select('Destinatario')
                 ->selectRaw('COUNT(*) as total')

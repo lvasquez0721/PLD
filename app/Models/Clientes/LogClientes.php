@@ -35,6 +35,7 @@ class LogClientes extends Model
         'FolioMercantil',
         'CoincideEnListasNegras',
         'EsPPEActivo',
+        'EsAltoRiesgo',
         'IDNacionalidad', // Ahora debe ser tratado como string en los modelos y formularios
         'IDEstadoNacimiento',
         'Activo',

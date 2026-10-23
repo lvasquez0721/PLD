@@ -5,9 +5,11 @@ import Datatable from '@/components/ui/tables/Datatable.vue';
 import Titulo from '@/components/ui/Titulo.vue';
 import FadeIn from '@/components/ui/animation/fadeIn.vue';
 import ModalForm from '@/components/ui/modals/modalForm.vue';
+import ModalConfirm from '@/components/ui/modals/modalConfirm.vue';
+import Toast from '@/components/ui/alert/Toast.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
-import { CalendarDays, ChevronLeft, ChevronRight, Copy, Download, Mail, RotateCcw, Search, X } from 'lucide-vue-next';
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Download, Mail, RotateCcw, Search, Send, X } from 'lucide-vue-next';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Correos', href: '' }];
 
@@ -42,8 +44,24 @@ interface FilterOptions {
   destinatarios: { correo: string; total: number }[];
 }
 
-const page = usePage<{ correos: Paginated; filters: Record<string, any>; filterOptions: FilterOptions }>();
+interface ToastData {
+  message: string;
+  type: 'success' | 'warning' | 'error';
+}
+
+const page = usePage<{ correos: Paginated; filters: Record<string, any>; filterOptions: FilterOptions; toast?: ToastData | null; oficialCorreo?: string | null }>();
 const paginated = computed(() => page.props.correos);
+const oficialCorreo = computed(() => page.props.oficialCorreo ?? null);
+const showToast = ref(false);
+const toastMessage = ref('');
+const toastType = ref<'success' | 'warning' | 'error'>('success');
+watch(() => page.props.toast, (newToast) => {
+  if (newToast) {
+    toastMessage.value = newToast.message;
+    toastType.value = newToast.type;
+    showToast.value = true;
+  }
+}, { immediate: true });
 const filterOptions = computed<FilterOptions>(() => ({
   tipos: page.props.filterOptions?.tipos ?? [],
   estados: page.props.filterOptions?.estados ?? [],
@@ -128,10 +146,13 @@ const columns = [
   { key: 'estado', label: 'Estado', sortable: true },
   { key: 'alertas_count', label: 'Alertas', sortable: false },
 ];
-const rowActions = [{ id: 'ver', label: 'Ver', icon: 'view' as const, variant: 'secondary' as const, disabled: (row: Record<string, any>) => !row.tiene_cuerpo }];
+const rowActions = [
+  { id: 'ver', label: 'Ver', icon: 'view' as const, variant: 'secondary' as const, disabled: (row: Record<string, any>) => !row.tiene_cuerpo },
+  { id: 'reenviar', label: 'Reenviar', icon: 'send' as const, variant: 'primary' as const, disabled: (row: Record<string, any>) => !row.tiene_cuerpo },
+];
 const rows = computed(() => (paginated.value?.data ?? []).map((c) => ({
   id: c.id, fecha: c.fecha, destinatario: c.destinatario, asunto: c.asunto, tipo: c.tipo,
-  estado: c.estado, alertas_count: c.alertas_count, tiene_cuerpo: c.tiene_cuerpo,
+  estado: c.estado, alertas_count: c.alertas_count, tiene_cuerpo: c.tiene_cuerpo, truncado: c.truncado,
 })));
 
 function tipoBadge(t: string): string {
@@ -172,7 +193,39 @@ async function verDetalle(rowData: Record<string, any>) {
   } catch { modalFuente.value = 'Error al obtener el detalle del correo.'; }
   finally { modalLoading.value = false; }
 }
-function handleRowAction(_a: string, row: Record<string, any>) { verDetalle(row); }
+const showReenviarModal = ref(false);
+const correoAReenviar = ref<Record<string, any> | null>(null);
+const reenviando = ref(false);
+
+function abrirReenviar(row: Record<string, any>) {
+  correoAReenviar.value = row;
+  showReenviarModal.value = true;
+}
+function handleRowAction(action: string, row: Record<string, any>) {
+  if (action === 'reenviar') {
+    abrirReenviar(row);
+    return;
+  }
+  verDetalle(row);
+}
+function confirmarReenvio() {
+  if (!correoAReenviar.value || reenviando.value) return;
+  reenviando.value = true;
+  router.post(`/correos/${correoAReenviar.value.id}/reenviar`, {}, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      showReenviarModal.value = false;
+      correoAReenviar.value = null;
+    },
+    onError: () => {
+      toastMessage.value = 'No se pudo reenviar el correo.';
+      toastType.value = 'error';
+      showToast.value = true;
+    },
+    onFinish: () => (reenviando.value = false),
+  });
+}
 async function copiarContenido() {
   try { await navigator.clipboard.writeText(modalFuente.value); copiado.value = true; window.setTimeout(() => (copiado.value = false), 1600); } catch { /* noop */ }
 }
@@ -301,5 +354,30 @@ function descargarHtml() {
         <pre v-else class="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-gray-100 p-4 text-xs leading-relaxed">{{ modalFuente }}</pre>
       </div>
     </ModalForm>
+
+    <ModalConfirm v-model="showReenviarModal" :loading="reenviando" @confirm="confirmarReenvio" @cancel="showReenviarModal = false">
+      <template #icon>
+        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+          <Send class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        </div>
+      </template>
+      <template #title>
+        ¿Reenviar correo al oficial de cumplimiento?
+      </template>
+      <template #description>
+        Se enviará una copia de
+        <span class="font-semibold text-slate-900 dark:text-white">{{ correoAReenviar?.asunto || 'este correo' }}</span>
+        a
+        <span class="font-semibold text-slate-900 dark:text-white">{{ oficialCorreo || 'el correo configurado del oficial de cumplimiento' }}</span>.
+        <span v-if="correoAReenviar?.truncado" class="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
+          El contenido guardado está truncado a 20 000 caracteres; se enviará tal cual.
+        </span>
+      </template>
+      <template #confirm>
+        {{ reenviando ? 'Reenviando...' : 'Reenviar' }}
+      </template>
+    </ModalConfirm>
+
+    <Toast v-model="showToast" :message="toastMessage" :type="toastType" />
   </AppLayout>
 </template>

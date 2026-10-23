@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/correos', [CorreosController::class, 'index'])->name('correos.index');
     Route::get('/correos/{id}', [CorreosController::class, 'show'])->name('correos.show');
+    Route::post('/correos/{id}/reenviar', [CorreosController::class, 'reenviar'])->name('correos.reenviar');
 });
 
 // Listas UIF
@@ -158,6 +159,12 @@ Route::get('/clientes', [ClientesController::class, 'index'])
 Route::get('/clientes/exportar', [ClientesController::class, 'exportCsv'])
     ->middleware(['auth', 'verified'])
     ->name('clientes.exportar');
+Route::get('/clientes/{id_cliente}/operaciones/exportar', [ClientesController::class, 'exportOperacionesCsv'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.operaciones.exportar');
+Route::get('/clientes/{id_cliente}/estadisticas/exportar', [ClientesController::class, 'exportEstadisticasCsv'])
+    ->middleware(['auth', 'verified'])
+    ->name('clientes.estadisticas.exportar');
 Route::get('/clientes/ver-detalles/{id_cliente}', [ClientesController::class, 'verDetallesCliente'])
     ->middleware(['auth', 'verified'])
     ->name('clientes.ver-detalles');

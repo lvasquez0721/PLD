@@ -943,6 +943,8 @@ function getButtonClasses(variant: string = 'primary', disabled: boolean = false
                           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         <path v-else-if="action.icon === 'download'" stroke-linejoin="round"
                           d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path v-else-if="action.icon === 'send'" stroke-linejoin="round"
+                          d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                         <path v-else stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                       <span class="hidden sm:inline">{{ action.label }}</span>

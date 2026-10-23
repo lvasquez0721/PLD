@@ -16,7 +16,7 @@ class LogCorreo extends Model
 
     public $timestamps = true;
 
-    public const TIPOS = ['OficialCumplimiento', 'RiesgoAlto', 'AlertaConsolidada'];
+    public const TIPOS = ['OficialCumplimiento', 'RiesgoAlto', 'AlertaConsolidada', 'Reenvio'];
 
     public const ESTADOS = ['Enviado', 'Fallido', 'OmitidoSinConfig'];
 

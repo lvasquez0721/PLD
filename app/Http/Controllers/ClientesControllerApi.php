@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\ClienteHelper;
+use App\Models\CatCategoriaPersonasBloqueadas;
+use App\Models\Clientes\CatEstados;
 use App\Models\Clientes\CatIDClientesSistema;
 use App\Models\Clientes\CatSistemas;
 use App\Models\Clientes\CatTipoPersona;
@@ -12,12 +14,11 @@ use App\Models\Clientes\LogDetectClientesListas;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\Clientes\TbClientesPPE;
-use App\Models\CatCategoriaPersonasBloqueadas;
-use App\Models\Clientes\CatEstados;
-use App\Models\ListasBloqueadas\TbListasNegraCNSF;
-use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
+use App\Services\ListasNegras\AnalizadorListasNegras;
 use App\Services\NotificacionCumplimientoService;
+use App\Services\PLD\EvaluadorRiesgoCliente;
+use App\Services\ParametriaPLD\ParametriaPLDService;
 use App\Support\AuditDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -186,60 +187,8 @@ class ClientesControllerApi extends Controller
             $data['RFC'] = $rfc;
         }
 
-        // Validar si el RFC existe en listas negras (UIF y CNSF)
-        $personaBloqueada = false;
-        $detalleListaBloqueadas = [];
-        $listasDetectadas = [];
-
         $curp = isset($data['CURP']) ? strtoupper(trim($data['CURP'])) : null;
 
-        if (! empty($rfc) || ! empty($curp)) {
-            // Buscar en UIF
-            $registroUIF = TbListasNegrasUIF::where(function ($q) use ($rfc, $curp) {
-                if (! empty($rfc)) {
-                    $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
-                }
-                if (! empty($curp)) {
-                    $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
-                }
-            })->first();
-
-            if ($registroUIF) {
-                $personaBloqueada = true;
-                $detalleListaBloqueadas[] = [
-                    'fuente' => 'UIF',
-                    'IDRegistroListaUIF' => $registroUIF->IDRegistroListaUIF,
-                    'Nombre' => $registroUIF->Nombre,
-                    'RFC' => $registroUIF->RFC,
-                    'CURP' => $registroUIF->CURP,
-                ];
-                $listasDetectadas[] = 'UIF';
-            }
-
-            // Buscar en CNSF
-            $registroCNSF = TbListasNegraCNSF::where(function ($q) use ($rfc, $curp) {
-                if (! empty($rfc)) {
-                    $q->orWhereRaw('UPPER(RFC) = ?', [$rfc]);
-                }
-                if (! empty($curp)) {
-                    $q->orWhereRaw('UPPER(CURP) = ?', [$curp]);
-                }
-            })->first();
-
-            if ($registroCNSF) {
-                $personaBloqueada = true;
-                $detalleListaBloqueadas[] = [
-                    'fuente' => 'CNSF',
-                    'IDRegistroListaCNSF' => $registroCNSF->IDRegistroListaCNSF,
-                    'Nombre' => $registroCNSF->Nombre,
-                    'RFC' => $registroCNSF->RFC,
-                    'CURP' => $registroCNSF->CURP,
-                ];
-                $listasDetectadas[] = 'CNSF';
-            }
-        }
-
-        // Evaluar coincidencia de persona expuesta políticamente (PPE)
         $nombreParaBusqueda = trim(
             ($data['nombre'] ?? '').
             ' '.($data['apellidoPaterno'] ?? '').
@@ -249,18 +198,43 @@ class ClientesControllerApi extends Controller
             $nombreParaBusqueda = trim($data['razonSocial'] ?? '');
         }
 
-        $esPPE = false;
-        if (! empty($nombreParaBusqueda)) {
-            $tokenPPE = ClienteHelper::getTokenPPE();
-            $dataPPE = ClienteHelper::getPPE($tokenPPE, $nombreParaBusqueda);
-            if (
-                isset($dataPPE['data']) &&
-                is_array($dataPPE['data']) &&
-                count($dataPPE['data']) > 0
-            ) {
-                $esPPE = true;
-            }
+        $analisisListas = app(AnalizadorListasNegras::class)->analizar([
+            'IDTipoPersona' => $data['IDTipoPersona'],
+            'RFC' => $rfc,
+            'CURP' => $curp,
+            'nombre' => $data['nombre'] ?? null,
+            'apellidoPaterno' => $data['apellidoPaterno'] ?? null,
+            'apellidoMaterno' => $data['apellidoMaterno'] ?? null,
+            'razonSocial' => $data['razonSocial'] ?? null,
+        ]);
+
+        $personaBloqueada = $analisisListas['personaBloqueada'];
+        $detalleListaBloqueadas = $analisisListas['detalleListaBloqueadas'];
+        $listasDetectadas = $analisisListas['listasDetectadas'];
+
+        // Evaluar coincidencia de persona expuesta políticamente (PPE)
+        [$esPPE, $dataPPE] = $this->obtenerDatosPPE($nombreParaBusqueda);
+
+        if ($esPPE) {
+            $detalleListaBloqueadas = array_merge(
+                $detalleListaBloqueadas,
+                $this->construirDetallesPPE($dataPPE)
+            );
         }
+
+        // Evaluar los factores de alto riesgo del cliente: actividad vulnerable (ocupación con
+        // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz = 3), coincidencia
+        // en listas negras (CNSF / UIF) y PPE.
+        $evaluadorRiesgo = app(EvaluadorRiesgoCliente::class);
+        $datosRiesgo = $evaluadorRiesgo->evaluar(
+            $data['IDOcupacionGiro'] ?? null,
+            $data['domicilios'] ?? [],
+            $personaBloqueada,
+            $esPPE
+        );
+        $esAltoRiesgo = $datosRiesgo['esAltoRiesgo'];
+        $factoresRiesgo = $datosRiesgo['factores'];
+        $alertasRiesgo = $datosRiesgo['alertas'];
 
         // El cliente siempre se da de alta como Activo, aun con coincidencia en listas.
         // La coincidencia se conserva en CoincideEnListasNegras y se avisa al oficial de cumplimiento.
@@ -282,6 +256,7 @@ class ClientesControllerApi extends Controller
                 'FolioMercantil' => $data['folioMercantil'] ?? null,
                 'CoincideEnListasNegras' => $personaBloqueada,
                 'EsPPEActivo' => $esPPE,
+                'EsAltoRiesgo' => $esAltoRiesgo,
                 'IDNacionalidad' => $data['IDNacionalidad'] ?? null,
                 'IDEstadoNacimiento' => $idEstadoNacimientoResuelto,
                 'Activo' => $activo,
@@ -306,8 +281,8 @@ class ClientesControllerApi extends Controller
             }
 
             if (! empty($data['IDSistemaOrigen']) && ! empty($data['NoClienteSistema'])) {
-                $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
-                CatIdClientesSistema::create([
+                $nuevoIDOrigen = (CatIDClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
+                CatIDClientesSistema::create([
                     'IDOrigenSistema' => $nuevoIDOrigen,
                     'IDCliente' => $cliente->IDCliente,
                     'IDSistema' => $data['IDSistemaOrigen'],
@@ -317,12 +292,14 @@ class ClientesControllerApi extends Controller
 
             $nombreCompleto = TbAlertas::nombreParaCliente($cliente);
 
+            $alertasGeneradas = [];
+
             // Emitir alerta si coincide en listas negras
             if ($personaBloqueada) {
                 $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
                 $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
-                TbAlertas::create([
+                $alertasGeneradas[] = TbAlertas::create([
                     'Folio' => null,
                     'Patron' => 'Personas Bloqueadas',
                     'IDCliente' => $cliente->IDCliente,
@@ -344,6 +321,17 @@ class ClientesControllerApi extends Controller
                     'IDReporteOP' => null,
                     'IDPago' => null,
                 ]);
+            }
+
+            // Emitir alertas de nivel cliente por actividad vulnerable y zona geográfica
+            foreach ($alertasRiesgo as $alertaRiesgo) {
+                $alertasGeneradas[] = $this->crearAlertaCliente(
+                    $cliente,
+                    $alertaRiesgo['patron'],
+                    $alertaRiesgo['descripcion'],
+                    $alertaRiesgo['razones'],
+                    'Generado'
+                );
             }
 
             // Registrar detecciones en listas negras
@@ -376,14 +364,20 @@ class ClientesControllerApi extends Controller
             if ($personaBloqueada) {
                 $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
             }
+            if ($esAltoRiesgo) {
+                $mensajeExito .= '. Nota: El cliente fue marcado como de alto riesgo.';
+            }
 
-            if ($personaBloqueada || $esPPE) {
+            if (! empty($alertasGeneradas) || $esPPE) {
                 try {
                     $this->enviarAvisoCumplimiento(
                         $cliente,
                         $esPPE,
                         $listasDetectadas,
-                        $detalleListaBloqueadas
+                        $detalleListaBloqueadas,
+                        $alertasGeneradas,
+                        $esAltoRiesgo,
+                        $factoresRiesgo
                     );
                 } catch (\Throwable $e) {
                     Log::warning('Error al enviar aviso de cumplimiento (guardarCliente): '.$e->getMessage());
@@ -396,6 +390,9 @@ class ClientesControllerApi extends Controller
                 'IDCliente' => $cliente->IDCliente,
                 'esPPE' => $cliente->EsPPEActivo,
                 'personaBloqueada' => $cliente->CoincideEnListasNegras,
+                'esAltoRiesgo' => $esAltoRiesgo,
+                'factoresRiesgo' => $factoresRiesgo,
+                'patronesDetectados' => $this->patronesDeAlertas($alertasGeneradas),
                 'detalleListaBloqueadas' => $detalleListaBloqueadas,
             ], 201);
 
@@ -525,7 +522,6 @@ class ClientesControllerApi extends Controller
             ], 422);
         }
 
-
         // Resolver IDEstadoNacimiento si viene (acepta int 9 o string "09"/"Nayarit")
         if (array_key_exists('IDEstadoNacimiento', $validated) && $validated['IDEstadoNacimiento'] !== null && trim((string) $validated['IDEstadoNacimiento']) !== '') {
             $resueltoNac = $this->resolveIDEstado($validated['IDEstadoNacimiento']);
@@ -582,6 +578,27 @@ class ClientesControllerApi extends Controller
             ]);
         }
 
+        $rfcParaListas = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
+        $curpParaListas = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
+        $nombreParaListas = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
+        $apellidoPaternoParaListas = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
+        $apellidoMaternoParaListas = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
+        $razonSocialParaListas = array_key_exists('razonSocial', $validated) ? $validated['razonSocial'] : $cliente->RazonSocial;
+
+        $analisisListas = app(AnalizadorListasNegras::class)->analizar([
+            'IDTipoPersona' => $validated['IDTipoPersona'],
+            'RFC' => $rfcParaListas,
+            'CURP' => $curpParaListas,
+            'nombre' => $nombreParaListas,
+            'apellidoPaterno' => $apellidoPaternoParaListas,
+            'apellidoMaterno' => $apellidoMaternoParaListas,
+            'razonSocial' => $razonSocialParaListas,
+        ]);
+
+        $coincideEnListasNegras = $analisisListas['personaBloqueada'];
+        $detalleListaBloqueadas = $analisisListas['detalleListaBloqueadas'];
+        $listasDetectadas = $analisisListas['listasDetectadas'];
+
         DB::beginTransaction();
 
         try {
@@ -601,177 +618,142 @@ class ClientesControllerApi extends Controller
                 'FolioMercantil' => $cliente->FolioMercantil,
                 'CoincideEnListasNegras' => $cliente->CoincideEnListasNegras,
                 'EsPPEActivo' => $cliente->EsPPEActivo,
+                'EsAltoRiesgo' => $cliente->EsAltoRiesgo,
                 'IDNacionalidad' => $cliente->IDNacionalidad,
                 'IDEstadoNacimiento' => $cliente->IDEstadoNacimiento,
                 'Activo' => $cliente->Activo,
                 'TimeStampLog' => now(),
             ]);
 
-        // Guardar el estado actual de los domicilios del cliente en el log antes de la actualización
-        $domiciliosOriginales = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
-        foreach ($domiciliosOriginales as $domicilio) {
-            // Obtener el siguiente valor IDLogDomicilio manualmente
-            $maxIdLog = LogClientesDomicilio::max('IDLogDomicilio');
-            $nextIdLog = $maxIdLog ? $maxIdLog + 1 : 1;
+            // Guardar el estado actual de los domicilios del cliente en el log antes de la actualización
+            $domiciliosOriginales = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
+            foreach ($domiciliosOriginales as $domicilio) {
+                // Obtener el siguiente valor IDLogDomicilio manualmente
+                $maxIdLog = LogClientesDomicilio::max('IDLogDomicilio');
+                $nextIdLog = $maxIdLog ? $maxIdLog + 1 : 1;
 
-            LogClientesDomicilio::create([
-                'IDLogDomicilio' => $nextIdLog,
-                'IDDomicilio' => $domicilio->IDDomicilio,
-                'IDCliente' => $domicilio->IDCliente,
-                'Calle' => $domicilio->Calle,
-                'NoExterior' => $domicilio->NoExterior,
-                'NoInterior' => $domicilio->NoInterior,
-                'Colonia' => $domicilio->Colonia,
-                'CP' => $domicilio->CP,
-                'IDEstado' => $domicilio->IDEstado,
-                'Municipio' => $domicilio->Municipio,
-                'Localidad' => $domicilio->Localidad,
-                'Telefono' => $domicilio->Telefono,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+                LogClientesDomicilio::create([
+                    'IDLogDomicilio' => $nextIdLog,
+                    'IDDomicilio' => $domicilio->IDDomicilio,
+                    'IDCliente' => $domicilio->IDCliente,
+                    'Calle' => $domicilio->Calle,
+                    'NoExterior' => $domicilio->NoExterior,
+                    'NoInterior' => $domicilio->NoInterior,
+                    'Colonia' => $domicilio->Colonia,
+                    'CP' => $domicilio->CP,
+                    'IDEstado' => $domicilio->IDEstado,
+                    'Municipio' => $domicilio->Municipio,
+                    'Localidad' => $domicilio->Localidad,
+                    'Telefono' => $domicilio->Telefono,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
-        // Eliminar domicilios existentes para el cliente
-        TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->delete();
+            // Eliminar domicilios existentes para el cliente
+            TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->delete();
 
-        // Insertar los nuevos domicilios
-        if (isset($validated['domicilios'])) {
-            foreach ($validated['domicilios'] as $domicilioData) {
-                $calle = $domicilioData['calle'] ?? $domicilioData['Calle'] ?? null;
-                if ($calle) {
-                    TbClientesDomicilio::create([
+            // Insertar los nuevos domicilios
+            if (isset($validated['domicilios'])) {
+                foreach ($validated['domicilios'] as $domicilioData) {
+                    $calle = $domicilioData['calle'] ?? $domicilioData['Calle'] ?? null;
+                    if ($calle) {
+                        TbClientesDomicilio::create([
+                            'IDCliente' => $cliente->IDCliente,
+                            'Calle' => $calle,
+                            'NoExterior' => $domicilioData['noExterior'] ?? null,
+                            'NoInterior' => $domicilioData['noInterior'] ?? null,
+                            'Colonia' => $domicilioData['colonia'] ?? null,
+                            'CP' => $domicilioData['CP'] ?? null,
+                            'IDEstado' => $domicilioData['IDEstado'] ?? null,
+                            'Municipio' => $domicilioData['municipio'] ?? null,
+                            'Localidad' => $domicilioData['localidad'] ?? null,
+                            'Telefono' => $domicilioData['telefono'] ?? null,
+                            'Principal' => $domicilioData['principal'] ?? false,
+                        ]);
+                    }
+                }
+            }
+
+            // Si el json body no incluye 'nombre', 'apellidoPaterno', 'apellidoMaterno', o 'CURP',
+            // usamos los valores actuales del cliente de la BD en vez de null
+            $nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
+            $apellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
+            $apellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
+
+            // Para PPE, armar nombre completo lo mejor posible
+            $nombreC = trim(
+                ($nombre ? $nombre : '')
+                .' '.($apellidoPaterno ? $apellidoPaterno : '')
+                .' '.($apellidoMaterno ? $apellidoMaterno : '')
+            );
+
+            [$esPPE, $dataPPE] = $this->obtenerDatosPPE($nombreC);
+
+            foreach ($detalleListaBloqueadas as $indice => $detalle) {
+                $detalleListaBloqueadas[$indice]['PPEActivo'] = $esPPE;
+            }
+
+            if ($esPPE) {
+                $detalleListaBloqueadas = array_merge(
+                    $detalleListaBloqueadas,
+                    $this->construirDetallesPPE($dataPPE)
+                );
+            }
+
+            // Evaluar los factores de alto riesgo del cliente: actividad vulnerable (ocupación con
+            // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz = 3), coincidencia
+            // en listas negras (CNSF / UIF) y PPE. El flag se recalcula en cada edición.
+            $evaluadorRiesgo = app(EvaluadorRiesgoCliente::class);
+            $datosRiesgo = $evaluadorRiesgo->evaluar(
+                array_key_exists('IDOcupacionGiro', $validated) ? $validated['IDOcupacionGiro'] : $cliente->IDOcupacionGiro,
+                $validated['domicilios'] ?? [],
+                $coincideEnListasNegras,
+                $esPPE
+            );
+            $esAltoRiesgo = $datosRiesgo['esAltoRiesgo'];
+            $factoresRiesgo = $datosRiesgo['factores'];
+            $alertasRiesgo = $datosRiesgo['alertas'];
+
+            // Actualizar datos principales, si llegaron campos nuevos, si no dejar lo original
+            $cliente->RFC = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
+            $cliente->Nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
+            $cliente->ApellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
+            $cliente->ApellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
+            $cliente->RazonSocial = array_key_exists('razonSocial', $validated) ? $validated['razonSocial'] : $cliente->RazonSocial;
+            $cliente->IDTipoPersona = $validated['IDTipoPersona'];
+            $cliente->CURP = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
+            $cliente->IDOcupacionGiro = array_key_exists('IDOcupacionGiro', $validated) ? $validated['IDOcupacionGiro'] : $cliente->IDOcupacionGiro;
+            $cliente->FechaNacimiento = array_key_exists('fechaNacimiento', $validated) ? $validated['fechaNacimiento'] : $cliente->FechaNacimiento;
+            $cliente->FechaConstitucion = array_key_exists('fechaConstitucion', $validated) ? $validated['fechaConstitucion'] : $cliente->FechaConstitucion;
+            $cliente->FolioMercantil = array_key_exists('folioMercantil', $validated) ? $validated['folioMercantil'] : $cliente->FolioMercantil;
+            $cliente->IDNacionalidad = array_key_exists('IDNacionalidad', $validated) ? $validated['IDNacionalidad'] : $cliente->IDNacionalidad;
+            $cliente->IDEstadoNacimiento = array_key_exists('IDEstadoNacimiento', $validated) ? $validated['IDEstadoNacimiento'] : $cliente->IDEstadoNacimiento;
+            $cliente->Preguntas = array_key_exists('Preguntas', $validated) ? $validated['Preguntas'] : $cliente->Preguntas;
+            $cliente->EsPPEActivo = $esPPE;
+            $cliente->EsAltoRiesgo = $esAltoRiesgo;
+
+            // CoincideEnListasNegras y Activo se actualizan más abajo según lógica
+
+            // Actualizar/crear CatIdClientesSistema relacionado si vienen los datos de sistema origen
+            if (! empty($validated['IDSistemaOrigen']) && ! empty($validated['NoClienteSistema'])) {
+                $catIdSistema = CatIDClientesSistema::where('IDCliente', $cliente->IDCliente)
+                    ->where('IDSistema', $validated['IDSistemaOrigen'])
+                    ->first();
+
+                if ($catIdSistema) {
+                    $catIdSistema->NCliente = $validated['NoClienteSistema'];
+                    $catIdSistema->save();
+                } else {
+                    $nuevoIDOrigen = (CatIDClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
+                    CatIDClientesSistema::create([
+                        'IDOrigenSistema' => $nuevoIDOrigen,
                         'IDCliente' => $cliente->IDCliente,
-                        'Calle' => $calle,
-                        'NoExterior' => $domicilioData['noExterior'] ?? null,
-                        'NoInterior' => $domicilioData['noInterior'] ?? null,
-                        'Colonia' => $domicilioData['colonia'] ?? null,
-                        'CP' => $domicilioData['CP'] ?? null,
-                        'IDEstado' => $domicilioData['IDEstado'] ?? null,
-                        'Municipio' => $domicilioData['municipio'] ?? null,
-                        'Localidad' => $domicilioData['localidad'] ?? null,
-                        'Telefono' => $domicilioData['telefono'] ?? null,
-                        'Principal' => $domicilioData['principal'] ?? false,
+                        'IDSistema' => $validated['IDSistemaOrigen'],
+                        'NCliente' => $validated['NoClienteSistema'],
                     ]);
                 }
             }
-        }
-
-        // Si el json body no incluye 'nombre', 'apellidoPaterno', 'apellidoMaterno', o 'CURP',
-        // usamos los valores actuales del cliente de la BD en vez de null
-        $nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
-        $apellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
-        $apellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
-        $curp = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
-
-        // Para PPE, armar nombre completo lo mejor posible
-        $nombreC = trim(
-            ($nombre ? $nombre : '')
-            .' '.($apellidoPaterno ? $apellidoPaterno : '')
-            .' '.($apellidoMaterno ? $apellidoMaterno : '')
-        );
-
-        $tokenPPE = ClienteHelper::getTokenPPE();
-        $dataPPE = ClienteHelper::getPPE($tokenPPE, $nombreC);
-
-        $esPPE = false;
-        if (
-            isset($dataPPE['data']) &&
-            is_array($dataPPE['data']) &&
-            count($dataPPE['data']) > 0
-        ) {
-            $esPPE = true;
-        }
-
-        // Actualizar datos principales, si llegaron campos nuevos, si no dejar lo original
-        $cliente->RFC = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
-        $cliente->Nombre = array_key_exists('nombre', $validated) ? $validated['nombre'] : $cliente->Nombre;
-        $cliente->ApellidoPaterno = array_key_exists('apellidoPaterno', $validated) ? $validated['apellidoPaterno'] : $cliente->ApellidoPaterno;
-        $cliente->ApellidoMaterno = array_key_exists('apellidoMaterno', $validated) ? $validated['apellidoMaterno'] : $cliente->ApellidoMaterno;
-        $cliente->RazonSocial = array_key_exists('razonSocial', $validated) ? $validated['razonSocial'] : $cliente->RazonSocial;
-        $cliente->IDTipoPersona = $validated['IDTipoPersona'];
-        $cliente->CURP = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
-        $cliente->IDOcupacionGiro = array_key_exists('IDOcupacionGiro', $validated) ? $validated['IDOcupacionGiro'] : $cliente->IDOcupacionGiro;
-        $cliente->FechaNacimiento = array_key_exists('fechaNacimiento', $validated) ? $validated['fechaNacimiento'] : $cliente->FechaNacimiento;
-        $cliente->FechaConstitucion = array_key_exists('fechaConstitucion', $validated) ? $validated['fechaConstitucion'] : $cliente->FechaConstitucion;
-        $cliente->FolioMercantil = array_key_exists('folioMercantil', $validated) ? $validated['folioMercantil'] : $cliente->FolioMercantil;
-        $cliente->IDNacionalidad = array_key_exists('IDNacionalidad', $validated) ? $validated['IDNacionalidad'] : $cliente->IDNacionalidad;
-        $cliente->IDEstadoNacimiento = array_key_exists('IDEstadoNacimiento', $validated) ? $validated['IDEstadoNacimiento'] : $cliente->IDEstadoNacimiento;
-        $cliente->Preguntas = array_key_exists('Preguntas', $validated) ? $validated['Preguntas'] : $cliente->Preguntas;
-        $cliente->EsPPEActivo = $esPPE;
-
-        // CoincideEnListasNegras y Activo se actualizan más abajo según lógica
-
-        // Actualizar/crear CatIdClientesSistema relacionado si vienen los datos de sistema origen
-        if (! empty($validated['IDSistemaOrigen']) && ! empty($validated['NoClienteSistema'])) {
-            $catIdSistema = CatIdClientesSistema::where('IDCliente', $cliente->IDCliente)
-                ->where('IDSistema', $validated['IDSistemaOrigen'])
-                ->first();
-
-            if ($catIdSistema) {
-                $catIdSistema->NCliente = $validated['NoClienteSistema'];
-                $catIdSistema->save();
-            } else {
-                $nuevoIDOrigen = (CatIdClientesSistema::max('IDOrigenSistema') ?? 0) + 1;
-                CatIdClientesSistema::create([
-                    'IDOrigenSistema' => $nuevoIDOrigen,
-                    'IDCliente' => $cliente->IDCliente,
-                    'IDSistema' => $validated['IDSistemaOrigen'],
-                    'NCliente' => $validated['NoClienteSistema'],
-                ]);
-            }
-        }
-
-        // Buscar en listas bloqueadas por RFC o CURP actualizados
-        $rfc = array_key_exists('RFC', $validated) ? $validated['RFC'] : $cliente->RFC;
-        $curp = array_key_exists('CURP', $validated) ? $validated['CURP'] : $cliente->CURP;
-        $coincideEnListasNegras = false;
-        $detalleListaBloqueadas = [];
-        $listasDetectadas = [];
-
-        if ($rfc || $curp) {
-            $CNSFrfc = TbListasNegraCNSF::where(function ($q) use ($rfc, $curp) {
-                if ($rfc) {
-                    $q->orWhere('RFC', $rfc);
-                }
-                if ($curp) {
-                    $q->orWhere('CURP', $curp);
-                }
-            })->first();
-
-            if ($CNSFrfc) {
-                $coincideEnListasNegras = true;
-                $detalleListaBloqueadas[] = [
-                    'lista' => 'CNSF',
-                    'nombreDetectado' => $CNSFrfc->Nombre ?? '',
-                    'IDListaOrigen' => $CNSFrfc->IDRegistroListaCNSF ?? null,
-                    'cargo' => '',
-                    'PPEActivo' => $esPPE,
-                ];
-                $listasDetectadas[] = 'CNSF';
-            }
-
-            $UIFrfc = TbListasNegrasUIF::where(function ($q) use ($rfc, $curp) {
-                if ($rfc) {
-                    $q->orWhere('RFC', $rfc);
-                }
-                if ($curp) {
-                    $q->orWhere('CURP', $curp);
-                }
-            })->first();
-
-            if ($UIFrfc) {
-                $coincideEnListasNegras = true;
-                $detalleListaBloqueadas[] = [
-                    'lista' => 'UIF',
-                    'nombreDetectado' => $UIFrfc->Nombre ?? '',
-                    'IDListaOrigen' => $UIFrfc->IDRegistroListaUIF ?? null,
-                    'cargo' => '',
-                    'PPEActivo' => $esPPE,
-                ];
-                $listasDetectadas[] = 'UIF';
-            }
-        }
 
             $cliente->CoincideEnListasNegras = $coincideEnListasNegras;
             // El cliente siempre permanece Activo, aun con coincidencia en listas.
@@ -794,12 +776,14 @@ class ClientesControllerApi extends Controller
 
         $nombreCompleto = TbAlertas::nombreParaCliente($cliente);
 
+        $alertasGeneradas = [];
+
         // Si coincide en listas negras, registrar alerta
         if ($coincideEnListasNegras) {
             $motivo = 'Detectado en listas negras: '.implode(', ', $listasDetectadas);
             $razones = "El cliente con RFC {$cliente->RFC} coincide en: ".implode(', ', $listasDetectadas);
 
-            TbAlertas::create([
+            $alertasGeneradas[] = TbAlertas::create([
                 'Folio' => null,
                 'Patron' => 'Personas Bloqueadas',
                 'IDCliente' => $cliente->IDCliente,
@@ -821,6 +805,17 @@ class ClientesControllerApi extends Controller
                 'IDReporteOP' => null,
                 'IDPago' => null,
             ]);
+        }
+
+        // Emitir alertas de nivel cliente por actividad vulnerable y zona geográfica
+        foreach ($alertasRiesgo as $alertaRiesgo) {
+            $alertasGeneradas[] = $this->crearAlertaCliente(
+                $cliente,
+                $alertaRiesgo['patron'],
+                $alertaRiesgo['descripcion'],
+                $alertaRiesgo['razones'],
+                'Generado'
+            );
         }
 
         // Registrar detecciones en listas negras
@@ -847,22 +842,28 @@ class ClientesControllerApi extends Controller
             ]);
         }
 
-        if ($coincideEnListasNegras || $esPPE) {
-            try {
-                $this->enviarAvisoCumplimiento(
-                    $cliente,
-                    $esPPE,
-                    $listasDetectadas,
-                    $detalleListaBloqueadas
-                );
-            } catch (\Throwable $e) {
-                Log::warning('Error al enviar aviso de cumplimiento (actualizarCliente): '.$e->getMessage());
+            if (! empty($alertasGeneradas) || $esPPE) {
+                try {
+                    $this->enviarAvisoCumplimiento(
+                        $cliente,
+                        $esPPE,
+                        $listasDetectadas,
+                        $detalleListaBloqueadas,
+                        $alertasGeneradas,
+                        $esAltoRiesgo,
+                        $factoresRiesgo
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Error al enviar aviso de cumplimiento (actualizarCliente): '.$e->getMessage());
+                }
             }
-        }
 
         $mensajeExito = 'Cliente actualizado exitosamente';
         if ($coincideEnListasNegras) {
             $mensajeExito .= '. Nota: El cliente cuenta con coincidencias en listas.';
+        }
+        if ($esAltoRiesgo) {
+            $mensajeExito .= '. Nota: El cliente fue marcado como de alto riesgo.';
         }
 
         return response()->json([
@@ -871,19 +872,170 @@ class ClientesControllerApi extends Controller
             'IDCliente' => $cliente->IDCliente,
             'esPPE' => $esPPE,
             'personaBloqueada' => $coincideEnListasNegras,
+            'esAltoRiesgo' => $esAltoRiesgo,
+            'factoresRiesgo' => $factoresRiesgo,
+            'patronesDetectados' => $this->patronesDeAlertas($alertasGeneradas),
             'detalleListaBloqueadas' => $detalleListaBloqueadas,
         ], 200);
     }
 
     /**
+     * Consulta Q-Detect para determinar si el nombre corresponde a una PPE.
+     *
+     * @return array{0: bool, 1: ?array}
+     */
+    private function obtenerDatosPPE(string $nombre): array
+    {
+        $nombre = trim($nombre);
+
+        if ($nombre === '') {
+            return [false, null];
+        }
+
+        $porcentajePPE = (float) ParametriaPLDService::get('percentMatchQeQ', 80);
+        $tokenPPE = ClienteHelper::getTokenPPE();
+
+        if (empty($tokenPPE)) {
+            Log::warning('No se pudo obtener token para búsqueda PPE.', [
+                'nombre' => $nombre,
+            ]);
+
+            return [false, null];
+        }
+
+        $dataPPE = ClienteHelper::getPPE($tokenPPE, $nombre, $porcentajePPE);
+
+        if (! is_array($dataPPE)) {
+            Log::warning('Respuesta inválida de Q-Detect para búsqueda PPE.', [
+                'nombre' => $nombre,
+                'percent' => $porcentajePPE,
+            ]);
+
+            return [false, $dataPPE];
+        }
+
+        $totalCoincidencias = isset($dataPPE['data']) && is_array($dataPPE['data'])
+            ? count($dataPPE['data'])
+            : 0;
+
+        Log::info('Búsqueda PPE en Q-Detect completada.', [
+            'nombre' => $nombre,
+            'percent' => $porcentajePPE,
+            'success' => $dataPPE['success'] ?? null,
+            'status' => $dataPPE['status'] ?? null,
+            'totalCoincidencias' => $totalCoincidencias,
+        ]);
+
+        return [$totalCoincidencias > 0, $dataPPE];
+    }
+
+    /**
+     * Construye los detalles de coincidencias PPE con la misma estructura
+     * que las coincidencias de UIF y CNSF.
+     */
+    private function construirDetallesPPE(?array $dataPPE): array
+    {
+        if (empty($dataPPE['data']) || ! is_array($dataPPE['data'])) {
+            return [];
+        }
+
+        $detalles = [];
+
+        foreach ($dataPPE['data'] as $registro) {
+            $nombre = $registro['NOMBRECOMP'] ?? ($registro['NOMBRE'] ?? '');
+            $estatus = $registro['ESTATUS'] ?? '';
+
+            $detalles[] = [
+                'lista' => $registro['LISTA'] ?? 'PPE',
+                'fuente' => 'PPE',
+                'nombreDetectado' => $nombre,
+                'Nombre' => $nombre,
+                'IDListaOrigen' => 1,
+                'rfc' => $registro['RFC'] ?? '',
+                'RFC' => $registro['RFC'] ?? '',
+                'curp' => '',
+                'CURP' => '',
+                'cargo' => $registro['PUESTO'] ?? '',
+                'estado' => $registro['ENTIDAD'] ?? '',
+                'estatus' => $estatus,
+                'PPEActivo' => true,
+                'metodo' => 'PPE',
+                'coincidencia' => 100,
+            ];
+        }
+
+        return $detalles;
+    }
+
+    /**
+     * Crea una alerta de nivel cliente (sin operación asociada) en tbAlertas.
+     */
+    private function crearAlertaCliente(
+        TbClientes $cliente,
+        string $patron,
+        string $descripcion,
+        string $razones,
+        string $estatus = 'Generado'
+    ): TbAlertas {
+        return TbAlertas::create([
+            'Folio' => null,
+            'Patron' => $patron,
+            'IDCliente' => $cliente->IDCliente,
+            'Cliente' => TbAlertas::nombreParaCliente($cliente),
+            'Poliza' => null,
+            'FechaDeteccion' => now()->toDateString(),
+            'IDOperacionPago' => null,
+            'HoraDeteccion' => now()->toTimeString(),
+            'FechaOperacion' => null,
+            'HoraOperacion' => null,
+            'MontoOperacion' => null,
+            'InstrumentoMonetario' => null,
+            'RFCAgente' => null,
+            'Agente' => null,
+            'Estatus' => $estatus,
+            'Descripcion' => $descripcion,
+            'Razones' => $razones,
+            'Evidencias' => '',
+            'IDReporteOP' => null,
+            'IDPago' => null,
+        ]);
+    }
+
+    /**
+     * Devuelve la lista de patrones de alertamiento generados, sin duplicados.
+     *
+     * @param  array<int, TbAlertas>  $alertas
+     * @return array<int, string>
+     */
+    private function patronesDeAlertas(array $alertas): array
+    {
+        $patrones = [];
+
+        foreach ($alertas as $alerta) {
+            $patron = $alerta instanceof TbAlertas ? $alerta->Patron : ($alerta['Patron'] ?? $alerta['patron'] ?? null);
+            if (! empty($patron)) {
+                $patrones[] = $patron;
+            }
+        }
+
+        return array_values(array_unique($patrones));
+    }
+
+    /**
      * Envía el aviso al oficial de cumplimiento, conservando el formato
      * original del SIT pero emitiéndose desde el sistema PLD.
+     *
+     * @param  array<int, TbAlertas>  $alertasGeneradas  Alertas emitidas en el alta/edición.
+     * @param  array<int, string>  $factoresRiesgo  Factores que hacen al cliente de alto riesgo.
      */
     private function enviarAvisoCumplimiento(
         TbClientes $cliente,
         bool $esPPE,
         array $listasDetectadas,
-        array $detalleListaBloqueadas
+        array $detalleListaBloqueadas,
+        array $alertasGeneradas = [],
+        bool $esAltoRiesgo = false,
+        array $factoresRiesgo = []
     ): void {
         $nombreCompleto = trim(
             ($cliente->Nombre ?? '').
@@ -922,8 +1074,28 @@ class ClientesControllerApi extends Controller
         $categoria = $this->obtenerCategoriaTexto($idCategoria);
         $observaciones = CatCategoriaPersonasBloqueadas::getComentariosDeteccion($idCategoria);
 
+        // Patrones de alertamiento emitidos en el alta/edición del cliente
+        $patrones = [];
+        foreach ($alertasGeneradas as $alerta) {
+            $patrones[] = [
+                'patron' => $alerta->Patron ?? '—',
+                'descripcion' => $alerta->Descripcion ?? '—',
+            ];
+        }
+
+        if ($esPPE && empty(array_filter($patrones, fn ($p) => $p['patron'] === 'PPE'))) {
+            $patrones[] = [
+                'patron' => 'PPE',
+                'descripcion' => 'Persona politicamente expuesta detectada en la consulta de Q-Detect.',
+            ];
+        }
+
+        $asunto = $esAltoRiesgo
+            ? 'Aviso de alertamiento PLD - cliente de alto riesgo - '.$nombreCompleto
+            : 'Aviso de detección en listas - PLD - '.$nombreCompleto;
+
         NotificacionCumplimientoService::enviar([
-            'asunto' => 'Aviso de detección en listas - PLD - '.$nombreCompleto,
+            'asunto' => $asunto,
             'idCliente' => $cliente->IDCliente,
             'nombre' => $nombreCompleto ?: '—',
             'tipo' => $tipo,
@@ -936,7 +1108,25 @@ class ClientesControllerApi extends Controller
             'categoria' => $categoria,
             'observaciones' => $observaciones,
             'esPPE' => $esPPE,
+            'patrones' => $patrones,
+            'esAltoRiesgo' => $esAltoRiesgo,
+            'factoresRiesgo' => array_values($factoresRiesgo),
+            'urlDetalleCliente' => $this->urlDetalleCliente($cliente),
         ]);
+    }
+
+    /**
+     * Enlace al módulo de Detalle cliente para el oficial de cumplimiento.
+     */
+    private function urlDetalleCliente(TbClientes $cliente): string
+    {
+        try {
+            return route('clientes.ver-detalles', ['id_cliente' => $cliente->IDCliente]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo generar el enlace al detalle del cliente: '.$e->getMessage());
+
+            return url('/clientes/ver-detalles/'.$cliente->IDCliente);
+        }
     }
 
     /**
