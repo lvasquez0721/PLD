@@ -9,6 +9,7 @@ use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesPPE;
 use App\Models\TbAlertas;
 use App\Services\ListasNegras\AnalizadorListasNegras;
+use App\Services\ListasNegras\DetectorPPE;
 use App\Services\NotificacionCumplimientoService;
 use App\Services\ParametriaPLD\ParametriaPLDService;
 use App\Support\AuditDate;
@@ -176,7 +177,7 @@ class RegistroPLDService
         }
 
         try {
-            $porcentajePPE = (float) ParametriaPLDService::get('percentMatchQeQ', 80);
+            $porcentajePPE = (float) ParametriaPLDService::get('percentMatchPPE', DetectorPPE::COINCIDENCIA_MINIMA);
             $tokenPPE = ClienteHelper::getTokenPPE();
 
             if (empty($tokenPPE)) {
@@ -196,11 +197,17 @@ class RegistroPLDService
                 return [false, $dataPPE];
             }
 
-            $totalCoincidencias = isset($dataPPE['data']) && is_array($dataPPE['data'])
-                ? count($dataPPE['data'])
-                : 0;
+            $detectorPPE = app(DetectorPPE::class);
+            $coincidenciasPPE = $detectorPPE->filtrar($dataPPE, $porcentajePPE);
+            $dataPPE['data'] = $coincidenciasPPE;
 
-            return [$totalCoincidencias > 0, $dataPPE];
+            Log::info('Búsqueda PPE en Q-Detect completada.', [
+                'nombre' => $nombre,
+                'percent' => $porcentajePPE,
+                'totalCoincidencias' => count($coincidenciasPPE),
+            ]);
+
+            return [$coincidenciasPPE !== [], $dataPPE];
         } catch (\Throwable $e) {
             Log::warning('Error al consultar PPE: '.$e->getMessage(), ['nombre' => $nombre]);
 
@@ -218,6 +225,7 @@ class RegistroPLDService
         }
 
         $detalles = [];
+        $detectorPPE = app(DetectorPPE::class);
 
         foreach ($dataPPE['data'] as $registro) {
             $nombre = $registro['NOMBRECOMP'] ?? ($registro['NOMBRE'] ?? '');
@@ -235,7 +243,7 @@ class RegistroPLDService
                 'cargo' => $registro['PUESTO'] ?? '',
                 'estado' => $registro['ENTIDAD'] ?? '',
                 'estatus' => $registro['ESTATUS'] ?? '',
-                'PPEActivo' => true,
+                'PPEActivo' => $detectorPPE->estaActivo($registro),
                 'metodo' => 'PPE',
                 'coincidencia' => 100,
             ];

@@ -16,6 +16,7 @@ use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\Clientes\TbClientesPPE;
 use App\Models\TbAlertas;
 use App\Services\ListasNegras\AnalizadorListasNegras;
+use App\Services\ListasNegras\DetectorPPE;
 use App\Services\NotificacionCumplimientoService;
 use App\Services\PLD\EvaluadorRiesgoCliente;
 use App\Services\ParametriaPLD\ParametriaPLDService;
@@ -691,10 +692,6 @@ class ClientesControllerApi extends Controller
 
             [$esPPE, $dataPPE] = $this->obtenerDatosPPE($nombreC);
 
-            foreach ($detalleListaBloqueadas as $indice => $detalle) {
-                $detalleListaBloqueadas[$indice]['PPEActivo'] = $esPPE;
-            }
-
             if ($esPPE) {
                 $detalleListaBloqueadas = array_merge(
                     $detalleListaBloqueadas,
@@ -893,7 +890,7 @@ class ClientesControllerApi extends Controller
             return [false, null];
         }
 
-        $porcentajePPE = (float) ParametriaPLDService::get('percentMatchQeQ', 80);
+        $porcentajePPE = (float) ParametriaPLDService::get('percentMatchPPE', DetectorPPE::COINCIDENCIA_MINIMA);
         $tokenPPE = ClienteHelper::getTokenPPE();
 
         if (empty($tokenPPE)) {
@@ -915,19 +912,19 @@ class ClientesControllerApi extends Controller
             return [false, $dataPPE];
         }
 
-        $totalCoincidencias = isset($dataPPE['data']) && is_array($dataPPE['data'])
-            ? count($dataPPE['data'])
-            : 0;
+        $detectorPPE = app(DetectorPPE::class);
+        $coincidenciasPPE = $detectorPPE->filtrar($dataPPE, $porcentajePPE);
+        $dataPPE['data'] = $coincidenciasPPE;
 
         Log::info('Búsqueda PPE en Q-Detect completada.', [
             'nombre' => $nombre,
             'percent' => $porcentajePPE,
             'success' => $dataPPE['success'] ?? null,
             'status' => $dataPPE['status'] ?? null,
-            'totalCoincidencias' => $totalCoincidencias,
+            'totalCoincidencias' => count($coincidenciasPPE),
         ]);
 
-        return [$totalCoincidencias > 0, $dataPPE];
+        return [$coincidenciasPPE !== [], $dataPPE];
     }
 
     /**
@@ -941,6 +938,7 @@ class ClientesControllerApi extends Controller
         }
 
         $detalles = [];
+        $detectorPPE = app(DetectorPPE::class);
 
         foreach ($dataPPE['data'] as $registro) {
             $nombre = $registro['NOMBRECOMP'] ?? ($registro['NOMBRE'] ?? '');
@@ -959,7 +957,7 @@ class ClientesControllerApi extends Controller
                 'cargo' => $registro['PUESTO'] ?? '',
                 'estado' => $registro['ENTIDAD'] ?? '',
                 'estatus' => $estatus,
-                'PPEActivo' => true,
+                'PPEActivo' => $detectorPPE->estaActivo($registro),
                 'metodo' => 'PPE',
                 'coincidencia' => 100,
             ];
