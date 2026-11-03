@@ -1,0 +1,274 @@
+[
+  {
+    "estado": "Aguascalientes",
+    "valor_paz": 2.44,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 1.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Baja California",
+    "valor_paz": 4.134,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Baja California Sur",
+    "valor_paz": 2.951,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Campeche",
+    "valor_paz": 2.142,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 3.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Chiapas",
+    "valor_paz": 1.936,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Chihuahua",
+    "valor_paz": 3.584,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Ciudad de México",
+    "valor_paz": 2.714,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Coahuila",
+    "valor_paz": 2.113,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Colima",
+    "valor_paz": 4.736,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Durango",
+    "valor_paz": 1.848,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Guanajuato",
+    "valor_paz": 4.303,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Guerrero",
+    "valor_paz": 3.328,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Hidalgo",
+    "valor_paz": 2.19,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Jalisco",
+    "valor_paz": 2.694,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "México",
+    "valor_paz": 3.359,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Michoacán",
+    "valor_paz": 2.934,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Morelos",
+    "valor_paz": 4.302,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Nayarit",
+    "valor_paz": 2.095,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Nuevo León",
+    "valor_paz": 3.538,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Oaxaca",
+    "valor_paz": 2.536,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Puebla",
+    "valor_paz": 2.391,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Querétaro",
+    "valor_paz": 2.701,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Quintana Roo",
+    "valor_paz": 3.75,
+    "nivel_paz": "Alto",
+    "riesgo_ubicacion": 5,
+    "score_paz": 5.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "San Luis Potosí",
+    "valor_paz": 2.887,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Sinaloa",
+    "valor_paz": 3.245,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Sonora",
+    "valor_paz": 3.267,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Tabasco",
+    "valor_paz": 3.122,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 1.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Tamaulipas",
+    "valor_paz": 2.359,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 5.0
+  },
+  {
+    "estado": "Tlaxcala",
+    "valor_paz": 1.656,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Veracruz",
+    "valor_paz": 2.405,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Yucatán",
+    "valor_paz": 1.265,
+    "nivel_paz": "Bajo",
+    "riesgo_ubicacion": 1,
+    "score_paz": 1.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Zacatecas",
+    "valor_paz": 2.921,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 5.0,
+    "score_frontera": 1.0
+  },
+  {
+    "estado": "Nacional",
+    "valor_paz": 2.938,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3.0,
+    "score_frontera": 3.0
+  },
+  {
+    "estado": "Nacional",
+    "valor_paz": 2.938,
+    "nivel_paz": "Medio",
+    "riesgo_ubicacion": 3,
+    "score_paz": 3,
+    "score_frontera": 3
+  }
+]

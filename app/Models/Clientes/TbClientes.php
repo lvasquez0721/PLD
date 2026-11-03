@@ -9,6 +9,12 @@ class TbClientes extends Model
 {
     use HasFactory;
 
+    public const TIPO_CLIENTE = 'Cliente';
+
+    public const TIPO_AGENTE = 'Agente';
+
+    public const TIPO_COLABORADOR = 'Colaborador';
+
     protected $table = 'tbClientes';
 
     protected $primaryKey = 'IDCliente';
@@ -41,6 +47,7 @@ class TbClientes extends Model
         'Activo',
         'Preguntas',
         'IngresosEstimados',
+        'TipoPersona', // Añadido campo enum según migración 2026_10_23_102642_add_columns_to_tb_clientes.php
     ];
 
     protected $casts = [
@@ -50,7 +57,13 @@ class TbClientes extends Model
         'Activo' => 'boolean',
         'FechaNacimiento' => 'date',
         'FechaConstitucion' => 'date',
+        'TipoPersona' => 'string', // Cast a string el nuevo campo enum
     ];
+
+    public function scopeDeTipoPersona($query, string $tipo)
+    {
+        return $query->where('TipoPersona', $tipo);
+    }
 
     public function domicilios()
     {

@@ -25,8 +25,9 @@ class AlertasController extends Controller
 {
     public function index()
     {
-        $clientes = TbClientes::where('Activo', 1)
-            ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial')
+        $clientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)
+            ->where('Activo', 1)
+            ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona')
             ->orderByRaw("
                 CASE
                     WHEN Nombre IS NOT NULL AND Nombre <> ''
@@ -37,7 +38,15 @@ class AlertasController extends Controller
             ->orderBy('RazonSocial')
             ->get();
 
-        $agentes = TbClientes::where('ckAgente', 1)->get();
+        $agentes = TbClientes::where('TipoPersona', TbClientes::TIPO_AGENTE)
+            ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona')
+            ->orderBy('Nombre')
+            ->get();
+
+        $colaboradores = TbClientes::where('TipoPersona', TbClientes::TIPO_COLABORADOR)
+            ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona')
+            ->orderBy('Nombre')
+            ->get();
 
         $instrumentos = CatFormaPagos::all();
 
@@ -58,8 +67,9 @@ class AlertasController extends Controller
         return Inertia::render('Alertas/Index', [
             'clientes' => $clientes,
             'agentes' => $agentes,
+            'colaboradores' => $colaboradores,
             'instrumentos' => $instrumentos,
-            'monedas' => $monedas
+            'monedas' => $monedas,
         ]);
     }
 
@@ -133,7 +143,7 @@ class AlertasController extends Controller
         }
         if ($clienteIds->isNotEmpty()) {
             $clientesById = TbClientes::whereIn('IDCliente', $clienteIds)
-                ->select(['IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial'])
+                ->select(['IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona'])
                 ->get()->keyBy('IDCliente');
         }
 
@@ -148,12 +158,14 @@ class AlertasController extends Controller
 
             // Fallback: si Cliente viene vacío (alertas históricas de persona moral),
             // resolver al vuelo desde tbClientes con prioridad a RazonSocial.
-            if (trim((string) ($alerta->Cliente ?? '')) === '' && $alerta->IDCliente) {
-                $cli = $clientesById->get($alerta->IDCliente);
-                if ($cli) {
-                    $alerta->Cliente = TbAlertas::nombreParaCliente($cli) ?? $alerta->Cliente;
-                }
+            $cli = $alerta->IDCliente ? $clientesById->get($alerta->IDCliente) : null;
+
+            if (trim((string) ($alerta->Cliente ?? '')) === '' && $cli) {
+                $alerta->Cliente = TbAlertas::nombreParaCliente($cli) ?? $alerta->Cliente;
             }
+
+            $alerta->TipoPersona = $cli?->TipoPersona;
+            $alerta->IDTipoPersona = $cli?->IDTipoPersona;
 
             return $alerta;
         });
@@ -270,12 +282,13 @@ class AlertasController extends Controller
             'instrumento' => 'sometimes|nullable|string',
             'patron' => 'sometimes|nullable|string', // Se sigue enviando desde el frontend, pero se ignora abajo
             'estatus' => 'sometimes|nullable|string|in:Generado,Analizado,Cerrado,Por reportar,Enviado',
-            'nombre' => 'sometimes|nullable|string',
-            'noCliente' => 'sometimes|nullable|integer',
+            'rol' => 'required|string|in:Cliente,Agente,Colaborador',
+            'IDCliente' => 'required|integer|exists:tbClientes,IDCliente',
             'poliza' => 'sometimes|nullable|string',
             'agente' => 'sometimes|nullable|integer',
             'idMoneda' => 'sometimes|nullable|string',
             'monto' => 'sometimes|nullable|numeric',
+            'fechaOperacion' => 'sometimes|nullable|date',
             'descripcionOperacion' => 'required|string',
             'razones' => 'required|string',
             'evidencias' => 'sometimes|array',
@@ -294,6 +307,41 @@ class AlertasController extends Controller
                     'message' => 'validación fallida',
                     'errors' => $validator->errors(),
                 ], 422);
+            }
+        }
+
+        $validated = $validator->validated();
+
+        $persona = TbClientes::where('IDCliente', $validated['IDCliente'])
+            ->where('TipoPersona', $validated['rol'])
+            ->first();
+
+        if (! $persona) {
+            $errors = ['IDCliente' => ['El nombre seleccionado no corresponde al rol indicado.']];
+
+            if ($isInertia) {
+                return redirect()->back()->withErrors($errors)->with('error', 'validación fallida');
+            }
+
+            return response()->json(['message' => 'validación fallida', 'errors' => $errors], 422);
+        }
+
+        $operacion = null;
+
+        if ($validated['rol'] === TbClientes::TIPO_CLIENTE && ! empty($validated['poliza'])) {
+            $operacion = TbOperaciones::where('IDCliente', $persona->IDCliente)
+                ->where('FolioPoliza', $validated['poliza'])
+                ->orderByDesc('IDOperacion')
+                ->first();
+
+            if (! $operacion) {
+                $errors = ['poliza' => ['La póliza seleccionada no pertenece al cliente indicado.']];
+
+                if ($isInertia) {
+                    return redirect()->back()->withErrors($errors)->with('error', 'validación fallida');
+                }
+
+                return response()->json(['message' => 'validación fallida', 'errors' => $errors], 422);
             }
         }
 
@@ -334,21 +382,6 @@ class AlertasController extends Controller
                 }
             }
 
-            // El agente es opcional: sólo se recalcula cuando se envió uno,
-            // de lo contrario se conserva el que ya tenía la alerta.
-            $agenteCliente = $request->filled('agente')
-                ? TbClientes::find($request->input('agente'))
-                : null;
-            $agenteNombre = $agenteCliente
-                ? (($agenteCliente->RazonSocial && trim($agenteCliente->RazonSocial) !== '')
-                    ? $agenteCliente->RazonSocial
-                    : trim(implode(' ', array_filter([
-                        $agenteCliente->Nombre ?? '',
-                        $agenteCliente->ApellidoPaterno ?? '',
-                        $agenteCliente->ApellidoMaterno ?? ''
-                    ]))))
-                : null;
-
             $horaActual = date('H:i:s');
             $fechaActualYMD = date('Y-m-d');
 
@@ -359,28 +392,46 @@ class AlertasController extends Controller
                 ? $request->input('estatus')
                 : $alerta->Estatus;
 
-            // El patrón siempre es "Nuevo" según la instrucción (buzón solo emite Nuevo)
-            $alerta->Patron = "Nuevo";
+            $fechaOperacion = $request->filled('fechaOperacion')
+                ? $request->input('fechaOperacion')
+                : ($alerta->FechaOperacion ?: $fechaActualYMD);
 
+            // El patrón siempre es "Nuevo" según la instrucción (buzón solo emite Nuevo)
+            $alerta->Patron = 'Nuevo';
             $alerta->Folio = $request->input('idAlerta');
-            if ($request->filled('noCliente')) {
-                $alerta->IDCliente = $request->input('noCliente');
+            $alerta->IDCliente = $persona->IDCliente;
+            $alerta->Cliente = TbAlertas::nombreParaCliente($persona);
+            $alerta->IDOperacion = $operacion?->IDOperacion;
+
+            if ($validated['rol'] === TbClientes::TIPO_CLIENTE) {
+                $alerta->Poliza = $validated['poliza'] ?? null;
+
+                if ($operacion) {
+                    $razonSocialAgente = trim((string) ($operacion->RazonSocialAgente ?? ''));
+                    $alerta->Agente = $razonSocialAgente !== ''
+                        ? $razonSocialAgente
+                        : trim(implode(' ', array_filter([
+                            $operacion->NombreAgente ?? '',
+                            $operacion->APaternoAgente ?? '',
+                            $operacion->AMaternoAgente ?? '',
+                        ])));
+                    $alerta->RFCAgente = $operacion->RFCAgente ?? null;
+                } else {
+                    $alerta->Agente = null;
+                    $alerta->RFCAgente = null;
+                }
+            } else {
+                // Agentes y colaboradores no se asocian a póliza ni a agente de operación.
+                $alerta->Poliza = null;
+                $alerta->Agente = null;
+                $alerta->RFCAgente = null;
             }
-            if ($request->filled('nombre')) {
-                $alerta->Cliente = $request->input('nombre');
-            }
-            if ($request->filled('poliza')) {
-                $alerta->Poliza = $request->input('poliza');
-            }
+
             if ($request->filled('monto')) {
                 $alerta->MontoOperacion = $request->input('monto');
             }
             if ($request->filled('instrumento')) {
                 $alerta->InstrumentoMonetario = $request->input('instrumento');
-            }
-            if ($agenteCliente) {
-                $alerta->RFCAgente = $agenteCliente->RFC ?? null;
-                $alerta->Agente = $agenteNombre;
             }
             if ($request->filled('idMoneda')) {
                 $alerta->IDMoneda = $request->input('idMoneda');
@@ -392,13 +443,13 @@ class AlertasController extends Controller
                 $alerta->Evidencias = json_encode($evidenciasData);
             }
             $alerta->HoraDeteccion = $horaActual;
-            $alerta->FechaOperacion = $fechaActualYMD;
+            $alerta->FechaOperacion = $fechaOperacion;
             $alerta->HoraOperacion = $horaActual;
 
             $alerta->save();
 
-            if ($estatus === 'Enviado') {
-                $this->emitirReporteRegulatorio($alerta);
+            if (in_array($estatus, ['Por reportar', 'Enviado'], true)) {
+                $this->emitirReporteRegulatorio($alerta, $estatus);
             }
 
             if ($isInertia) {
@@ -651,20 +702,57 @@ class AlertasController extends Controller
 
     public function getPolizasPorCliente($idCliente)
     {
-        $polizas = TbOperaciones::query()
+        $operaciones = TbOperaciones::query()
             ->where('IDCliente', $idCliente)
             ->whereNotNull('FolioPoliza')
             ->where('FolioPoliza', '!=', '')
-            ->select('FolioPoliza')
-            ->distinct()
             ->orderBy('FolioPoliza')
-            ->get()
-            ->map(function ($op) {
+            ->orderByDesc('IDOperacion')
+            ->get([
+                'FolioPoliza',
+                'RFCAgente',
+                'CURPAgente',
+                'NombreAgente',
+                'APaternoAgente',
+                'AMaternoAgente',
+                'RazonSocialAgente',
+            ]);
+
+        $rfcs = $operaciones->pluck('RFCAgente')
+            ->filter()
+            ->map(fn ($rfc) => strtoupper(trim((string) $rfc)))
+            ->unique()
+            ->values();
+
+        $agentes = TbClientes::where('TipoPersona', TbClientes::TIPO_AGENTE)
+            ->whereIn('RFC', $rfcs)
+            ->get(['IDCliente', 'RFC'])
+            ->keyBy(fn ($agente) => strtoupper(trim((string) $agente->RFC)));
+
+        $polizas = $operaciones
+            ->unique('FolioPoliza')
+            ->map(function ($op) use ($agentes) {
+                $rfc = strtoupper(trim((string) ($op->RFCAgente ?? '')));
+                $agente = $rfc !== '' ? $agentes->get($rfc) : null;
+                $razonSocial = trim((string) ($op->RazonSocialAgente ?? ''));
+                $nombre = $razonSocial !== ''
+                    ? $razonSocial
+                    : trim(implode(' ', array_filter([
+                        $op->NombreAgente ?? '',
+                        $op->APaternoAgente ?? '',
+                        $op->AMaternoAgente ?? '',
+                    ])));
+
                 return [
                     'value' => (string) $op->FolioPoliza,
                     'label' => (string) $op->FolioPoliza,
+                    'agente_id' => $agente?->IDCliente,
+                    'agente_rfc' => $rfc !== '' ? $rfc : null,
+                    'agente_nombre' => $nombre !== '' ? $nombre : null,
+                    'agente_curp' => $op->CURPAgente ?? null,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json([
             'polizas' => $polizas,
@@ -726,11 +814,42 @@ class AlertasController extends Controller
             'historialPoliza' => $historialPoliza,
             'reportes' => $reportes,
             'tipoPersona' => $tipoPersona,
+            'modulo' => $this->moduloPersona($cliente),
         ]);
     }
 
-    private function emitirReporteRegulatorio(TbAlertas $alerta): void
+    /**
+     * Metadatos del módulo de detalle según el tipo de sujeto.
+     */
+    private function moduloPersona(?TbClientes $cliente): array
     {
-        (new ReporteRegulatorioService())->emitirDesdeAlerta($alerta);
+        return match ($cliente?->TipoPersona) {
+            TbClientes::TIPO_AGENTE => [
+                'basePath' => '/agentes',
+                'titulo' => 'Agentes',
+                'singular' => 'agente',
+                'plural' => 'agentes',
+                'tipoPersona' => TbClientes::TIPO_AGENTE,
+            ],
+            TbClientes::TIPO_COLABORADOR => [
+                'basePath' => '/colaboradores',
+                'titulo' => 'Colaboradores',
+                'singular' => 'colaborador',
+                'plural' => 'colaboradores',
+                'tipoPersona' => TbClientes::TIPO_COLABORADOR,
+            ],
+            default => [
+                'basePath' => '/clientes',
+                'titulo' => 'Clientes',
+                'singular' => 'cliente',
+                'plural' => 'clientes',
+                'tipoPersona' => TbClientes::TIPO_CLIENTE,
+            ],
+        };
+    }
+
+    private function emitirReporteRegulatorio(TbAlertas $alerta, string $estatus = 'Enviado'): void
+    {
+        (new ReporteRegulatorioService())->emitirDesdeAlerta($alerta, $estatus);
     }
 }

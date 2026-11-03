@@ -317,6 +317,7 @@ class PerfilTransaccionalController extends Controller
                 END AS NombreCompleto
                 ")
             )
+            ->where('TipoPersona', TbClientes::TIPO_CLIENTE)
             ->orderBy('Nombre')
             ->get();
 

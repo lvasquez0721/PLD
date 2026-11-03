@@ -262,6 +262,7 @@ class ClientesControllerApi extends Controller
                 'Activo' => $activo,
                 'Preguntas' => $data['Preguntas'] ?? null,
                 'IngresosEstimados' => $data['ingresosEstimados'] ?? null,
+                'TipoPersona' => 'Cliente',
             ]);
 
             $domiciliosInsertados = [];
@@ -1120,12 +1121,24 @@ class ClientesControllerApi extends Controller
      */
     private function urlDetalleCliente(TbClientes $cliente): string
     {
-        try {
-            return route('clientes.ver-detalles', ['id_cliente' => $cliente->IDCliente]);
-        } catch (\Throwable $e) {
-            Log::warning('No se pudo generar el enlace al detalle del cliente: '.$e->getMessage());
+        $ruta = match ($cliente->TipoPersona) {
+            TbClientes::TIPO_AGENTE => 'agentes.ver-detalles',
+            TbClientes::TIPO_COLABORADOR => 'colaboradores.ver-detalles',
+            default => 'clientes.ver-detalles',
+        };
 
-            return url('/clientes/ver-detalles/'.$cliente->IDCliente);
+        $base = match ($cliente->TipoPersona) {
+            TbClientes::TIPO_AGENTE => '/agentes',
+            TbClientes::TIPO_COLABORADOR => '/colaboradores',
+            default => '/clientes',
+        };
+
+        try {
+            return route($ruta, ['id_cliente' => $cliente->IDCliente]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo generar el enlace al detalle del sujeto: '.$e->getMessage());
+
+            return url($base.'/ver-detalles/'.$cliente->IDCliente);
         }
     }
 

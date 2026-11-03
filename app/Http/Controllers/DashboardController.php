@@ -45,12 +45,12 @@ class DashboardController extends Controller
         $buzonPendiente = BuzonPreocupante::whereNull('Estatus')->count();
 
         // --- Clientes ---
-        $cantClientes = TbClientes::count();
-        $cantClientesActivos = TbClientes::where('Activo', true)->count();
-        $cantClientesNacionalidadMX = TbClientes::where('IDNacionalidad', 'MX')->count();
-        $cantClientesExtranjeros = TbClientes::where('IDNacionalidad', '!=', 'MX')->count();
-        $cantClientesPPE = TbClientes::where('EsPPEActivo', true)->count();
-        $cantClientesEnListaNegra = TbClientes::where('CoincideEnListasNegras', 1)->count();
+        $cantClientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->count();
+        $cantClientesActivos = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->where('Activo', true)->count();
+        $cantClientesNacionalidadMX = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->where('IDNacionalidad', 'MX')->count();
+        $cantClientesExtranjeros = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->where('IDNacionalidad', '!=', 'MX')->count();
+        $cantClientesPPE = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->where('EsPPEActivo', true)->count();
+        $cantClientesEnListaNegra = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)->where('CoincideEnListasNegras', 1)->count();
 
         // --- Perfiles de riesgo transaccional ---
         $perfilesPorRiesgo = TbPerfilTransaccional::selectRaw('Perfil, COUNT(*) as total')

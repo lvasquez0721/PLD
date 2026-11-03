@@ -19,9 +19,11 @@ import {
     BarChart3,
     Bell,
     BookOpen,
+    BriefcaseBusiness,
     Download,
     FileText,
     Gavel,
+    Handshake,
     LayoutGrid,
     ListX,
     Mail,
@@ -29,6 +31,7 @@ import {
     ScrollText,
     Settings,
     Shield,
+    ShieldCheck,
     UserRound,
     Users,
 } from 'lucide-vue-next';
@@ -70,6 +73,8 @@ const allNavItems: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'Usuarios', href: '/usuarios', icon: Users },
     { title: 'Clientes', href: '/clientes', icon: UserRound },
+    { title: 'Agentes', href: '/agentes', icon: BriefcaseBusiness },
+    { title: 'Colaboradores', href: '/colaboradores', icon: Handshake },
     { title: 'Perfil Transaccional', href: '/perfil-transaccional', icon: BookOpen },
     { title: 'Perfil Transaccional - Cliente', href: '/perfil-transaccional-cliente', icon: BookOpen },
     { title: 'Módulo de Alertas', href: '/alertas', icon: Bell },
@@ -78,6 +83,7 @@ const allNavItems: NavItem[] = [
     { title: 'Reporte de Operaciones', href: '/reporte-operaciones', icon: FileText },
     { title: 'Parametría PLD', href: '/parametria-pld', icon: Settings },
     { title: 'Configuración de Cumplimiento', href: '/configuracion-cumplimiento', icon: Shield },
+    { title: 'EBR / Evaluación de Riesgos', href: '/ebr', icon: ShieldCheck },
     { title: 'Listas UIF', href: '/listas-uif', icon: Gavel },
     { title: 'Exportar Layout', href: '/exportar-layout', icon: Download },
     { title: 'Reporteador PLD', href: '/reporteador-pld', icon: BarChart3 },
@@ -96,7 +102,7 @@ const navGroups = computed<NavGroup[]>(() => {
     }
     return [
         { label: '', items: pick(['Dashboard']) },
-        { label: 'Operación', items: pick(['Usuarios', 'Clientes']) },
+        { label: 'Operación', items: pick(['Usuarios', 'Clientes', 'Agentes', 'Colaboradores']) },
         {
             label: 'Análisis',
             items: pick([
@@ -113,6 +119,7 @@ const navGroups = computed<NavGroup[]>(() => {
                 'Listas UIF',
                 'Parametría PLD',
                 'Configuración de Cumplimiento',
+                'EBR / Evaluación de Riesgos',
                 'Reporte de Operaciones',
                 'Reporteador PLD',
                 'Exportar Layout',

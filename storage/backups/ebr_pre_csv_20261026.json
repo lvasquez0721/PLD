@@ -1,0 +1,1008 @@
+{
+    "ebr_ejercicios": [
+        {
+            "id": 71,
+            "anio": 2025,
+            "nombre": "EBR 2025",
+            "fecha_inicio": "2025-01-01",
+            "fecha_fin": "2025-12-31",
+            "estado": "borrador",
+            "version_metodologia": "2025",
+            "mitigantes": "[{\"id\":1,\"nombre\":\"Pago en moneda nacional\",\"scope\":\"producto_1_2\",\"max\":0.2,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.2},{\"id\":2,\"nombre\":\"DD Reforzada a clientes de alto riesgo\",\"scope\":\"cliente_actividad\",\"max\":0.2,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.2},{\"id\":3,\"nombre\":\"Debida Diligencia del Cliente\",\"scope\":\"cliente_elemento\",\"max\":0.1,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.1},{\"id\":4,\"nombre\":\"Gobierno corporativo\",\"scope\":\"entidad\",\"max\":0.05,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.05},{\"id\":5,\"nombre\":\"Auditor\\u00eda en PLD\",\"scope\":\"entidad\",\"max\":0.1,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.1},{\"id\":6,\"nombre\":\"Estructuras internas\",\"scope\":\"entidad\",\"max\":0.05,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.05},{\"id\":7,\"nombre\":\"Capacitaci\\u00f3n\",\"scope\":\"entidad\",\"max\":0.05,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.05},{\"id\":8,\"nombre\":\"Control interno\",\"scope\":\"entidad\",\"max\":0.05,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.05},{\"id\":9,\"nombre\":\"Sistemas automatizados\",\"scope\":\"entidad\",\"max\":0.05,\"nivel\":\"Optimizado\",\"efectividad\":1,\"efecto\":0.05}]",
+            "resultados": null,
+            "totales": null,
+            "comparativo": null,
+            "advertencias": null,
+            "fuente_resumen": null,
+            "fuente_hash": null,
+            "observaciones": null,
+            "importado_por": 1,
+            "calculado_por": null,
+            "calculado_at": null,
+            "cerrado_at": null,
+            "created_at": "2026-10-26 12:50:37",
+            "updated_at": "2026-10-26 12:50:37"
+        }
+    ],
+    "ebr_siniestros": [],
+    "ebr_cat_estados": [
+        {
+            "id": 1,
+            "estado": "Aguascalientes",
+            "valor_paz": "2.4400",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "1.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 2,
+            "estado": "Baja California",
+            "valor_paz": "4.1340",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 3,
+            "estado": "Baja California Sur",
+            "valor_paz": "2.9510",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 4,
+            "estado": "Campeche",
+            "valor_paz": "2.1420",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "3.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 5,
+            "estado": "Chiapas",
+            "valor_paz": "1.9360",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 6,
+            "estado": "Chihuahua",
+            "valor_paz": "3.5840",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 7,
+            "estado": "Ciudad de México",
+            "valor_paz": "2.7140",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 8,
+            "estado": "Coahuila",
+            "valor_paz": "2.1130",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 9,
+            "estado": "Colima",
+            "valor_paz": "4.7360",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 10,
+            "estado": "Durango",
+            "valor_paz": "1.8480",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 11,
+            "estado": "Guanajuato",
+            "valor_paz": "4.3030",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 12,
+            "estado": "Guerrero",
+            "valor_paz": "3.3280",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 13,
+            "estado": "Hidalgo",
+            "valor_paz": "2.1900",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 14,
+            "estado": "Jalisco",
+            "valor_paz": "2.6940",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 15,
+            "estado": "México",
+            "valor_paz": "3.3590",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 16,
+            "estado": "Michoacán",
+            "valor_paz": "2.9340",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 17,
+            "estado": "Morelos",
+            "valor_paz": "4.3020",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 18,
+            "estado": "Nayarit",
+            "valor_paz": "2.0950",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 19,
+            "estado": "Nuevo León",
+            "valor_paz": "3.5380",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 20,
+            "estado": "Oaxaca",
+            "valor_paz": "2.5360",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 21,
+            "estado": "Puebla",
+            "valor_paz": "2.3910",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 22,
+            "estado": "Querétaro",
+            "valor_paz": "2.7010",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 23,
+            "estado": "Quintana Roo",
+            "valor_paz": "3.7500",
+            "nivel_paz": "Alto",
+            "riesgo_ubicacion": 5,
+            "score_paz": "5.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 24,
+            "estado": "San Luis Potosí",
+            "valor_paz": "2.8870",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 25,
+            "estado": "Sinaloa",
+            "valor_paz": "3.2450",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 26,
+            "estado": "Sonora",
+            "valor_paz": "3.2670",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 27,
+            "estado": "Tabasco",
+            "valor_paz": "3.1220",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "1.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 28,
+            "estado": "Tamaulipas",
+            "valor_paz": "2.3590",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "5.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 29,
+            "estado": "Tlaxcala",
+            "valor_paz": "1.6560",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 30,
+            "estado": "Veracruz",
+            "valor_paz": "2.4050",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 31,
+            "estado": "Yucatán",
+            "valor_paz": "1.2650",
+            "nivel_paz": "Bajo",
+            "riesgo_ubicacion": 1,
+            "score_paz": "1.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 32,
+            "estado": "Zacatecas",
+            "valor_paz": "2.9210",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "5.00",
+            "score_frontera": "1.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 33,
+            "estado": "Nacional",
+            "valor_paz": "2.9380",
+            "nivel_paz": "Medio",
+            "riesgo_ubicacion": 3,
+            "score_paz": "3.00",
+            "score_frontera": "3.00",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        }
+    ],
+    "ebr_cat_productos": [
+        {
+            "id": 1,
+            "producto": "Acuícola para peces",
+            "ramo": "Otros",
+            "grupo": "Otro",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 2,
+            "producto": "Agrícola por planta",
+            "ramo": "Agrícola",
+            "grupo": "Otro",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 3,
+            "producto": "Alta Mortalidad por Enfermedad y Accidente",
+            "ramo": "Ganadero",
+            "grupo": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 4,
+            "producto": "Ganadero",
+            "ramo": "Ganadero",
+            "grupo": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 5,
+            "producto": "Ganadero para Pastoreo",
+            "ramo": "Ganadero",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 6,
+            "producto": "Catastrófico Básico",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 7,
+            "producto": "Catastrófico Básico (Multicultivo)",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 8,
+            "producto": "Catastrófico Multicultivo",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 9,
+            "producto": "Catastrófico Paramétrico Satelital",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 10,
+            "producto": "Elemental",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 11,
+            "producto": "SECA",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 12,
+            "producto": "Tabaco - Nayarit Veracruz",
+            "ramo": "Agrícola",
+            "grupo": "Agrícola",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        }
+    ],
+    "ebr_cat_actividades": [
+        {
+            "id": 1,
+            "ocupacion_giro": "0",
+            "nivel_riesgo": 3,
+            "ocupacion_agrupada": "No definido",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 2,
+            "ocupacion_giro": "Agricultor",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 3,
+            "ocupacion_giro": "Agricultura",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 4,
+            "ocupacion_giro": "Asociaciones y confederaciones",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Asociaciones y confederaciones",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 5,
+            "ocupacion_giro": "Compraventa de fertilizantes y plaguicidas",
+            "nivel_riesgo": 3,
+            "ocupacion_agrupada": "Compraventa de fertilizantes y plaguicidas",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 6,
+            "ocupacion_giro": "Compraventa de maquinaria equipo e implementos para la agricultura y la ganadería",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 7,
+            "ocupacion_giro": "Compraventa de otros productos alimenticios agrícolas en estado natural",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 8,
+            "ocupacion_giro": "Compraventa de semillas para siembra",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 9,
+            "ocupacion_giro": "Compraventa de semillas y granos",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 10,
+            "ocupacion_giro": "Compraventa de frutas",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 11,
+            "ocupacion_giro": "Cria y explotación de ganado vacuno para carne",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 12,
+            "ocupacion_giro": "Cria y explotación de peces otras especies animales y plantas acuáticas",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 13,
+            "ocupacion_giro": "Cultivo de agave o mezcal",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 14,
+            "ocupacion_giro": "Cultivo de arroz",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 15,
+            "ocupacion_giro": "Cultivo de caña de azúcar",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 16,
+            "ocupacion_giro": "Cultivo de calabaza",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 17,
+            "ocupacion_giro": "Cultivo de cebada",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 18,
+            "ocupacion_giro": "Cultivo de maíz",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 19,
+            "ocupacion_giro": "Cultivo de mango",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 20,
+            "ocupacion_giro": "Cultivo de manzana",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 21,
+            "ocupacion_giro": "Cultivo de papaya",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 22,
+            "ocupacion_giro": "Cultivo de otras hortalizas",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 23,
+            "ocupacion_giro": "Cultivo de tabaco",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 24,
+            "ocupacion_giro": "Cultivo de trigo",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 25,
+            "ocupacion_giro": "Cultivo de plátano",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 26,
+            "ocupacion_giro": "Cultivo de sorgo",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 27,
+            "ocupacion_giro": "Empresas controladoras financieras",
+            "nivel_riesgo": 3,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 28,
+            "ocupacion_giro": "Empleado del sector privado (u.i.f)",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Emp Sect Priv",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 29,
+            "ocupacion_giro": "Fabricación y beneficio de productos de tabaco",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 30,
+            "ocupacion_giro": "Fabricacion de pan y pasteles",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Comerciante",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 31,
+            "ocupacion_giro": "Fabricacion de utensilios agricolas y herramientas de mano",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Comerciante",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 32,
+            "ocupacion_giro": "Fabricacion ensamble y reparacion de vehiculos de uso agropecuario",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Comerciante",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 33,
+            "ocupacion_giro": "Ganadería",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 34,
+            "ocupacion_giro": "Ganadero",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 35,
+            "ocupacion_giro": "Generación, transmisión y distribución de energía eléctrica",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Energía E",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 36,
+            "ocupacion_giro": "Gobierno Estatal",
+            "nivel_riesgo": 3,
+            "ocupacion_agrupada": "Gobierno Estatal",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 37,
+            "ocupacion_giro": "Molino de maiz",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Comerciante",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 38,
+            "ocupacion_giro": "Otros cultivos permanentes",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 39,
+            "ocupacion_giro": "Preparacion de tierras de cultivo y otros servicios agricolas",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 40,
+            "ocupacion_giro": "Prestacion de servicios publicos y sociales",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Asociaciones y confederaciones",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 41,
+            "ocupacion_giro": "Servicios colaterales a instituciones financieras y de seguros",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 42,
+            "ocupacion_giro": "Servicios De Fondos Y Fideicomisos De Fomento Economico",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Ganadero",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 43,
+            "ocupacion_giro": "Servicios de instituciones de crédito, organizaciones auxiliares e instituciones de seguros y fianzas",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 44,
+            "ocupacion_giro": "Servicios profesionales y técnicos",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 45,
+            "ocupacion_giro": "Sociedades Cooperativas",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 46,
+            "ocupacion_giro": "Sociedades de ahorro y prestamo",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 47,
+            "ocupacion_giro": "Silvicultura",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 48,
+            "ocupacion_giro": "Sociedades financieras de objeto multiple no reguladas",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 49,
+            "ocupacion_giro": "Sociedades financieras de objeto multiple reguladas",
+            "nivel_riesgo": 2,
+            "ocupacion_agrupada": "Entidad financiera",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 50,
+            "ocupacion_giro": "Usuarios menores agricultura",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Agricultor",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        },
+        {
+            "id": 51,
+            "ocupacion_giro": "Usuarios menores comercio",
+            "nivel_riesgo": 1,
+            "ocupacion_agrupada": "Comerciante",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        }
+    ],
+    "ebr_cat_paises": [
+        {
+            "id": 1,
+            "pais": "México",
+            "score_bis": "3.00",
+            "nivel": "Medio",
+            "activo": 1,
+            "created_at": "2026-10-26 10:07:29",
+            "updated_at": "2026-10-26 10:07:29"
+        }
+    ]
+}

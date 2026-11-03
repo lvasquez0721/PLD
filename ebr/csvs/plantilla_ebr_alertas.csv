@@ -1,0 +1,2 @@
+﻿patron,no_cliente,no_poliza,id_operacion,fecha_deteccion,monto,moneda,tipo_cambio,instrumento_monetario,agente,estatus,procedio,num_operaciones,descripcion,razones
+Fraccionado,1001,POL-2025-000001,OP-2025-000001,2025-06-15,50000.00,MXN,1,Transferencia,0-Agente Directo,Enviado,Sí,2,Pago fraccionado,Pago en dos exhibiciones

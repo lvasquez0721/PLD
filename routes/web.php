@@ -1,24 +1,28 @@
 <?php
 
+use App\Http\Controllers\AgentesController;
 use App\Http\Controllers\AlertasController;
-use App\Http\Controllers\ReporteadorPLDController;
-use App\Http\Controllers\ExportarLayoutController;
 use App\Http\Controllers\BuzonPreocupantesController;
 use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ColaboradoresController;
 use App\Http\Controllers\ConfiguracionCumplimientoController;
 use App\Http\Controllers\ConsultaInusualidadController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ListaNegraController;
 use App\Http\Controllers\CorreosController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Ebr\EbrController;
+use App\Http\Controllers\Ebr\EbrImportacionController;
+use App\Http\Controllers\Ebr\EbrReporteController;
+use App\Http\Controllers\ExportarLayoutController;
+use App\Http\Controllers\ListaNegraController;
 use App\Http\Controllers\ListasUIFController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\ParametriaPLDController;
 use App\Http\Controllers\PerfilTransaccionalController;
+use App\Http\Controllers\ReporteadorPLDController;
 use App\Http\Controllers\ReporteOperacionesController;
 use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -70,7 +74,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/alertas/{idAlerta}/detalles', [AlertasController::class, 'detalleAlerta'])->name('alertas.detalles');
 });
-
 
 // Buzón Preocupantes
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -172,11 +175,46 @@ Route::post('/clientes/{id_cliente}/activar', [ClientesController::class, 'activ
     ->middleware(['auth', 'verified'])
     ->name('clientes.activar');
 
+// Agentes
+Route::prefix('agentes')->name('agentes.')->middleware(['auth', 'verified'])->group(function () {
+    Route::get('/', [AgentesController::class, 'index'])->name('index');
+    Route::post('/', [AgentesController::class, 'store'])->name('store');
+    Route::get('/exportar', [AgentesController::class, 'exportCsv'])->name('exportar');
+    Route::get('/plantilla', [AgentesController::class, 'descargarPlantillaCsv'])->name('plantilla');
+    Route::post('/importar', [AgentesController::class, 'prevalidarImportacion'])->name('importar');
+    Route::post('/importaciones/{importacion}/confirmar', [AgentesController::class, 'confirmarImportacion'])->name('importaciones.confirmar');
+    Route::get('/importaciones/{importacion}/errores', [AgentesController::class, 'descargarErroresImportacion'])->name('importaciones.errores');
+    Route::get('/{id_cliente}/operaciones/exportar', [AgentesController::class, 'exportOperacionesCsv'])->name('operaciones.exportar');
+    Route::get('/{id_cliente}/estadisticas/exportar', [AgentesController::class, 'exportEstadisticasCsv'])->name('estadisticas.exportar');
+    Route::get('/ver-detalles/{id_cliente}', [AgentesController::class, 'verDetallesCliente'])->name('ver-detalles');
+    Route::put('/{id_cliente}', [AgentesController::class, 'update'])->name('update');
+    Route::patch('/{id_cliente}/estatus', [AgentesController::class, 'alternarEstatus'])->name('estatus');
+    Route::post('/{id_cliente}/activar', [AgentesController::class, 'activarCliente'])->name('activar');
+});
+
+// Colaboradores
+Route::prefix('colaboradores')->name('colaboradores.')->middleware(['auth', 'verified'])->group(function () {
+    Route::get('/', [ColaboradoresController::class, 'index'])->name('index');
+    Route::post('/', [ColaboradoresController::class, 'store'])->name('store');
+    Route::get('/exportar', [ColaboradoresController::class, 'exportCsv'])->name('exportar');
+    Route::get('/plantilla', [ColaboradoresController::class, 'descargarPlantillaCsv'])->name('plantilla');
+    Route::post('/importar', [ColaboradoresController::class, 'prevalidarImportacion'])->name('importar');
+    Route::post('/importaciones/{importacion}/confirmar', [ColaboradoresController::class, 'confirmarImportacion'])->name('importaciones.confirmar');
+    Route::get('/importaciones/{importacion}/errores', [ColaboradoresController::class, 'descargarErroresImportacion'])->name('importaciones.errores');
+    Route::get('/{id_cliente}/operaciones/exportar', [ColaboradoresController::class, 'exportOperacionesCsv'])->name('operaciones.exportar');
+    Route::get('/{id_cliente}/estadisticas/exportar', [ColaboradoresController::class, 'exportEstadisticasCsv'])->name('estadisticas.exportar');
+    Route::get('/ver-detalles/{id_cliente}', [ColaboradoresController::class, 'verDetallesCliente'])->name('ver-detalles');
+    Route::put('/{id_cliente}', [ColaboradoresController::class, 'update'])->name('update');
+    Route::patch('/{id_cliente}/estatus', [ColaboradoresController::class, 'alternarEstatus'])->name('estatus');
+    Route::post('/{id_cliente}/activar', [ColaboradoresController::class, 'activarCliente'])->name('activar');
+});
 
 // Utilidades del Sistema
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/sistema/setup', function () {
-        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        if (! app()->environment('local')) {
+            abort(403, 'Acceso denegado');
+        }
         try {
             // 1. Correr migraciones
             Artisan::call('migrate', ['--force' => true]);
@@ -229,27 +267,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'migrate' => $migrateOutput,
                 'storage' => $storageOutput,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     })->name('sistema.setup');
 
     Route::post('/migraciones/ejecutar', function () {
-        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        if (! app()->environment('local')) {
+            abort(403, 'Acceso denegado');
+        }
         try {
             Artisan::call('migrate', ['--force' => true]);
+
             return response()->json(['success' => true, 'output' => Artisan::output()]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     });
 
     Route::post('/storage-link', function () {
-        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        if (! app()->environment('local')) {
+            abort(403, 'Acceso denegado');
+        }
         try {
             Artisan::call('storage:link');
+
             return response()->json(['success' => true, 'output' => Artisan::output()]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     })->name('storage.link');
@@ -260,21 +304,44 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Artisan::call('config:clear');
             Artisan::call('route:clear');
             Artisan::call('view:clear');
+
             return response()->json(['success' => true, 'output' => Artisan::output()]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     })->name('limpiar.cache');
 
     Route::post('/key-generate', function () {
-        if (!app()->environment('local')) abort(403, 'Acceso denegado');
+        if (! app()->environment('local')) {
+            abort(403, 'Acceso denegado');
+        }
         try {
             Artisan::call('key:generate');
+
             return response()->json(['success' => true, 'output' => Artisan::output()]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     })->name('key.generate');
+});
+
+// EBR - Evaluación Basada en Riesgos
+Route::prefix('ebr')->name('ebr.')->middleware(['auth', 'verified'])->group(function () {
+    Route::get('/', [EbrController::class, 'index'])->name('index');
+    Route::post('/', [EbrController::class, 'store'])->name('store');
+    Route::get('/plantillas/{tipo}', [EbrImportacionController::class, 'plantilla'])->name('plantilla');
+    Route::get('/{ejercicio}', [EbrController::class, 'show'])->name('show');
+    Route::put('/{ejercicio}/observaciones', [EbrController::class, 'actualizarObservaciones'])->name('observaciones');
+    Route::put('/{ejercicio}/mitigantes', [EbrController::class, 'actualizarMitigantes'])->name('mitigantes');
+    Route::post('/{ejercicio}/importar/{tipo}', [EbrImportacionController::class, 'prevalidar'])->name('importar.prevalidar');
+    Route::post('/{ejercicio}/importaciones/{importacion}/confirmar', [EbrImportacionController::class, 'confirmar'])->name('importar.confirmar');
+    Route::get('/{ejercicio}/importaciones/{importacion}/errores', [EbrImportacionController::class, 'errores'])->name('importar.errores');
+    Route::post('/{ejercicio}/calcular', [EbrController::class, 'calcular'])->name('calcular');
+    Route::post('/{ejercicio}/cerrar', [EbrController::class, 'cerrar'])->name('cerrar');
+    Route::post('/{ejercicio}/reabrir', [EbrController::class, 'reabrir'])->name('reabrir');
+    Route::delete('/{ejercicio}', [EbrController::class, 'destroy'])->name('destroy');
+    Route::get('/{ejercicio}/excel', [EbrReporteController::class, 'excel'])->name('excel');
+    Route::get('/{ejercicio}/pdf', [EbrReporteController::class, 'pdf'])->name('pdf');
 });
 
 // Auth & Settings

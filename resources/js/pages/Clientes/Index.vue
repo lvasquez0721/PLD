@@ -2,10 +2,12 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import Titulo from '@/components/ui/Titulo.vue'
 import Toast from '@/components/ui/alert/Toast.vue'
+import ModalConfirm from '@/components/ui/modals/modalConfirm.vue'
+import FormPersona from '@/components/personas/FormPersona.vue'
+import ImportarPersonas from '@/components/personas/ImportarPersonas.vue'
 import { type BreadcrumbItem } from '@/types'
-import { UserRound } from 'lucide-vue-next'
+import { Pencil, Plus, Power, PowerOff, Upload, UserRound } from 'lucide-vue-next'
 import FadeIn from '@/components/ui/animation/fadeIn.vue'
 import {
     Tooltip,
@@ -32,8 +34,75 @@ const props = defineProps<{
         per_page?: string | number,
         category?: string | string[]
     },
+    modulo?: {
+        basePath: string,
+        titulo: string,
+        singular: string,
+        plural: string,
+        tipoPersona: string
+    },
+    catalogos?: {
+        tiposPersona: Array<{ IDTipoPersona: number, TipoPersona: string }>,
+        nacionalidades: Array<{ IDNacionalidad: string, Nacionalidad: string }>,
+        ocupaciones: Array<{ IDOcupacionGiro: number, OcupacionGiro: string, NivelRiesgo?: string }>,
+        estados: Array<{ IDEstado: string | number, Estado: string }>
+    } | null,
+    importacion_reciente?: any
+    import_errors?: any[]
     toast?: { type: 'success' | 'error' | 'warning', message: string }
 }>()
+
+const modulo = computed(() => ({
+    basePath: props.modulo?.basePath ?? '/clientes',
+    titulo: props.modulo?.titulo ?? 'Clientes',
+    singular: props.modulo?.singular ?? 'cliente',
+    plural: props.modulo?.plural ?? 'clientes',
+    tipoPersona: props.modulo?.tipoPersona ?? 'Cliente',
+}))
+
+const basePath = computed(() => modulo.value.basePath)
+const tituloModulo = computed(() => modulo.value.titulo)
+const sustantivoSingular = computed(() => modulo.value.singular)
+const sustantivoPlural = computed(() => modulo.value.plural)
+const esGestion = computed(() => modulo.value.tipoPersona !== 'Cliente')
+
+const showFormModal = ref(false)
+const showImportModal = ref(false)
+const personaEditando = ref<any | null>(null)
+const showStatusModal = ref(false)
+const personaEstatus = ref<any | null>(null)
+const cambiandoEstatus = ref(false)
+
+function abrirCrear() {
+    personaEditando.value = null
+    showFormModal.value = true
+}
+
+function abrirEditar(persona: any) {
+    personaEditando.value = persona
+    showFormModal.value = true
+}
+
+function abrirCambioEstatus(persona: any) {
+    personaEstatus.value = persona
+    showStatusModal.value = true
+}
+
+function confirmarCambioEstatus() {
+    if (!personaEstatus.value || cambiandoEstatus.value) return
+
+    cambiandoEstatus.value = true
+
+    router.patch(`${basePath.value}/${personaEstatus.value.IDCliente}/estatus`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showStatusModal.value = false
+        },
+        onFinish: () => {
+            cambiandoEstatus.value = false
+        },
+    })
+}
 
 const showToast = ref(false)
 const toastMessage = ref('')
@@ -48,7 +117,7 @@ watch(() => props.toast, (newToast) => {
 }, { immediate: true })
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clientes', href: '/clientes' },
+    { title: tituloModulo.value, href: basePath.value },
 ]
 
 const busqueda = ref(props.filters?.search || '')
@@ -113,7 +182,7 @@ function buildParams(page?: number): Record<string, any> {
 
 function fetchClientes(page?: number, replace = true) {
     isSearching.value = true
-    router.get('/clientes', buildParams(page), {
+    router.get(basePath.value, buildParams(page), {
         preserveState: true,
         preserveScroll: true,
         replace,
@@ -216,7 +285,12 @@ const hasActiveFilters = computed(() =>
 
 // Redirigir a la ruta de detalle de cliente
 function irADetalleCliente(cliente: any) {
-    router.get(`/clientes/ver-detalles/${cliente.IDCliente}`);
+    router.get(`${basePath.value}/ver-detalles/${cliente.IDCliente}`);
+}
+
+function estaActivo(persona: any): boolean {
+    const activo = persona?.Activo
+    return activo === true || activo === 1 || activo === '1'
 }
 
 // No longer needed: Modal visibility or clienteSeleccionado
@@ -353,14 +427,14 @@ function descargarCSV() {
         }
     }
 
-    window.location.href = `/clientes/exportar?${params.toString()}`;
+    window.location.href = `${basePath.value}/exportar?${params.toString()}`;
 }
 
 </script>
 
 <template>
 
-    <Head title="Clientes" />
+    <Head :title="tituloModulo" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <FadeIn>
             <div class="relative">
@@ -371,8 +445,9 @@ function descargarCSV() {
                 class="fixed -top-1/2 left-1/2 -z-40 h-[1200px] w-[1200px] -translate-x-1/2 rounded-full bg-gradient-to-br from-blue-50 via-blue-50/0 to-blue-100/0 opacity-60 dark:from-blue-950/20 dark:via-transparent dark:to-transparent dark:opacity-30" />
 
 
-            <!-- Leyenda de colores PLD con tarjetas sensoriales -->
+            <!-- Leyenda de colores PLD con tarjetas sensoriales (solo para clientes) -->
             <div
+                v-if="modulo.tipoPersona === 'Cliente'"
                 class="mt-2 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/60 p-4 shadow-lg shadow-gray-200/40 backdrop-blur-lg transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-gray-300/50 dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-2xl dark:shadow-black/20">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -384,7 +459,7 @@ function descargarCSV() {
                             Código de Color PLD
                         </h4>
                         <p class="mt-1 text-xs text-gray-500 dark:text-neutral-400">
-                            Cada color representa una categoría de riesgo para el monitoreo de clientes.
+                            Cada color representa una categoría de riesgo para el monitoreo de {{ sustantivoPlural }}.
                         </p>
                     </div>
                 </div>
@@ -477,16 +552,34 @@ function descargarCSV() {
                 <!-- Informational Block -->
                 <div class="mb-4">
                     <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-neutral-500">
-                        Explorador de clientes
+                        Explorador de {{ sustantivoPlural }}
                     </p>
                     <p class="mt-1 flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-300">
                         <span v-if="isSearching" class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" aria-hidden="true"></span>
                         <span v-if="isSearching">Buscando…</span>
-                        <span v-else>{{ totalResultados }} {{ totalResultados === 1 ? 'cliente encontrado' : 'clientes encontrados' }}</span>
+                        <span v-else>{{ totalResultados }} {{ totalResultados === 1 ? `${sustantivoSingular} encontrado` : `${sustantivoPlural} encontrados` }}</span>
                     </p>
                     <p class="mb-1 mt-0.5 text-[11px] text-gray-400 dark:text-neutral-500">
                         La búsqueda es por palabras (en cualquier orden) e incluye nombre, RFC, CURP, ID, domicilio, NCliente y póliza.
                     </p>
+                    <div v-if="esGestion" class="mt-3 flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            @click="showImportModal = true"
+                            class="inline-flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-600 dark:ring-offset-neutral-950"
+                        >
+                            <Upload class="h-4 w-4" />
+                            Importar CSV
+                        </button>
+                        <button
+                            type="button"
+                            @click="abrirCrear"
+                            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600 dark:ring-offset-neutral-950"
+                        >
+                            <Plus class="h-4 w-4" />
+                            Nuevo {{ sustantivoSingular }}
+                        </button>
+                    </div>
                     <!-- Chips de filtros activos -->
                     <div v-if="hasActiveFilters" class="mt-2 flex flex-wrap items-center gap-1.5">
                         <span v-if="busqueda.trim()" class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30">
@@ -526,7 +619,7 @@ function descargarCSV() {
                             </svg>
                             <span v-else class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></span>
                         </span>
-                        <input ref="searchInputRef" v-model="busqueda" type="search" role="search" aria-label="Buscar clientes"
+                        <input ref="searchInputRef" v-model="busqueda" type="search" role="search" :aria-label="`Buscar ${sustantivoPlural}`"
                             @keydown.escape="clearSearch"
                             class="w-full rounded-lg border border-gray-300/80 bg-gray-50/50 py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 shadow-inner outline-none ring-blue-500/50 transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-white dark:placeholder-neutral-500 dark:focus:bg-neutral-900 dark:focus:ring-blue-500/70"
                             placeholder="Buscar por nombre, RFC, CURP, ID, póliza… (Ctrl+K)" />
@@ -674,7 +767,7 @@ function descargarCSV() {
                                     <div class="space-y-2" aria-hidden="true">
                                         <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800"></div>
                                     </div>
-                                    <p class="mt-3 text-center text-xs text-gray-400 dark:text-neutral-500">Buscando clientes…</p>
+                                    <p class="mt-3 text-center text-xs text-gray-400 dark:text-neutral-500">Buscando {{ sustantivoPlural }}…</p>
                                 </td>
                             </tr>
                             <tr v-else-if="!clientesFiltrados.length" key="no-results">
@@ -740,13 +833,37 @@ function descargarCSV() {
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-center align-middle">
-                                    <button
-                                        class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-blue-600 transition-all duration-200 ease-out hover:bg-blue-100/60 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-300 dark:focus-visible:ring-offset-neutral-950"
-                                        @click="irADetalleCliente(cliente)">
-                                        Ver detalle
-                                        <span
-                                            class="text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-blue-400">→</span>
-                                    </button>
+                                    <div class="flex flex-wrap items-center justify-center gap-1">
+                                        <button
+                                            class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-blue-600 transition-all duration-200 ease-out hover:bg-blue-100/60 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-300 dark:focus-visible:ring-offset-neutral-950"
+                                            @click="irADetalleCliente(cliente)">
+                                            Ver detalle
+                                            <span
+                                                class="text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-blue-400">→</span>
+                                        </button>
+                                        <template v-if="esGestion">
+                                            <button
+                                                type="button"
+                                                @click="abrirEditar(cliente)"
+                                                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
+                                            >
+                                                <Pencil class="h-3.5 w-3.5" />
+                                                Editar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                @click="abrirCambioEstatus(cliente)"
+                                                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition"
+                                                :class="estaActivo(cliente)
+                                                    ? 'text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-500/10'
+                                                    : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
+                                            >
+                                                <PowerOff v-if="estaActivo(cliente)" class="h-3.5 w-3.5" />
+                                                <Power v-else class="h-3.5 w-3.5" />
+                                                {{ estaActivo(cliente) ? 'Desactivar' : 'Activar' }}
+                                            </button>
+                                        </template>
+                                    </div>
                                 </td>
                             </tr>
                         </TransitionGroup>
@@ -797,6 +914,45 @@ function descargarCSV() {
 
         <!-- Ambient background elements -->
 
+            <FormPersona
+                v-if="esGestion && props.catalogos"
+                v-model="showFormModal"
+                :modulo="modulo"
+                :catalogos="props.catalogos"
+                :persona="personaEditando"
+            />
+
+            <ImportarPersonas
+                v-if="esGestion"
+                v-model="showImportModal"
+                :modulo="modulo"
+                :importacion-reciente="props.importacion_reciente"
+                :errores-importacion="props.import_errors"
+            />
+
+            <ModalConfirm
+                v-if="esGestion"
+                v-model="showStatusModal"
+                :loading="cambiandoEstatus"
+                :persistent="cambiandoEstatus"
+                width-class="max-w-md"
+                @confirm="confirmarCambioEstatus"
+                @cancel="personaEstatus = null"
+            >
+                <template #title>
+                    {{ personaEstatus && estaActivo(personaEstatus) ? `Desactivar ${sustantivoSingular}` : `Activar ${sustantivoSingular}` }}
+                </template>
+                <template #description>
+                    {{ personaEstatus && estaActivo(personaEstatus)
+                        ? `El ${sustantivoSingular} quedará inactivo y no aparecerá como activo en los módulos del sistema.`
+                        : `El ${sustantivoSingular} volverá a estar activo en el sistema.` }}
+                </template>
+                <template #confirm>
+                    {{ cambiandoEstatus
+                        ? 'Actualizando...'
+                        : (personaEstatus && estaActivo(personaEstatus) ? 'Desactivar' : 'Activar') }}
+                </template>
+            </ModalConfirm>
 
             <Toast v-model:modelValue="showToast" :type="toastType" :message="toastMessage" />
             </div>

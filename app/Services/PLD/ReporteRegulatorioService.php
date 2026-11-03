@@ -16,10 +16,9 @@ use App\Support\Curp;
 class ReporteRegulatorioService
 {
     /**
-     * Genera (o actualiza) el reporte regulatorio asociado a una alerta
-     * y lo deja con estatus "Enviado".
+     * Genera (o actualiza) el reporte regulatorio asociado a una alerta.
      */
-    public function emitirDesdeAlerta(TbAlertas $alerta): TbReporteRegulatorioPLD
+    public function emitirDesdeAlerta(TbAlertas $alerta, string $estatus = 'Enviado'): TbReporteRegulatorioPLD
     {
         $cliente = $alerta->IDCliente
             ? TbClientes::with(['domicilios'])->find($alerta->IDCliente)
@@ -30,9 +29,9 @@ class ReporteRegulatorioService
             : null;
 
         $domicilio = null;
-        $colonia   = null;
-        $ciudad    = null;
-        $telefono  = null;
+        $colonia = null;
+        $ciudad = null;
+        $telefono = null;
 
         if ($cliente && $cliente->domicilios->isNotEmpty()) {
             $d = $cliente->domicilios->first();
@@ -41,12 +40,12 @@ class ReporteRegulatorioService
                 $d->Calle ?? '',
                 $d->NoExterior ?? '',
                 $d->NoInterior ?? '',
-                $d->CP ? 'CP: ' . $d->CP : '',
+                $d->CP ? 'CP: '.$d->CP : '',
             ]))) ?: null;
 
-            $colonia  = $d->Colonia ?? null;
+            $colonia = $d->Colonia ?? null;
             // Ciudad texto segun respuesta #9
-            $ciudad   = $d->Municipio ?? $d->Localidad ?? null;
+            $ciudad = $d->Municipio ?? $d->Localidad ?? null;
             // Teléfonos: unir distintos con "/" según layout col.27 (si se cuenta con info)
             $tels = $cliente->domicilios
                 ->map(fn ($dom) => trim((string) ($dom->Telefono ?? '')))
@@ -67,37 +66,37 @@ class ReporteRegulatorioService
             'IDRegistroAlerta' => $alerta->IDRegistroAlerta,
         ]);
 
-        $reporte->TipoReporte         = $tipoReporteNombre;
-        $reporte->IDTipoReporte       = $idTipoReporte;
+        $reporte->TipoReporte = $tipoReporteNombre;
+        $reporte->IDTipoReporte = $idTipoReporte;
         // Periodo: fecha de generación del reporte (hoy), igual para todos los registros.
         // Monto usa YYYYMM; Monto Inusual/Nuevo usan YYYYMMDD.
-        $reporte->PeriodoReporte      = $idTipoReporte === 1
+        $reporte->PeriodoReporte = $idTipoReporte === 1
             ? now()->format('Ym')
             : now()->format('Ymd');
-        $reporte->Folio               = $alerta->Folio;
-        $reporte->OrganoSupervisor    = '001003';
-        $reporte->CveSujetoObligado   = '022123';
-        $reporte->Localidad           = '03342009';
-        $reporte->Sucursal            = '0';
-        $reporte->TipoOperacion       = $tipoOperacionNombre;
-        $reporte->IDTipoOperacion     = 10;
+        $reporte->Folio = $alerta->Folio;
+        $reporte->OrganoSupervisor = '001003';
+        $reporte->CveSujetoObligado = '022123';
+        $reporte->Localidad = '03342009';
+        $reporte->Sucursal = '0';
+        $reporte->TipoOperacion = $tipoOperacionNombre;
+        $reporte->IDTipoOperacion = 10;
         // Instrumento: mapear a ID numerico de catFormaPagos si viene texto, fallback 1=Efectivo
         $rawInst = trim((string) ($alerta->InstrumentoMonetario ?? $operacion?->IDFormaPago ?? ''));
         if ($rawInst === '' || $rawInst === null) {
             $rawInst = '1';
         }
         $reporte->InstrumentoMonetario = $rawInst;
-        $reporte->NoPoliza            = $alerta->Poliza;
-        $reporte->Monto               = $this->resolverMonto($alerta, $operacion);
+        $reporte->NoPoliza = $alerta->Poliza;
+        $reporte->Monto = $this->resolverMonto($alerta, $operacion);
         // Moneda nunca en blanco: default 001/MXN
         $monedaRaw = $alerta->IDMoneda ?: $operacion?->IDMoneda;
         if (empty($monedaRaw)) {
             $monedaRaw = 'MXN';
         }
-        $reporte->IDMoneda            = $monedaRaw;
-        $reporte->FechaOperacion      = $alerta->FechaOperacion ?? $hoy;
-        $reporte->FechaDeteccion      = $alerta->FechaDeteccion ?? $hoy;
-        $reporte->Nacionalidad        = $cliente?->IDNacionalidad
+        $reporte->IDMoneda = $monedaRaw;
+        $reporte->FechaOperacion = $alerta->FechaOperacion ?? $hoy;
+        $reporte->FechaDeteccion = $alerta->FechaDeteccion ?? $hoy;
+        $reporte->Nacionalidad = $cliente?->IDNacionalidad
             ? CatNacionalidad::where('IDNacionalidad', $cliente->IDNacionalidad)->value('Nacionalidad')
             : null;
         // Fallback nacionalidad MX si viene vacio
@@ -128,25 +127,25 @@ class ReporteRegulatorioService
         $esPM = ((string) $reporte->TipoPersona === '2');
         if ($esPF) {
             $reporte->RazonSocial = null;
-            $reporte->Nombre      = $cliente?->Nombre;
-            $reporte->APaterno    = $cliente?->ApellidoPaterno;
-            $reporte->AMaterno    = $cliente?->ApellidoMaterno;
-            $reporte->CURP        = $cliente?->CURP;
+            $reporte->Nombre = $cliente?->Nombre;
+            $reporte->APaterno = $cliente?->ApellidoPaterno;
+            $reporte->AMaterno = $cliente?->ApellidoMaterno;
+            $reporte->CURP = $cliente?->CURP;
         } elseif ($esPM) {
             $reporte->RazonSocial = $cliente?->RazonSocial;
-            $reporte->Nombre      = null;
-            $reporte->APaterno    = null;
-            $reporte->AMaterno    = null;
-            $reporte->CURP        = null;
+            $reporte->Nombre = null;
+            $reporte->APaterno = null;
+            $reporte->AMaterno = null;
+            $reporte->CURP = null;
         } else {
             // Sin cliente o tipo desconocido: mantener datos pero limpiar incoherencia
             $reporte->RazonSocial = $cliente?->RazonSocial;
-            $reporte->Nombre      = $cliente?->Nombre ?? $alerta->Cliente;
-            $reporte->APaterno    = $cliente?->ApellidoPaterno;
-            $reporte->AMaterno    = $cliente?->ApellidoMaterno;
-            $reporte->CURP        = $cliente?->CURP;
+            $reporte->Nombre = $cliente?->Nombre ?? $alerta->Cliente;
+            $reporte->APaterno = $cliente?->ApellidoPaterno;
+            $reporte->AMaterno = $cliente?->ApellidoMaterno;
+            $reporte->CURP = $cliente?->CURP;
         }
-        $reporte->RFC                 = $cliente?->RFC ?? $alerta->RFCAgente;
+        $reporte->RFC = $cliente?->RFC ?? $alerta->RFCAgente;
         // Fecha nacimiento/constitucion según #8.
         // En personas físicas se obtiene de la CURP; si no es válida, se usan
         // las fechas capturadas (el alta puede guardar la de nacimiento en
@@ -158,23 +157,31 @@ class ReporteRegulatorioService
                 ?? $cliente?->FechaNacimiento
                 ?? $cliente?->FechaConstitucion;
         }
-        $reporte->Domicilio           = $domicilio;
-        $reporte->Colonia             = $colonia;
-        $reporte->Ciudad              = $ciudad;
-        $reporte->Telefono            = $telefono;
-        // Ocupación: guardar la clave CVE_GIRO. Si el ID del catálogo no existe,
-        // el valor capturado se conserva como clave numérica para que no se pierda.
-        $idOcupacion = $cliente?->IDOcupacionGiro;
-        if ($idOcupacion) {
-            $cveGiro = CatOcupacionesGiros::where('IDOcupacionGiro', $idOcupacion)->value('CVE_GIRO');
-            if ($cveGiro === null) {
-                $cveGiro = is_numeric($idOcupacion)
-                    ? str_pad((string) $idOcupacion, 7, '0', STR_PAD_LEFT)
-                    : (string) $idOcupacion;
-            }
-            $reporte->Ocupacion = $cveGiro;
+        $reporte->Domicilio = $domicilio;
+        $reporte->Colonia = $colonia;
+        $reporte->Ciudad = $ciudad;
+        $reporte->Telefono = $telefono;
+        // Ocupación: guardar la clave CVE_GIRO. En los reportes "Nuevo" la
+        // columna siempre debe quedar llena, incluso si la persona no tiene
+        // ocupación capturada (se usa el valor por defecto de su rol).
+        if ((int) $idTipoReporte === 3) {
+            $reporte->Ocupacion = app(OcupacionResolver::class)->resolverDesdePersona($cliente);
         } else {
-            $reporte->Ocupacion = null;
+            $idOcupacion = $cliente?->IDOcupacionGiro;
+            if ($idOcupacion) {
+                $cveGiro = CatOcupacionesGiros::where('IDOcupacionGiro', $idOcupacion)->value('CVE_GIRO');
+                if ($cveGiro === null) {
+                    $cveGiro = is_numeric($idOcupacion)
+                        ? str_pad((string) $idOcupacion, 7, '0', STR_PAD_LEFT)
+                        : (string) $idOcupacion;
+                }
+                $reporte->Ocupacion = $cveGiro;
+            } elseif ($cliente?->TipoPersona === TbClientes::TIPO_COLABORADOR) {
+                $reporte->Ocupacion = CatOcupacionesGiros::where('OcupacionGiro', 'like', 'Empleado del sector privado%')
+                    ->value('CVE_GIRO');
+            } else {
+                $reporte->Ocupacion = null;
+            }
         }
         // Agente: priorizar desglose de tbOperaciones, fallback split del string completo (col.29-31)
         [$nomAg, $patAg, $matAg] = $this->fraccionarAgente(
@@ -184,21 +191,21 @@ class ReporteRegulatorioService
             $operacion?->AMaternoAgente,
             $operacion?->RazonSocialAgente
         );
-        $reporte->NombreAgente        = $nomAg ?: null;
-        $reporte->APaternoAgente      = $patAg ?: null;
-        $reporte->AMaternoAgente      = $matAg ?: null;
-        $reporte->RFCAgente           = $alerta->RFCAgente ?: $operacion?->RFCAgente;
-        $reporte->CURPAgente          = $operacion?->CURPAgente;
+        $reporte->NombreAgente = $nomAg ?: null;
+        $reporte->APaternoAgente = $patAg ?: null;
+        $reporte->AMaternoAgente = $matAg ?: null;
+        $reporte->RFCAgente = $alerta->RFCAgente ?: $operacion?->RFCAgente;
+        $reporte->CURPAgente = $operacion?->CURPAgente;
         // Cuenta vacía si no hay (respuesta #4)
-        $reporte->Cuenta              = null;
-        $reporte->NoPolizaCuenta      = null;
-        $reporte->CveSujetoObl        = null;
-        $reporte->NombreTitular       = null;
-        $reporte->APaternoTitular     = null;
-        $reporte->AMaternoTitular     = null;
-        $reporte->Descripcion         = $alerta->Descripcion;
-        $reporte->Razon               = $alerta->Razones;
-        $reporte->Estatus             = 'Enviado';
+        $reporte->Cuenta = null;
+        $reporte->NoPolizaCuenta = null;
+        $reporte->CveSujetoObl = null;
+        $reporte->NombreTitular = null;
+        $reporte->APaternoTitular = null;
+        $reporte->AMaternoTitular = null;
+        $reporte->Descripcion = $alerta->Descripcion;
+        $reporte->Razon = $alerta->Razones;
+        $reporte->Estatus = $estatus;
 
         $reporte->save();
 
@@ -267,6 +274,7 @@ class ReporteRegulatorioService
             if ($nombre !== '' && $paterno === '' && $materno !== '') {
                 $paterno = 'XXXX';
             }
+
             return [$nombre, $paterno, $materno];
         }
 
@@ -279,11 +287,13 @@ class ReporteRegulatorioService
         if (count($tokens) >= 3) {
             $mat = array_pop($tokens);
             $pat = array_pop($tokens);
+
             return [implode(' ', $tokens), $pat, $mat];
         }
         if (count($tokens) === 2) {
             return [$tokens[0], $tokens[1], ''];
         }
+
         return [$tokens[0], 'XXXX', ''];
     }
 

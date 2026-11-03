@@ -1,0 +1,257 @@
+[
+  {
+    "ocupacion_giro": "0",
+    "nivel_riesgo": 3,
+    "ocupacion_agrupada": "No definido"
+  },
+  {
+    "ocupacion_giro": "Agricultor",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Agricultura",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Asociaciones y confederaciones",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Asociaciones y confederaciones"
+  },
+  {
+    "ocupacion_giro": "Compraventa de fertilizantes y plaguicidas",
+    "nivel_riesgo": 3,
+    "ocupacion_agrupada": "Compraventa de fertilizantes y plaguicidas"
+  },
+  {
+    "ocupacion_giro": "Compraventa de maquinaria equipo e implementos para la agricultura y la ganadería",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Compraventa de otros productos alimenticios agrícolas en estado natural",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Compraventa de semillas para siembra",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Compraventa de semillas y granos",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Compraventa de frutas",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cria y explotación de ganado vacuno para carne",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Ganadero"
+  },
+  {
+    "ocupacion_giro": "Cria y explotación de peces otras especies animales y plantas acuáticas",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Ganadero"
+  },
+  {
+    "ocupacion_giro": "Cultivo de agave o mezcal",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de arroz",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de caña de azúcar",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de calabaza",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de cebada",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de maíz",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de mango",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de manzana",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de papaya",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de otras hortalizas",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de tabaco",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de trigo",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de plátano",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Cultivo de sorgo",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Empresas controladoras financieras",
+    "nivel_riesgo": 3,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Empleado del sector privado (u.i.f)",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Emp Sect Priv"
+  },
+  {
+    "ocupacion_giro": "Fabricación y beneficio de productos de tabaco",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Fabricacion de pan y pasteles",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Comerciante"
+  },
+  {
+    "ocupacion_giro": "Fabricacion de utensilios agricolas y herramientas de mano",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Comerciante"
+  },
+  {
+    "ocupacion_giro": "Fabricacion ensamble y reparacion de vehiculos de uso agropecuario",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Comerciante"
+  },
+  {
+    "ocupacion_giro": "Ganadería",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Ganadero"
+  },
+  {
+    "ocupacion_giro": "Ganadero",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Ganadero"
+  },
+  {
+    "ocupacion_giro": "Generación, transmisión y distribución de energía eléctrica",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Energía E"
+  },
+  {
+    "ocupacion_giro": "Gobierno Estatal",
+    "nivel_riesgo": 3,
+    "ocupacion_agrupada": "Gobierno Estatal"
+  },
+  {
+    "ocupacion_giro": "Molino de maiz",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Comerciante"
+  },
+  {
+    "ocupacion_giro": "Otros cultivos permanentes",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Preparacion de tierras de cultivo y otros servicios agricolas",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Prestacion de servicios publicos y sociales",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Asociaciones y confederaciones"
+  },
+  {
+    "ocupacion_giro": "Servicios colaterales a instituciones financieras y de seguros",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Servicios De Fondos Y Fideicomisos De Fomento Economico",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Ganadero"
+  },
+  {
+    "ocupacion_giro": "Servicios de instituciones de crédito, organizaciones auxiliares e instituciones de seguros y fianzas",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Servicios profesionales y técnicos",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Sociedades Cooperativas",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Sociedades de ahorro y prestamo",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Silvicultura",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Sociedades financieras de objeto multiple no reguladas",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Sociedades financieras de objeto multiple reguladas",
+    "nivel_riesgo": 2,
+    "ocupacion_agrupada": "Entidad financiera"
+  },
+  {
+    "ocupacion_giro": "Usuarios menores agricultura",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Agricultor"
+  },
+  {
+    "ocupacion_giro": "Usuarios menores comercio",
+    "nivel_riesgo": 1,
+    "ocupacion_agrupada": "Comerciante"
+  }
+]

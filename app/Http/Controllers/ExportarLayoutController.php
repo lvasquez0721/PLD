@@ -32,7 +32,8 @@ class ExportarLayoutController extends Controller
 
     private function exportarFisicas()
     {
-        $clientes = TbClientes::where('IDTipoPersona', 1)
+        $clientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)
+            ->where('IDTipoPersona', 1)
             ->where('Activo', true)
             ->orderBy('IDCliente')
             ->get(['IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'CURP', 'RFC']);
@@ -65,7 +66,8 @@ class ExportarLayoutController extends Controller
 
     private function exportarMorales()
     {
-        $clientes = TbClientes::where('IDTipoPersona', 2)
+        $clientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)
+            ->where('IDTipoPersona', 2)
             ->where('Activo', true)
             ->orderBy('IDCliente')
             ->get(['IDCliente', 'RazonSocial', 'RFC']);
@@ -95,7 +97,8 @@ class ExportarLayoutController extends Controller
 
     private function exportarAmbos()
     {
-        $clientes = TbClientes::whereIn('IDTipoPersona', [1, 2])
+        $clientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)
+            ->whereIn('IDTipoPersona', [1, 2])
             ->where('Activo', true)
             ->orderBy('IDTipoPersona')
             ->orderBy('IDCliente')

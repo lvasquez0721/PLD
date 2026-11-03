@@ -5,28 +5,53 @@ namespace App\Http\Controllers;
 use App\Models\CatFormaPagos;
 use App\Models\CatMonedas;
 use App\Models\CatTipoPago;
+use App\Models\Clientes\CatEstados;
 use App\Models\Clientes\CatIDClientesSistema;
+use App\Models\Clientes\CatNacionalidad;
+use App\Models\Clientes\CatOcupacionesGiros;
+use App\Models\Clientes\CatTipoPersona;
+use App\Models\Clientes\PersonaImportacion;
 use App\Models\Clientes\TbClientes;
 use App\Models\Clientes\TbClientesDomicilio;
 use App\Models\ListasBloqueadas\TbListasNegraCNSF;
 use App\Models\ListasBloqueadas\TbListasNegrasUIF;
 use App\Models\TbAlertas;
 use App\Models\TbOperaciones;
-use App\Models\TbOperacionesPagos;
 use App\Models\TbPerfilTransaccional;
 use App\Services\PLD\EvaluadorRiesgoCliente;
+use App\Services\PLD\ImportadorPersonas;
 use App\Services\PLD\IndicadoresOperacionesCliente;
+use App\Services\PLD\RegistroPLDService;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class ClientesController extends Controller
 {
+    protected string $tipoPersona = TbClientes::TIPO_CLIENTE;
+
+    protected string $rutaBase = '/clientes';
+
+    protected string $tituloModulo = 'Clientes';
+
+    protected string $sustantivoSingular = 'cliente';
+
+    protected string $sustantivoPlural = 'clientes';
+
     public function index(Request $request)
     {
         $query = $this->buildQuery($request);
 
         // Ordenar los clientes de forma descendente por el campo 'id' (puedes cambiar a otro campo si se requiere diferente criterio)
         $query->orderByDesc('IDCliente');
+
+        if ($this->tipoPersona !== TbClientes::TIPO_CLIENTE) {
+            $query->with('domicilios');
+        }
 
         $perPage = (int) $request->input('per_page', 10);
         if (! in_array($perPage, [5, 10, 20, 50, 100], true)) {
@@ -47,6 +72,10 @@ class ClientesController extends Controller
         return inertia('Clientes/Index', [
             'clientes' => $clientes,
             'filters' => $request->only(['search', 'tipo', 'estatus', 'per_page', 'category']),
+            'modulo' => $this->moduloProps(),
+            'catalogos' => $this->tipoPersona === TbClientes::TIPO_CLIENTE ? null : $this->catalogosPersona(),
+            'importacion_reciente' => session('importacion_reciente'),
+            'import_errors' => session('import_errors', []),
             'toast' => session('toast'),
         ]);
     }
@@ -59,17 +88,17 @@ class ClientesController extends Controller
         if ($clientes->isEmpty()) {
             return redirect()->back()->with('toast', [
                 'type' => 'error',
-                'message' => 'No hay clientes para exportar con los filtros seleccionados.'
+                'message' => "No hay {$this->sustantivoPlural} para exportar con los filtros seleccionados.",
             ]);
         }
 
         $rfcEnListaNegra = $this->getRfcEnListaNegra();
 
-        $fileName = 'clientes_' . date('Ymd_His') . '.csv';
+        $fileName = $this->sustantivoPlural.'_'.date('Ymd_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
         ];
 
         $callback = function () use ($clientes, $rfcEnListaNegra) {
@@ -87,7 +116,7 @@ class ClientesController extends Controller
                 'Coincidencias Listas Negras',
                 'Es PPE',
                 'Estatus CNSF',
-                'Fuera de Categoría'
+                'Fuera de Categoría',
             ]);
 
             foreach ($clientes as $cliente) {
@@ -106,7 +135,7 @@ class ClientesController extends Controller
                     $cliente->CoincideEnListasNegras,
                     $cliente->esPPE ? 'Sí' : 'No',
                     $cliente->CNSF ? 'Coincide' : 'Sin Coincidencia',
-                    $cliente->fueraDeCategoria ? 'Sí' : 'No'
+                    $cliente->fueraDeCategoria ? 'Sí' : 'No',
                 ]);
             }
 
@@ -118,7 +147,8 @@ class ClientesController extends Controller
 
     private function buildQuery(Request $request)
     {
-        $query = TbClientes::query();
+        // Inicialmente solo los registros del tipo gestionado por este controlador.
+        $query = TbClientes::query()->where('TipoPersona', $this->tipoPersona);
 
         // Búsqueda exhaustiva: AND por palabras, insensible a mayúsculas/acentos
         // (collation utf8mb4_unicode_ci) y sin que se escape ningún registro.
@@ -320,6 +350,9 @@ class ClientesController extends Controller
     public function verDetallesCliente(TbClientes $id_cliente)
     {
         $cliente = $id_cliente;
+
+        abort_unless($cliente->TipoPersona === $this->tipoPersona, 404);
+
         $domicilios = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
         $operacionesRaw = TbOperaciones::where('IDCliente', $cliente->IDCliente)
             ->with('pagos')
@@ -335,7 +368,7 @@ class ClientesController extends Controller
 
         // Solo buscar si hay RFC o CURP válidos, evita buscar por cadenas vacías
         if ($clienteRFC !== '' || $clienteCURP !== '') {
-            $listasNegras = TbListasNegraCNSF::where(function($q) use ($clienteRFC, $clienteCURP) {
+            $listasNegras = TbListasNegraCNSF::where(function ($q) use ($clienteRFC, $clienteCURP) {
                 if ($clienteRFC !== '') {
                     $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
                 }
@@ -351,14 +384,9 @@ class ClientesController extends Controller
             ->orderByDesc('IDRegistroPerfil')
             ->first();
 
-        // Si no se encuentra perfil, intenta buscar el registro más reciente sin filtrar por cliente (fallback)
-        if (!$perfilTransaccional) {
-            $perfilTransaccional = TbPerfilTransaccional::orderByDesc('IDRegistroPerfil')->first();
-        }
-
         // Solo buscar en listas UIF si hay RFC o CURP válidos, evita buscar por cadenas vacías
         if ($clienteRFC !== '' || $clienteCURP !== '') {
-            $listasUIF = TbListasNegrasUIF::where(function($q) use ($clienteRFC, $clienteCURP) {
+            $listasUIF = TbListasNegrasUIF::where(function ($q) use ($clienteRFC, $clienteCURP) {
                 if ($clienteRFC !== '') {
                     $q->orWhere(DB::raw('UPPER(TRIM(RFC))'), $clienteRFC);
                 }
@@ -383,8 +411,18 @@ class ClientesController extends Controller
             (bool) $cliente->EsPPEActivo
         );
 
+        $perfilAltoRiesgo = $this->perfilEsAltoRiesgo($perfilTransaccional);
+        $motivosPerfilRiesgo = $this->motivosPerfilTransaccional($perfilTransaccional);
+        $factoresRiesgo = $this->motivosAltoRiesgo(
+            $cliente,
+            $alertas,
+            $datosRiesgo['factores'] ?? [],
+            $motivosPerfilRiesgo
+        );
+
         return inertia('Clientes/Detalles', [
             'cliente' => $cliente,
+            'modulo' => $this->moduloProps(),
             'domicilios' => $domicilios,
             'operaciones' => $operacionesRaw,
             'alertas' => $alertas,
@@ -392,11 +430,157 @@ class ClientesController extends Controller
             'perfilTransaccional' => $perfilTransaccional,
             'listasUIF' => $listasUIF,
             'sistemasDelCliente' => $sistemasDelCliente,
-            'esAltoRiesgo' => (bool) $cliente->EsAltoRiesgo,
-            'factoresRiesgo' => $datosRiesgo['factores'],
+            'esAltoRiesgo' => (bool) $cliente->EsAltoRiesgo || $perfilAltoRiesgo,
+            'perfilAltoRiesgo' => $perfilAltoRiesgo,
+            'factoresRiesgo' => $factoresRiesgo,
+            'motivosPerfilRiesgo' => $motivosPerfilRiesgo,
             'indicadores' => $indicadores,
             'catalogos' => $this->catalogosOperaciones(),
         ]);
+    }
+
+    /**
+     * Indica si el perfil transaccional clasifica al cliente en alto riesgo.
+     */
+    private function perfilEsAltoRiesgo(?TbPerfilTransaccional $perfil): bool
+    {
+        return $perfil !== null
+            && is_numeric($perfil->Perfil)
+            && (float) $perfil->Perfil >= 2;
+    }
+
+    /**
+     * Construye los motivos legibles de la clasificación de alto riesgo.
+     *
+     * @param  array<int, string>  $factoresEvaluados
+     * @param  array<int, string>  $motivosPerfil
+     * @return array<int, string>
+     */
+    private function motivosAltoRiesgo(
+        TbClientes $cliente,
+        $alertas,
+        array $factoresEvaluados,
+        array $motivosPerfil
+    ): array {
+        $motivos = $factoresEvaluados;
+
+        // Respaldo con las alertas guardadas: cubre clasificaciones históricas
+        // cuyo reevaluador ya no devuelve factores (datos o listas actualizados).
+        if ((bool) $cliente->EsAltoRiesgo && empty($factoresEvaluados)) {
+            $patrones = [
+                EvaluadorRiesgoCliente::PATRON_ACTIVIDAD_VULNERABLE,
+                EvaluadorRiesgoCliente::PATRON_ZONA_GEOGRAFICA,
+                'Personas Bloqueadas',
+                'PPE',
+            ];
+
+            foreach ($alertas as $alerta) {
+                $patron = trim((string) ($alerta->Patron ?? ''));
+                if (! in_array($patron, $patrones, true)) {
+                    continue;
+                }
+
+                $detalle = trim((string) ($alerta->Razones ?? ''));
+                if ($detalle === '') {
+                    $detalle = trim((string) ($alerta->Descripcion ?? ''));
+                }
+                if ($detalle !== '') {
+                    $motivos[] = 'Alerta PLD - '.$patron.': '.$detalle;
+                }
+            }
+        }
+
+        foreach ($motivosPerfil as $motivo) {
+            $motivos[] = 'Perfil transaccional: '.$motivo;
+        }
+
+        return $this->deduplicarTextos($motivos);
+    }
+
+    /**
+     * Describe las dimensiones que contribuyen a un perfil transaccional alto.
+     *
+     * @return array<int, string>
+     */
+    private function motivosPerfilTransaccional(?TbPerfilTransaccional $perfil): array
+    {
+        if (! $this->perfilEsAltoRiesgo($perfil)) {
+            return [];
+        }
+
+        $niveles = [1 => 'Bajo', 2 => 'Medio', 3 => 'Alto'];
+        $decimal = fn ($valor) => is_numeric($valor)
+            ? number_format((float) $valor, 2, '.', '')
+            : trim((string) $valor);
+
+        $motivos = [];
+        $dimensiones = [
+            ['NivelRiesgoNac', 'CalculoNacimiento', 'Nacionalidad', null],
+            ['NivelRiesgoResidencia', 'CalculoResidencia', 'Residencia', null],
+            ['NivelRiesgo', 'CalculoOcupacion', 'Ocupación/giro', trim((string) ($perfil->OcupGiro ?? ''))],
+        ];
+
+        foreach ($dimensiones as [$nivelKey, $calculoKey, $etiqueta, $detalle]) {
+            $nivel = $perfil->{$nivelKey} ?? null;
+            $calculo = $perfil->{$calculoKey} ?? null;
+            if (($nivel === null || $nivel === '') && ($calculo === null || $calculo === '')) {
+                continue;
+            }
+
+            $partes = [];
+            if ($detalle !== null && $detalle !== '') {
+                $partes[] = '"'.$detalle.'"';
+            }
+            if ($nivel !== null && $nivel !== '') {
+                $partes[] = 'nivel '.($niveles[(int) $nivel] ?? (string) $nivel);
+            }
+            if ($calculo !== null && $calculo !== '') {
+                $partes[] = 'aporte '.$decimal($calculo);
+            }
+
+            $motivos[] = $etiqueta.': '.implode('; ', $partes).'.';
+        }
+
+        if ($perfil->TotalUbicacion !== null && $perfil->TotalUbicacion !== '') {
+            $motivos[] = 'Ubicación total: '.$decimal($perfil->TotalUbicacion).'.';
+        }
+        if ($perfil->TotalEconomico !== null && $perfil->TotalEconomico !== '') {
+            $motivos[] = 'Económico total: '.$decimal($perfil->TotalEconomico).'.';
+        }
+        if ($perfil->Perfil !== null && $perfil->Perfil !== '') {
+            $motivos[] = 'Perfil total calculado: '.$decimal($perfil->Perfil).' (alto riesgo a partir de 2).';
+        }
+
+        return $this->deduplicarTextos($motivos);
+    }
+
+    /**
+     * Elimina motivos vacíos o repetidos conservando el orden original.
+     *
+     * @param  array<int, string>  $valores
+     * @return array<int, string>
+     */
+    private function deduplicarTextos(array $valores): array
+    {
+        $resultado = [];
+        $vistos = [];
+
+        foreach ($valores as $valor) {
+            $texto = trim((string) $valor);
+            if ($texto === '') {
+                continue;
+            }
+
+            $clave = mb_strtolower($texto);
+            if (isset($vistos[$clave])) {
+                continue;
+            }
+
+            $vistos[$clave] = true;
+            $resultado[] = $texto;
+        }
+
+        return $resultado;
     }
 
     /**
@@ -418,6 +602,8 @@ class ClientesController extends Controller
     {
         $cliente = $id_cliente;
 
+        abort_unless($cliente->TipoPersona === $this->tipoPersona, 404);
+
         $operaciones = TbOperaciones::where('IDCliente', $cliente->IDCliente)
             ->with('pagos')
             ->orderBy('FolioPoliza')
@@ -429,7 +615,7 @@ class ClientesController extends Controller
         if ($operaciones->isEmpty()) {
             return redirect()->back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El cliente no tiene operaciones registradas para exportar.'
+                'message' => "El {$this->sustantivoSingular} no tiene operaciones registradas para exportar.",
             ]);
         }
 
@@ -446,11 +632,11 @@ class ClientesController extends Controller
         $formasPago = CatFormaPagos::pluck('FormaPago', 'IDFormaPago');
         $tiposPago = CatTipoPago::pluck('TipoPago', 'IDTipoPago');
 
-        $fileName = 'operaciones_cliente_' . $cliente->IDCliente . '_' . date('Ymd_His') . '.csv';
+        $fileName = 'operaciones_'.$this->sustantivoSingular.'_'.$cliente->IDCliente.'_'.date('Ymd_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
         ];
 
         $callback = function () use ($operaciones, $cliente, $nombreCliente, $indicadoresService, $formasPago, $tiposPago) {
@@ -555,6 +741,8 @@ class ClientesController extends Controller
     {
         $cliente = $id_cliente;
 
+        abort_unless($cliente->TipoPersona === $this->tipoPersona, 404);
+
         $operaciones = TbOperaciones::where('IDCliente', $cliente->IDCliente)
             ->with('pagos')
             ->get();
@@ -562,7 +750,7 @@ class ClientesController extends Controller
         if ($operaciones->isEmpty()) {
             return redirect()->back()->with('toast', [
                 'type' => 'error',
-                'message' => 'El cliente no tiene operaciones registradas para exportar sus estadísticas.'
+                'message' => "El {$this->sustantivoSingular} no tiene operaciones registradas para exportar sus estadísticas.",
             ]);
         }
 
@@ -576,11 +764,11 @@ class ClientesController extends Controller
                 $cliente->ApellidoMaterno,
             ])));
 
-        $fileName = 'estadisticas_cliente_' . $cliente->IDCliente . '_' . date('Ymd_His') . '.csv';
+        $fileName = 'estadisticas_'.$this->sustantivoSingular.'_'.$cliente->IDCliente.'_'.date('Ymd_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
         ];
 
         $callback = function () use ($indicadores, $cliente, $nombreCliente) {
@@ -669,14 +857,463 @@ class ClientesController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    public function descargarPlantillaCsv(ImportadorPersonas $importador): StreamedResponse
+    {
+        $this->abortUnlessGestion();
+
+        $plantilla = $importador->plantilla($this->tipoPersona);
+        $headers = $plantilla['headers'] ?? [];
+        $ejemplos = $plantilla['ejemplos'] ?? [];
+        $nombre = 'plantilla_'.$this->sustantivoPlural.'.csv';
+
+        return response()->streamDownload(function () use ($headers, $ejemplos) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($file, $headers, ',', '"', '\\');
+
+            foreach ($ejemplos as $ejemplo) {
+                $fila = [];
+                foreach ($headers as $header) {
+                    $fila[] = $ejemplo[$header] ?? '';
+                }
+                fputcsv($file, $fila, ',', '"', '\\');
+            }
+
+            fclose($file);
+        }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function prevalidarImportacion(Request $request, ImportadorPersonas $importador)
+    {
+        $this->abortUnlessGestion();
+
+        $contentLength = (int) ($request->server('CONTENT_LENGTH') ?? 0);
+        $postMax = $this->bytes(ini_get('post_max_size') ?: '0');
+        if ($contentLength > 0 && $postMax > 0 && $contentLength > $postMax) {
+            return back()->withErrors([
+                'archivo' => 'El archivo excede el límite de carga del servidor (post_max_size = '.ini_get('post_max_size').').',
+            ])->withInput();
+        }
+
+        $archivo = $request->file('archivo');
+        if ($archivo instanceof UploadedFile && ! $archivo->isValid()) {
+            $limite = ini_get('upload_max_filesize') ?: '2M';
+            $mensaje = match ($archivo->getError()) {
+                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => "El archivo excede el límite de carga del servidor ({$limite}). Reduce el archivo o solicita que se aumente upload_max_filesize/post_max_size.",
+                UPLOAD_ERR_PARTIAL => 'La carga del archivo se interrumpió. Intenta subirlo de nuevo.',
+                UPLOAD_ERR_NO_FILE => 'No se seleccionó ningún archivo.',
+                UPLOAD_ERR_NO_TMP_DIR => 'El servidor no tiene configurado un directorio temporal para las cargas.',
+                UPLOAD_ERR_CANT_WRITE => 'El servidor no pudo escribir el archivo temporal. Revisa permisos y espacio en disco.',
+                UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la carga del archivo.',
+                default => 'No fue posible subir el archivo. Revisa el tamaño y vuelve a intentarlo.',
+            };
+
+            return back()->withErrors(['archivo' => $mensaje])->withInput();
+        }
+
+        $request->validate([
+            'archivo' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ], [
+            'archivo.required' => 'Selecciona un archivo CSV.',
+            'archivo.file' => 'El archivo no es válido.',
+            'archivo.uploaded' => 'No fue posible subir el archivo. Verifica el tamaño permitido por el servidor.',
+            'archivo.mimes' => 'El archivo debe ser CSV o TXT.',
+            'archivo.max' => 'El archivo no debe superar los 10 MB.',
+        ]);
+
+        try {
+            $importacion = $importador->prevalidar(
+                $archivo,
+                $this->tipoPersona,
+                $request->user()?->id
+            );
+        } catch (Throwable $e) {
+            Log::error('Error al prevalidar importación de '.$this->sustantivoPlural.': '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withErrors([
+                'archivo' => 'No fue posible validar el archivo. Intenta nuevamente.',
+            ])->withInput();
+        }
+
+        $ok = $importacion->estado === 'prevalidado';
+
+        return redirect()->back()->with([
+            'importacion_reciente' => $this->resumenImportacion($importacion),
+            'import_errors' => $importacion->errores ?? [],
+            'toast' => [
+                'type' => $ok ? 'success' : 'error',
+                'message' => $ok
+                    ? "Archivo prevalidado: {$importacion->filas_validas} fila(s) válida(s). Confirma la importación."
+                    : "La prevalidación encontró {$importacion->filas_error} error(es). Corrige el CSV y vuelve a cargarlo.",
+            ],
+        ]);
+    }
+
+    public function confirmarImportacion(PersonaImportacion $importacion, ImportadorPersonas $importador)
+    {
+        $this->abortUnlessGestion();
+        abort_unless($importacion->tipo_persona === $this->tipoPersona, 404);
+
+        $importacion = $importador->confirmar($importacion);
+        $ok = $importacion->estado === 'importado';
+
+        $message = $ok
+            ? "Se importaron {$importacion->filas_validas} {$this->sustantivoPlural} correctamente."
+            : 'No fue posible importar el archivo. Revisa los errores mostrados.';
+
+        return redirect()->back()->with([
+            'importacion_reciente' => $this->resumenImportacion($importacion),
+            'import_errors' => $importacion->errores ?? [],
+            'toast' => [
+                'type' => $ok ? 'success' : 'error',
+                'message' => $message,
+            ],
+        ]);
+    }
+
+    public function descargarErroresImportacion(PersonaImportacion $importacion): StreamedResponse
+    {
+        $this->abortUnlessGestion();
+        abort_unless($importacion->tipo_persona === $this->tipoPersona, 404);
+
+        $errores = $importacion->errores ?? [];
+
+        return response()->streamDownload(function () use ($errores) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($file, ['linea', 'campo', 'valor', 'mensaje'], ',', '"', '\\');
+
+            foreach ($errores as $error) {
+                fputcsv($file, [
+                    $error['linea'] ?? '',
+                    $error['campo'] ?? '',
+                    $error['valor'] ?? '',
+                    $error['mensaje'] ?? '',
+                ], ',', '"', '\\');
+            }
+
+            fclose($file);
+        }, 'errores_'.$this->sustantivoPlural.'_'.$importacion->id.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resumenImportacion(PersonaImportacion $importacion): array
+    {
+        return [
+            'id' => $importacion->id,
+            'tipo_persona' => $importacion->tipo_persona,
+            'estado' => $importacion->estado,
+            'total_filas' => $importacion->total_filas,
+            'filas_validas' => $importacion->filas_validas,
+            'filas_error' => $importacion->filas_error,
+            'resumen' => $importacion->resumen,
+            'nombre_archivo' => $importacion->nombre_archivo,
+        ];
+    }
+
+    private function abortUnlessGestion(): void
+    {
+        abort_unless(in_array($this->tipoPersona, [TbClientes::TIPO_AGENTE, TbClientes::TIPO_COLABORADOR], true), 404);
+    }
+
+    private function bytes(string $valor): int
+    {
+        $valor = trim($valor);
+        if ($valor === '' || $valor === '-1') {
+            return 0;
+        }
+
+        $unidad = strtolower(substr($valor, -1));
+        $numero = (float) $valor;
+
+        return (int) match ($unidad) {
+            'g' => $numero * 1024 * 1024 * 1024,
+            'm' => $numero * 1024 * 1024,
+            'k' => $numero * 1024,
+            default => $numero,
+        };
+    }
+
     public function activarCliente(TbClientes $id_cliente)
     {
+        abort_unless($id_cliente->TipoPersona === $this->tipoPersona, 404);
+
         $id_cliente->Activo = 1;
         $id_cliente->save();
 
         return redirect()->back()->with('toast', [
             'type' => 'success',
-            'message' => 'Cliente activado correctamente.',
+            'message' => ucfirst($this->sustantivoSingular).' activado correctamente.',
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        $data = $this->validarPersona($request);
+        $domicilio = $this->normalizarDomicilio($data['domicilio']);
+
+        $resultado = null;
+
+        DB::beginTransaction();
+        try {
+            $persona = TbClientes::create(array_merge($this->datosPersona($data), [
+                'Activo' => true,
+                'CoincideEnListasNegras' => 0,
+                'EsPPEActivo' => false,
+                'EsAltoRiesgo' => false,
+            ]));
+
+            $persona->domicilios()->create($domicilio);
+
+            $resultado = app(RegistroPLDService::class)
+                ->analizarYRegistrar($persona, [$domicilio]);
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al crear '.$this->sustantivoSingular.': '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withInput()->withErrors([
+                'general' => 'No se pudo crear el '.$this->sustantivoSingular.'. Intenta nuevamente.',
+            ]);
+        }
+
+        app(RegistroPLDService::class)->notificar($persona, $resultado);
+
+        $message = ucfirst($this->sustantivoSingular).' creado correctamente.';
+        if ($resultado['personaBloqueada'] ?? false) {
+            $message .= ' Cuenta con coincidencias en listas.';
+        }
+        if ($resultado['esPPE'] ?? false) {
+            $message .= ' Fue detectado como PPE.';
+        }
+        if ($resultado['esAltoRiesgo'] ?? false) {
+            $message .= ' Fue marcado como alto riesgo.';
+        }
+
+        return redirect()->back()->with('toast', [
+            'type' => 'success',
+            'message' => $message,
+        ]);
+    }
+
+    public function update(Request $request, TbClientes $id_cliente)
+    {
+        abort_unless($id_cliente->TipoPersona === $this->tipoPersona, 404);
+
+        $data = $this->validarPersona($request, $id_cliente->IDCliente);
+        $domicilio = $this->normalizarDomicilio($data['domicilio']);
+
+        $resultado = null;
+
+        DB::beginTransaction();
+        try {
+            $id_cliente->update($this->datosPersona($data));
+
+            $id_cliente->domicilios()->delete();
+            $id_cliente->domicilios()->create($domicilio);
+
+            $resultado = app(RegistroPLDService::class)
+                ->analizarYRegistrar($id_cliente, [$domicilio], 'Detectado');
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al actualizar '.$this->sustantivoSingular.': '.$e->getMessage(), [
+                'IDCliente' => $id_cliente->IDCliente,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withInput()->withErrors([
+                'general' => 'No se pudo actualizar el '.$this->sustantivoSingular.'. Intenta nuevamente.',
+            ]);
+        }
+
+        app(RegistroPLDService::class)->notificar($id_cliente, $resultado);
+
+        $message = ucfirst($this->sustantivoSingular).' actualizado correctamente.';
+        if ($resultado['personaBloqueada'] ?? false) {
+            $message .= ' Cuenta con coincidencias en listas.';
+        }
+        if ($resultado['esPPE'] ?? false) {
+            $message .= ' Fue detectado como PPE.';
+        }
+        if ($resultado['esAltoRiesgo'] ?? false) {
+            $message .= ' Fue marcado como alto riesgo.';
+        }
+
+        return redirect()->back()->with('toast', [
+            'type' => 'success',
+            'message' => $message,
+        ]);
+    }
+
+    public function alternarEstatus(TbClientes $id_cliente)
+    {
+        abort_unless($id_cliente->TipoPersona === $this->tipoPersona, 404);
+
+        $id_cliente->Activo = ! $id_cliente->Activo;
+        $id_cliente->save();
+
+        $estado = $id_cliente->Activo ? 'activado' : 'desactivado';
+
+        return redirect()->back()->with('toast', [
+            'type' => 'success',
+            'message' => ucfirst($this->sustantivoSingular).' '.$estado.' correctamente.',
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validarPersona(Request $request, ?int $idCliente = null): array
+    {
+        if ($request->filled('RFC')) {
+            $request->merge(['RFC' => strtoupper(trim((string) $request->input('RFC')))]);
+        }
+        if ($request->filled('CURP')) {
+            $request->merge(['CURP' => strtoupper(trim((string) $request->input('CURP')))]);
+        }
+
+        $esFisica = (string) $request->input('IDTipoPersona') === '1';
+
+        $data = $request->validate([
+            'IDTipoPersona' => ['required', 'integer', 'in:1,2'],
+            'RFC' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('tbClientes', 'RFC')->ignore($idCliente, 'IDCliente'),
+            ],
+            'Nombre' => ['nullable', 'string', 'max:255', Rule::requiredIf($esFisica)],
+            'ApellidoPaterno' => ['nullable', 'string', 'max:255', Rule::requiredIf($esFisica)],
+            'ApellidoMaterno' => ['nullable', 'string', 'max:255'],
+            'RazonSocial' => ['nullable', 'string', 'max:255', Rule::requiredIf(! $esFisica)],
+            'CURP' => ['nullable', 'string', 'max:18'],
+            'IDNacionalidad' => ['required', 'string', 'exists:catNacionalidad,IDNacionalidad'],
+            'IDOcupacionGiro' => ['nullable', 'integer', 'exists:catOcupacionesGiros,IDOcupacionGiro'],
+            'FechaNacimiento' => ['nullable', 'date'],
+            'FechaConstitucion' => ['nullable', 'date'],
+            'FolioMercantil' => ['nullable', 'string', 'max:255'],
+            'IDEstadoNacimiento' => ['nullable', 'string', 'max:10', 'exists:catEstados,IDEstado'],
+            'IngresosEstimados' => ['nullable', 'numeric', 'min:0'],
+            'Preguntas' => ['nullable', 'string'],
+
+            'domicilio' => ['required', 'array'],
+            'domicilio.Calle' => ['required', 'string', 'max:255'],
+            'domicilio.NoExterior' => ['nullable', 'string', 'max:255'],
+            'domicilio.NoInterior' => ['nullable', 'string', 'max:255'],
+            'domicilio.Colonia' => ['required', 'string', 'max:255'],
+            'domicilio.CP' => ['required', 'string', 'max:10'],
+            'domicilio.IDEstado' => ['required', 'exists:catEstados,IDEstado'],
+            'domicilio.Municipio' => ['required', 'string', 'max:255'],
+            'domicilio.Localidad' => ['nullable', 'string', 'max:255'],
+            'domicilio.Telefono' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $data['RFC'] = strtoupper(trim($data['RFC']));
+        if (! empty($data['CURP'])) {
+            $data['CURP'] = strtoupper(trim($data['CURP']));
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function datosPersona(array $data): array
+    {
+        $esFisica = (int) $data['IDTipoPersona'] === 1;
+        $idOcupacionGiro = $data['IDOcupacionGiro'] ?? null;
+
+        if (empty($idOcupacionGiro) && $this->tipoPersona === TbClientes::TIPO_COLABORADOR) {
+            $idOcupacionGiro = $this->ocupacionPorDefectoColaborador();
+        }
+
+        return [
+            'RFC' => $data['RFC'],
+            'Nombre' => $esFisica ? ($data['Nombre'] ?? null) : null,
+            'ApellidoPaterno' => $esFisica ? ($data['ApellidoPaterno'] ?? null) : null,
+            'ApellidoMaterno' => $esFisica ? ($data['ApellidoMaterno'] ?? null) : null,
+            'RazonSocial' => $esFisica ? null : ($data['RazonSocial'] ?? null),
+            'IDTipoPersona' => $data['IDTipoPersona'],
+            'CURP' => $esFisica ? ($data['CURP'] ?? null) : null,
+            'IDOcupacionGiro' => $idOcupacionGiro,
+            'FechaNacimiento' => $esFisica ? ($data['FechaNacimiento'] ?? null) : null,
+            'FechaConstitucion' => $esFisica ? null : ($data['FechaConstitucion'] ?? null),
+            'FolioMercantil' => $data['FolioMercantil'] ?? null,
+            'IDNacionalidad' => $data['IDNacionalidad'],
+            'IDEstadoNacimiento' => $data['IDEstadoNacimiento'] ?? null,
+            'IngresosEstimados' => $data['IngresosEstimados'] ?? null,
+            'Preguntas' => $data['Preguntas'] ?? null,
+            'TipoPersona' => $this->tipoPersona,
+            'ckAgente' => $this->tipoPersona === TbClientes::TIPO_AGENTE ? 1 : 0,
+        ];
+    }
+
+    private function ocupacionPorDefectoColaborador(): ?int
+    {
+        $id = CatOcupacionesGiros::where('OcupacionGiro', 'like', 'Empleado del sector privado%')
+            ->value('IDOcupacionGiro');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $domicilio
+     * @return array<string, mixed>
+     */
+    private function normalizarDomicilio(array $domicilio): array
+    {
+        return [
+            'Calle' => $domicilio['Calle'],
+            'NoExterior' => $domicilio['NoExterior'] ?? null,
+            'NoInterior' => $domicilio['NoInterior'] ?? null,
+            'Colonia' => $domicilio['Colonia'],
+            'CP' => $domicilio['CP'],
+            'IDEstado' => (string) $domicilio['IDEstado'],
+            'Municipio' => $domicilio['Municipio'],
+            'Localidad' => $domicilio['Localidad'] ?? null,
+            'Telefono' => $domicilio['Telefono'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function catalogosPersona(): array
+    {
+        return [
+            'tiposPersona' => CatTipoPersona::orderBy('IDTipoPersona')
+                ->get(['IDTipoPersona', 'TipoPersona']),
+            'nacionalidades' => CatNacionalidad::orderBy('Nacionalidad')
+                ->get(['IDNacionalidad', 'Nacionalidad']),
+            'ocupaciones' => CatOcupacionesGiros::orderBy('OcupacionGiro')
+                ->get(['IDOcupacionGiro', 'OcupacionGiro', 'NivelRiesgo']),
+            'estados' => CatEstados::orderBy('Estado')
+                ->get(['IDEstado', 'Estado']),
+        ];
+    }
+
+    /**
+     * Metadatos del módulo usados por las vistas compartidas de Inertia.
+     */
+    protected function moduloProps(): array
+    {
+        return [
+            'basePath' => $this->rutaBase,
+            'titulo' => $this->tituloModulo,
+            'singular' => $this->sustantivoSingular,
+            'plural' => $this->sustantivoPlural,
+            'tipoPersona' => $this->tipoPersona,
+        ];
     }
 }

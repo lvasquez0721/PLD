@@ -10,10 +10,13 @@ use App\Models\Clientes\CatTipoPersona;
 use App\Models\Clientes\TbClientes;
 use App\Models\TbAlertas;
 use App\Models\TbReporteRegulatorioPLD;
+use App\Services\PLD\OcupacionResolver;
 use App\Services\PLD\ReporteRegulatorioService;
 use App\Support\Curp;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ReporteOperacionesController extends Controller
@@ -99,7 +102,8 @@ class ReporteOperacionesController extends Controller
         $filtros = $request->only(['tipo_reporte', 'estatus', 'fecha_ini', 'fecha_fin']);
 
         $alertas = $this->construirQuery($filtros)
-            ->orderBy('a.created_at', 'desc')
+            ->orderByRaw('COALESCE(a.created_at, a.updated_at) DESC')
+            ->orderByDesc('a.IDRegistroAlerta')
             ->get();
 
         return response()->json(['alertas' => $alertas]);
@@ -108,10 +112,10 @@ class ReporteOperacionesController extends Controller
     public function exportarCSV(Request $request)
     {
         $validated = $request->validate([
-            'ids'          => 'nullable|array',
-            'ids.*'        => 'integer',
+            'ids' => 'nullable|array',
+            'ids.*' => 'integer',
             'tipo_reporte' => 'required|string|in:Monto,Monto Inusual,Nuevo,Todos,Todas',
-            'con_headers'  => 'nullable|boolean',
+            'con_headers' => 'nullable|boolean',
         ]);
 
         $tipo = $validated['tipo_reporte'] === 'Todas' ? 'Todos' : $validated['tipo_reporte'];
@@ -125,7 +129,10 @@ class ReporteOperacionesController extends Controller
             $query->whereIn('a.IDRegistroAlerta', $validated['ids']);
         }
 
-        $alertas = $query->orderBy('a.created_at', 'desc')->get();
+        $alertas = $query
+            ->orderByRaw('COALESCE(a.created_at, a.updated_at) DESC')
+            ->orderByDesc('a.IDRegistroAlerta')
+            ->get();
 
         if ($alertas->isEmpty()) {
             return response()->json(['message' => 'No hay datos para exportar'], 404);
@@ -167,10 +174,15 @@ class ReporteOperacionesController extends Controller
 
             // Filtrar filas totalmente vacías para no generar un registro en blanco extra
             $filas = array_values(array_filter($filas, function ($fila) {
-                if (! is_array($fila)) return false;
-                foreach ($fila as $celda) {
-                    if (trim((string) $celda) !== '') return true;
+                if (! is_array($fila)) {
+                    return false;
                 }
+                foreach ($fila as $celda) {
+                    if (trim((string) $celda) !== '') {
+                        return true;
+                    }
+                }
+
                 return false;
             }));
 
@@ -208,8 +220,8 @@ class ReporteOperacionesController extends Controller
     public function reportar(Request $request)
     {
         $validated = $request->validate([
-            'ids'          => 'required|array|min:1',
-            'ids.*'        => 'integer',
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
             'tipo_reporte' => 'nullable|string|in:Monto,Monto Inusual,Nuevo,Todos,Todas',
         ]);
 
@@ -246,7 +258,7 @@ class ReporteOperacionesController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error al reportar operaciones', [
+            Log::error('Error al reportar operaciones', [
                 'ids' => $validated['ids'],
                 'exception' => $e->getMessage(),
             ]);
@@ -256,7 +268,7 @@ class ReporteOperacionesController extends Controller
 
         return response()->json([
             'message' => 'Se reportaron '.count($alertas).' registro(s) correctamente.',
-            'count'   => count($alertas),
+            'count' => count($alertas),
         ]);
     }
 
@@ -302,7 +314,7 @@ class ReporteOperacionesController extends Controller
                 // Se incluye IS NULL porque NOT IN por sí solo excluye los nulos en MySQL.
                 $query->where(function ($q) {
                     $q->whereNotIn('a.Patron', self::PATRONES_PROPIOS)
-                      ->orWhereNull('a.Patron');
+                        ->orWhereNull('a.Patron');
                 });
             } elseif (isset(self::TIPOS_REPORTE[$tipo])) {
                 $query->whereIn('a.Patron', self::TIPOS_REPORTE[$tipo]);
@@ -341,10 +353,10 @@ class ReporteOperacionesController extends Controller
     private function construirNombreArchivo(string $tipo): string
     {
         $prefijo = match ($tipo) {
-            'Monto'         => '1',
+            'Monto' => '1',
             'Monto Inusual' => '2',
-            'Nuevo'         => '3',
-            default         => '0',
+            'Nuevo' => '3',
+            default => '0',
         };
 
         $periodo = $tipo === 'Monto' ? now()->format('ym') : now()->format('ymd');
@@ -358,11 +370,13 @@ class ReporteOperacionesController extends Controller
         // No crea registro, solo genera filas para descarga sin cambiar estatus.
         $codigosMoneda = ['MXN' => '1', 'USD' => '2', '001' => '1', '002' => '2', '01' => '1', '02' => '2', '1' => '1', '2' => '2'];
         $ocupacionesPorId = CatOcupacionesGiros::pluck('CVE_GIRO', 'IDOcupacionGiro');
+        $resolverOcupacion = app(OcupacionResolver::class);
 
         [, $clientes] = $this->contextoClientes($alertas);
 
         $folio = 0;
-        return $alertas->map(function ($a) use ($codigosMoneda, $ocupacionesPorId, $clientes, &$folio) {
+
+        return $alertas->map(function ($a) use ($codigosMoneda, $ocupacionesPorId, $resolverOcupacion, $clientes, &$folio) {
             $folio++;
             $tipoReporte = match ($a->Patron) {
                 'Monto' => '1',
@@ -375,11 +389,19 @@ class ReporteOperacionesController extends Controller
             $rawMoneda = strtoupper(trim((string) ($a->IDMoneda ?? '')));
             $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '1');
             $moneda = ltrim((string) $moneda, '0');
-            if ($moneda === '') $moneda = '0';
-            if (! in_array($moneda, ['1','2'], true)) $moneda = '1';
+            if ($moneda === '') {
+                $moneda = '0';
+            }
+            if (! in_array($moneda, ['1', '2'], true)) {
+                $moneda = '1';
+            }
             $instrumento = trim((string) ($a->InstrumentoMonetario ?? ''));
-            if ($instrumento === '') $instrumento = '01';
-            if (is_numeric($instrumento)) $instrumento = str_pad($instrumento, 2, '0', STR_PAD_LEFT);
+            if ($instrumento === '') {
+                $instrumento = '01';
+            }
+            if (is_numeric($instrumento)) {
+                $instrumento = str_pad($instrumento, 2, '0', STR_PAD_LEFT);
+            }
 
             // Col.14 FechaDeteccion vacía solo en Monto (tipo 1)
             $fechaDeteccion = $tipoReporte === '1' ? '' : $this->formatearFecha($a->FechaDeteccion);
@@ -410,6 +432,9 @@ class ReporteOperacionesController extends Controller
             $fechaNacimiento = $this->fechaNacimientoCliente($cliente, $tipoPersonaVal);
             $ciudad = $this->claveLocalidad($domicilio);
             $ocupacion = $this->claveOcupacion($cliente?->IDOcupacionGiro, $ocupacionesPorId);
+            if ($ocupacion === '' && mb_strtolower(trim((string) ($a->Patron ?? ''))) === 'nuevo') {
+                $ocupacion = $resolverOcupacion->resolverDesdePersona($cliente);
+            }
 
             return [
                 $this->limpiar($tipoReporte),
@@ -461,11 +486,12 @@ class ReporteOperacionesController extends Controller
     {
         $codigosMoneda = ['MXN' => '1', 'USD' => '2', '001' => '1', '002' => '2', '01' => '1', '02' => '2', '1' => '1', '2' => '2'];
 
-        $tiposPersona   = CatTipoPersona::pluck('IDTipoPersona', 'TipoPersona');
-        $formasPago     = CatFormaPagos::pluck('IDFormaPago', 'FormaPago');
+        $tiposPersona = CatTipoPersona::pluck('IDTipoPersona', 'TipoPersona');
+        $formasPago = CatFormaPagos::pluck('IDFormaPago', 'FormaPago');
         $nacionalidades = CatNacionalidad::pluck('IDNacionalidad', 'Nacionalidad');
-        $ocupaciones    = CatOcupacionesGiros::pluck('CVE_GIRO', 'OcupacionGiro');
+        $ocupaciones = CatOcupacionesGiros::pluck('CVE_GIRO', 'OcupacionGiro');
         $ocupacionesPorId = CatOcupacionesGiros::pluck('CVE_GIRO', 'IDOcupacionGiro');
+        $resolverOcupacion = app(OcupacionResolver::class);
 
         // Datos actuales de cliente/domicilio para completar campos que el
         // reporte regulatorio haya guardado vacíos (p. ej. fecha de nacimiento,
@@ -496,7 +522,7 @@ class ReporteOperacionesController extends Controller
 
         $folio = 0;
 
-        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupaciones, $ocupacionesPorId, $alertasPorRegistro, $clientes, $formasPagoUpper, $tiposPersonaUpper, $nacionalidadesUpper, $ocupacionesUpper, &$folio) {
+        return $reportes->map(function ($r) use ($codigosMoneda, $tiposPersona, $formasPago, $nacionalidades, $ocupacionesPorId, $resolverOcupacion, $alertasPorRegistro, $clientes, $formasPagoUpper, $tiposPersonaUpper, $nacionalidadesUpper, $ocupacionesUpper, &$folio) {
             $folio++;
 
             $alerta = $alertasPorRegistro->get($r->IDRegistroAlerta);
@@ -528,12 +554,16 @@ class ReporteOperacionesController extends Controller
             $rawMoneda = strtoupper(trim((string) ($r->IDMoneda ?? '')));
             $moneda = $codigosMoneda[$rawMoneda] ?? ($rawMoneda !== '' ? $rawMoneda : '1');
             $moneda = ltrim((string) $moneda, '0');
-            if ($moneda === '') $moneda = '0';
+            if ($moneda === '') {
+                $moneda = '0';
+            }
             if (! in_array($moneda, ['1', '2'], true)) {
                 // Si viene texto como "PESOS" o ID numérico desconocido, fallback 1
                 $moneda = $codigosMoneda[$rawMoneda] ?? '1';
                 $moneda = ltrim((string) $moneda, '0');
-                if ($moneda === '' || ! in_array($moneda, ['1', '2'], true)) $moneda = '1';
+                if ($moneda === '' || ! in_array($moneda, ['1', '2'], true)) {
+                    $moneda = '1';
+                }
             }
 
             // Nacionalidad: si viene texto "Mexicana" mapea a "MX", si ya es código deja igual
@@ -562,6 +592,11 @@ class ReporteOperacionesController extends Controller
             $ocupacion = $this->claveOcupacion($r->Ocupacion, $ocupacionesPorId, $ocupacionesUpper);
             if ($ocupacion === '' && $cliente) {
                 $ocupacion = $this->claveOcupacion($cliente->IDOcupacionGiro, $ocupacionesPorId);
+            }
+            $esNuevo = ((int) ($r->IDTipoReporte ?? 0) === 3)
+                || mb_strtolower(trim((string) ($r->TipoReporte ?? ''))) === 'nuevo';
+            if ($ocupacion === '' && $esNuevo) {
+                $ocupacion = $resolverOcupacion->resolverDesdePersona($cliente);
             }
 
             // Coherencia PF/PM para columnas Nombre/RazonSocial/CURP (defensa en capa de exportación)
@@ -604,7 +639,9 @@ class ReporteOperacionesController extends Controller
 
             // Col.34 consecutivo: operación principal sin relacionados = 00
             $cuenta = trim((string) ($r->Cuenta ?? ''));
-            if ($cuenta === '') $cuenta = '00';
+            if ($cuenta === '') {
+                $cuenta = '00';
+            }
 
             return [
                 $this->limpiar($r->IDTipoReporte),
@@ -673,7 +710,7 @@ class ReporteOperacionesController extends Controller
     /**
      * Indexa alertas y clientes para completar datos faltantes del reporte.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     * @return array{0: Collection, 1: Collection}
      */
     private function contextoClientes($alertas): array
     {
@@ -773,7 +810,7 @@ class ReporteOperacionesController extends Controller
     {
         $municipio = trim((string) ($domicilio->Municipio ?? ''));
         $localidad = trim((string) ($domicilio->Localidad ?? ''));
-        $objetivo  = $municipio !== '' ? $municipio : $localidad;
+        $objetivo = $municipio !== '' ? $municipio : $localidad;
         if ($objetivo === '') {
             return '';
         }
@@ -781,7 +818,7 @@ class ReporteOperacionesController extends Controller
         $catalogo = $this->catalogoLocalidades();
 
         $mejorClave = '';
-        $mejorSim   = -1;
+        $mejorSim = -1;
         foreach ($catalogo as $clave => $nombreNorm) {
             $sim = similar_text($this->normalizarTexto($objetivo), $nombreNorm);
             if ($sim > $mejorSim) {
@@ -875,6 +912,7 @@ class ReporteOperacionesController extends Controller
             if ($nombre !== '' && $paterno === '' && $materno !== '') {
                 $paterno = 'XXXX';
             }
+
             return [$nombre, $paterno, $materno];
         }
 
@@ -887,11 +925,13 @@ class ReporteOperacionesController extends Controller
         if (count($tokens) >= 3) {
             $mat = array_pop($tokens);
             $pat = array_pop($tokens);
+
             return [implode(' ', $tokens), $pat, $mat];
         }
         if (count($tokens) === 2) {
             return [$tokens[0], $tokens[1], ''];
         }
+
         return [$tokens[0], 'XXXX', ''];
     }
 

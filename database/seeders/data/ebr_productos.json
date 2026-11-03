@@ -1,0 +1,62 @@
+[
+  {
+    "producto": "Acuícola para peces",
+    "ramo": "Otros",
+    "grupo": "Otro"
+  },
+  {
+    "producto": "Agrícola por planta",
+    "ramo": "Agrícola",
+    "grupo": "Otro"
+  },
+  {
+    "producto": "Alta Mortalidad por Enfermedad y Accidente",
+    "ramo": "Ganadero",
+    "grupo": "Ganadero"
+  },
+  {
+    "producto": "Ganadero",
+    "ramo": "Ganadero",
+    "grupo": "Ganadero"
+  },
+  {
+    "producto": "Ganadero para Pastoreo",
+    "ramo": "Ganadero",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Catastrófico Básico",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Catastrófico Básico (Multicultivo)",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Catastrófico Multicultivo",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Catastrófico Paramétrico Satelital",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Elemental",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "SECA",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  },
+  {
+    "producto": "Tabaco - Nayarit Veracruz",
+    "ramo": "Agrícola",
+    "grupo": "Agrícola"
+  }
+]

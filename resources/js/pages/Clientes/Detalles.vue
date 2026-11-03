@@ -37,14 +37,37 @@ const props = defineProps<{
     listasUIF: any[]
     sistemasDelCliente: any[]
     esAltoRiesgo?: boolean
+    perfilAltoRiesgo?: boolean
     factoresRiesgo?: string[]
+    motivosPerfilRiesgo?: string[]
     indicadores?: any
     catalogos?: any
+    modulo?: {
+        basePath: string
+        titulo: string
+        singular: string
+        plural: string
+        tipoPersona: string
+    }
 }>()
 
+const modulo = computed(() => ({
+    basePath: props.modulo?.basePath ?? '/clientes',
+    titulo: props.modulo?.titulo ?? 'Clientes',
+    singular: props.modulo?.singular ?? 'cliente',
+    plural: props.modulo?.plural ?? 'clientes',
+    tipoPersona: props.modulo?.tipoPersona ?? 'Cliente',
+}))
+
+const basePath = computed(() => modulo.value.basePath)
+const tituloModulo = computed(() => modulo.value.titulo)
+const sujeto = computed(() => modulo.value.singular)
+const sujetoCapitalizado = computed(() => sujeto.value.charAt(0).toUpperCase() + sujeto.value.slice(1))
+const esCliente = computed(() => modulo.value.tipoPersona === 'Cliente')
+
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Clientes', href: '/clientes' },
-    { title: 'Detalles del cliente', href: '#' },
+    { title: tituloModulo.value, href: basePath.value },
+    { title: `Detalles del ${sujeto.value}`, href: '#' },
 ]
 
 // --- STATE MANAGEMENT ---
@@ -52,16 +75,22 @@ const activeTab = ref('resumen')
 const activandoCliente = ref(false)
 const showActivarClienteModal = ref(false)
 
-const navItems = [
-    { id: 'resumen', label: 'Resumen', icon: FileText },
-    { id: 'info', label: 'Datos Generales', icon: User },
-    { id: 'dom', label: 'Domicilios', icon: Home },
-    { id: 'op', label: 'Operaciones', icon: Briefcase },
-    { id: 'detalles', label: 'Estadísticas cliente', icon: Gauge },
-    { id: 'alertas', label: 'Alertas PLD', icon: ShieldAlert },
-    { id: 'listas', label: 'Listas de Observación', icon: BookX },
-    { id: 'perfil', label: 'Perfil Transaccional', icon: ClipboardList },
-]
+const navItems = computed(() => {
+    const items = [
+        { id: 'resumen', label: 'Resumen', icon: FileText },
+        { id: 'info', label: 'Datos Generales', icon: User },
+        { id: 'dom', label: 'Domicilios', icon: Home },
+        { id: 'op', label: 'Operaciones', icon: Briefcase },
+        { id: 'detalles', label: `Estadísticas ${sujeto.value}`, icon: Gauge },
+        { id: 'alertas', label: 'Alertas PLD', icon: ShieldAlert },
+        { id: 'listas', label: 'Listas de Observación', icon: BookX },
+        { id: 'perfil', label: 'Perfil Transaccional', icon: ClipboardList },
+    ]
+
+    return esCliente.value
+        ? items
+        : items.filter((item) => !['op', 'detalles', 'perfil'].includes(item.id))
+})
 
 // --- BACK BUTTON HANDLER ---
 function goBack() {
@@ -72,7 +101,7 @@ function activarCliente() {
     if (activandoCliente.value || isClienteActivo.value) return
 
     activandoCliente.value = true
-    router.post(`/clientes/${props.cliente.IDCliente}/activar`, {}, {
+    router.post(`${basePath.value}/${props.cliente.IDCliente}/activar`, {}, {
         preserveScroll: true,
         onSuccess: () => {
             router.reload({ only: ['cliente'] })
@@ -135,6 +164,12 @@ const esAltoRiesgo = computed(() => {
     return flag === true || flag === 1 || flag === '1'
 })
 const factoresRiesgo = computed(() => props.factoresRiesgo ?? [])
+const perfilAltoRiesgo = computed(() => {
+    if (props.perfilAltoRiesgo === true) return true
+    const perfil = Number(props.perfilTransaccional?.Perfil)
+    return Number.isFinite(perfil) && perfil >= 2
+})
+const motivosPerfilRiesgo = computed(() => props.motivosPerfilRiesgo ?? [])
 
 const personaTipo = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? 'Persona Física' : 'Persona Moral')
 const personaIcon = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? UserCircle : Building)
@@ -444,12 +479,12 @@ function limpiarFiltros() {
 
 /** Exporta TODAS las operaciones del cliente (no solo las filtradas). */
 function exportarOperacionesCsv() {
-    window.location.href = `/clientes/${props.cliente.IDCliente}/operaciones/exportar`
+    window.location.href = `${basePath.value}/${props.cliente.IDCliente}/operaciones/exportar`
 }
 
 /** Exporta las estadísticas del cliente, con una fila por moneda. */
 function exportarEstadisticasCsv() {
-    window.location.href = `/clientes/${props.cliente.IDCliente}/estadisticas/exportar`
+    window.location.href = `${basePath.value}/${props.cliente.IDCliente}/estadisticas/exportar`
 }
 
 // ============================================================================
@@ -698,7 +733,7 @@ const opcionesTipoPago = computed(() => {
                     </div>
                     <div class="mt-4 space-y-1 text-xs">
                         <div class="flex items-center gap-2 text-gray-600 dark:text-neutral-300">
-                            <span class="w-15 font-semibold">ID Cliente </span>
+                            <span class="w-15 font-semibold">ID {{ sujetoCapitalizado }} </span>
                             <span class="font-mono">{{ props.cliente.IDCliente }}</span>
                         </div>
                         <div class="flex items-center gap-2 text-gray-600 dark:text-neutral-300">
@@ -741,7 +776,7 @@ const opcionesTipoPago = computed(() => {
                                 v-if="activandoCliente"
                                 class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
                             ></span>
-                            {{ activandoCliente ? 'Activando...' : 'Activar cliente' }}
+                            {{ activandoCliente ? 'Activando...' : `Activar ${sujeto}` }}
                         </button>
                     </div>
                     <div class="mt-4 flex flex-wrap gap-2 text-xs">
@@ -798,14 +833,14 @@ const opcionesTipoPago = computed(() => {
                     <div :key="activeTab">
                         <!-- RESUMEN -->
                         <section v-if="activeTab === 'resumen'" class="space-y-6">
-                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Resumen del Cliente</h2>
+                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Resumen del {{ sujetoCapitalizado }}</h2>
 
                             <!-- Nueva Sección: Cliente fuera de categoría -->
                             <div v-if="isOutCategory" class="rounded-xl border-2 border-dashed border-red-400 bg-red-50/60 p-6 text-center flex flex-col items-center gap-2 dark:border-red-700 dark:bg-red-900/30">
                               <AlertCircle class="w-8 h-8 text-red-500 mb-1" />
-                              <h3 class="font-bold text-red-800 dark:text-red-200 text-lg mb-1">Cliente fuera de categoría</h3>
+                              <h3 class="font-bold text-red-800 dark:text-red-200 text-lg mb-1">{{ sujetoCapitalizado }} fuera de categoría</h3>
                               <div class="text-sm text-red-700 dark:text-red-200">
-                                <span>Este cliente está fuera de categoría por la/s razón/es:</span>
+                                <span>Este {{ sujeto }} está fuera de categoría por la/s razón/es:</span>
                                 <ul class="mt-2 list-disc list-inside text-left mx-auto w-fit">
                                   <li v-for="reason in outCategoryReasons" :key="reason">{{ reason }}</li>
                                 </ul>
@@ -816,7 +851,7 @@ const opcionesTipoPago = computed(() => {
                             <!-- Cliente de alto riesgo -->
                             <div v-if="esAltoRiesgo" class="rounded-xl border-2 border-dashed border-red-400 bg-red-50/60 p-6 text-center flex flex-col items-center gap-2 dark:border-red-700 dark:bg-red-900/30">
                               <ShieldAlert class="w-8 h-8 text-red-500 mb-1" />
-                              <h3 class="font-bold text-red-800 dark:text-red-200 text-lg mb-1">Cliente de alto riesgo</h3>
+                              <h3 class="font-bold text-red-800 dark:text-red-200 text-lg mb-1">{{ sujetoCapitalizado }} de alto riesgo</h3>
                               <div class="text-sm text-red-700 dark:text-red-200">
                                 <span>Se detectó un perfil de alto riesgo por:</span>
                                 <ul v-if="factoresRiesgo.length" class="mt-2 list-disc list-inside text-left mx-auto w-fit">
@@ -864,7 +899,7 @@ const opcionesTipoPago = computed(() => {
                              <div v-if="!hasAlerts && !onBlacklist" class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 p-12 text-center dark:border-neutral-700 dark:bg-neutral-900/50">
                                  <CheckCircle class="h-12 w-12 text-green-500" />
                                  <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">Todo en Orden</h3>
-                                 <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">Este cliente no presenta alertas activas ni coincidencias en listas de observación.</p>
+                                 <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">Este {{ sujeto }} no presenta alertas activas ni coincidencias en listas de observación.</p>
                              </div>
                         </section>
 
@@ -915,7 +950,7 @@ const opcionesTipoPago = computed(() => {
                                          <dd class="mt-1 font-semibold" :class="props.cliente.EsPPEActivo ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'">{{ props.cliente.EsPPEActivo ? 'Sí' : 'No' }}</dd>
                                      </div>
                                      <div>
-                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Estatus del cliente</dt>
+                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Estatus del {{ sujeto }}</dt>
                                          <dd class="mt-1">
                                              <span
                                                  class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -1240,7 +1275,7 @@ const opcionesTipoPago = computed(() => {
                             <div class="rounded-xl border border-gray-200/80 bg-white/70 p-6 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
-                                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Estadísticas cliente</h2>
+                                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Estadísticas {{ sujeto }}</h2>
                                         <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">
                                             Promedios, sumas y moda de las primas de todas las operaciones del cliente.
                                         </p>
@@ -1468,7 +1503,7 @@ const opcionesTipoPago = computed(() => {
                                     <pre v-else class="mt-1 whitespace-pre-wrap rounded-md bg-gray-100/70 p-2 text-xs text-gray-800 dark:bg-neutral-800/50 dark:text-neutral-200">{{ formatEvidenceText(alerta.Evidencias) }}</pre>
                                 </div>
                             </div>
-                            <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin alertas para este cliente.</div>
+                            <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin alertas para este {{ sujeto }}.</div>
                         </section>
 
                         <!-- LISTAS DE OBSERVACIÓN -->
@@ -1507,6 +1542,22 @@ const opcionesTipoPago = computed(() => {
                                      <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Riesgo Nacionalidad</dt><dd class="mt-1 font-semibold text-gray-800 dark:text-neutral-200">{{ riesgoNombre(props.perfilTransaccional.NivelRiesgoNac) }}</dd></div>
                                      <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Riesgo Residencia</dt><dd class="mt-1 font-semibold text-gray-800 dark:text-neutral-200">{{ riesgoNombre(props.perfilTransaccional.NivelRiesgoResidencia) }}</dd></div>
                                 </dl>
+
+                                <div
+                                    v-if="perfilAltoRiesgo"
+                                    class="mt-5 rounded-lg border border-red-200 bg-red-50/80 p-4 dark:border-red-800/60 dark:bg-red-900/20"
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <ShieldAlert class="h-4 w-4 text-red-600 dark:text-red-300" />
+                                        <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">Motivo de clasificación de alto riesgo</h4>
+                                    </div>
+                                    <ul v-if="motivosPerfilRiesgo.length" class="mt-2 list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-200">
+                                        <li v-for="motivo in motivosPerfilRiesgo" :key="motivo">{{ motivo }}</li>
+                                    </ul>
+                                    <p v-else class="mt-2 text-sm text-red-700 dark:text-red-200">
+                                        El perfil transaccional tiene una clasificación de alto riesgo (Perfil {{ props.perfilTransaccional.Perfil }}).
+                                    </p>
+                                </div>
                             </div>
                              <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin perfil transaccional registrado.</div>
                         </section>

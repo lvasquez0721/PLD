@@ -92,6 +92,8 @@ interface Alerta {
     Descripcion: string;
     Razones: string;
     Evidencias: string;
+    TipoPersona?: string | null;
+    IDTipoPersona?: number | string | null;
 }
 
 type PaginationLink = {
@@ -129,12 +131,14 @@ const selectedAlertaId = ref<number | null>(null);
 
 const patron = ref('Nuevo');
 const monto = ref<number | ''>('');
+const rol = ref('');
 const nombre = ref('');
-const noCliente = ref('');
 const agente = ref('');
+const agenteNombre = ref('');
 const instrumento = ref('');
 const moneda = ref('');
 const estatus = ref('');
+const fechaOperacion = ref('');
 const descripcionOperacion = ref('');
 const razones = ref('');
 const evidencias = ref<File[]>([]);
@@ -146,9 +150,21 @@ const errorGeneral = ref<string | null>(null);
 const erroresValidacion = ref<Record<string, string[]>>({});
 
 const opcionesNombre = ref<{ value: string; label: string }[]>([]);
-const opcionesPoliza = ref<{ value: string; label: string }[]>([]);
+const opcionesPoliza = ref<
+    {
+        value: string;
+        label: string;
+        agente_id?: number | null;
+        agente_rfc?: string | null;
+        agente_nombre?: string | null;
+    }[]
+>([]);
 const poliza = ref('');
-const opcionesAgente = ref<{ value: string; label: string }[]>([]);
+const opcionesRol = [
+    { value: 'Cliente', label: 'Cliente' },
+    { value: 'Agente', label: 'Agente' },
+    { value: 'Colaborador', label: 'Colaborador' },
+];
 const opcionesInstrumento = ref<{ value: string; label: string }[]>([]);
 const opcionesMoneda = ref<{ value: string; label: string }[]>([]);
 const opcionesFiltroPatron = ref<{ value: string; label: string }[]>([]);
@@ -160,6 +176,60 @@ const opcionesEstatus = ref<{ value: string; label: string }[]>([
     { value: 'Por reportar', label: 'Por reportar' },
     { value: 'Enviado', label: 'Enviado' }
 ]);
+
+function nombrePersona(persona: any): string {
+    const razonSocial = String(persona?.RazonSocial ?? '').trim();
+    if (razonSocial !== '') return razonSocial;
+
+    return [
+        persona?.Nombre ?? '',
+        persona?.ApellidoPaterno ?? '',
+        persona?.ApellidoMaterno ?? '',
+    ].filter(Boolean).join(' ').trim();
+}
+
+function etiquetaPersona(persona: any): string {
+    const nombre = nombrePersona(persona) || `ID ${persona?.IDCliente ?? ''}`;
+    const tipo = Number(persona?.IDTipoPersona) === 1
+        ? 'Física'
+        : Number(persona?.IDTipoPersona) === 2
+            ? 'Moral'
+            : '';
+
+    return tipo ? `${nombre} — ${tipo}` : nombre;
+}
+
+function cargarOpcionesNombre(rolSeleccionado: string) {
+    const props = page.props as any;
+    const listas: Record<string, any[]> = {
+        Cliente: props.clientes ?? [],
+        Agente: props.agentes ?? [],
+        Colaborador: props.colaboradores ?? [],
+    };
+
+    opcionesNombre.value = (listas[rolSeleccionado] ?? []).map((persona: any) => ({
+        value: String(persona.IDCliente),
+        label: etiquetaPersona(persona),
+    }));
+}
+
+function inferirRol(idCliente: number | string | null | undefined): string {
+    if (!idCliente) return '';
+
+    const props = page.props as any;
+    const id = String(idCliente);
+
+    if ((props.agentes ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Agente';
+    if ((props.colaboradores ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Colaborador';
+    if ((props.clientes ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Cliente';
+
+    return '';
+}
+
+function fechaInput(value: any): string {
+    if (!value) return '';
+    return String(value).slice(0, 10);
+}
 
 // Aquí almacenamos todas las alertas SIN filtrar
 const todasLasAlertas = ref<Alerta[]>([]);
@@ -179,50 +249,61 @@ const openNuevoAlertaModal = async (alerta?: Alerta) => {
         const esPatronNuevo = Boolean(alerta.Patron && alerta.Patron.trim().toLowerCase() === 'nuevo');
         const estatusNoEditable = ['Enviado', 'Reportado'];
         if (esPatronNuevo && !estatusNoEditable.includes(alerta.Estatus)) {
-            // Abre modal normal (código original)
             selectedAlertaId.value = alerta.IDRegistroAlerta;
             patron.value = alerta.Patron ?? '';
+
             const estatusEncontrado = opcionesEstatus.value.find(opt => opt.value === alerta.Estatus);
             estatus.value = estatusEncontrado ? estatusEncontrado.value : '';
+
+            rol.value = alerta.TipoPersona || inferirRol(alerta.IDCliente);
+            cargarOpcionesNombre(rol.value);
+
             nombre.value = String(alerta.IDCliente ?? '');
-            noCliente.value = String(alerta.IDCliente ?? '');
             poliza.value = alerta.Poliza ?? '';
-            const agentes = (page.props as any).agentes || [];
-            const agenteEncontrado = agentes.find((a: any) => a.RFC === alerta.RFCAgente);
-            agente.value = agenteEncontrado ? String(agenteEncontrado.IDCliente) : '';
+            agenteNombre.value = alerta.Agente ?? '';
+
             const instrumentoEncontrado = opcionesInstrumento.value.find(opt => opt.label === alerta.InstrumentoMonetario);
             instrumento.value = instrumentoEncontrado ? instrumentoEncontrado.value : '';
+
             const monedaEncontrada = opcionesMoneda.value.find(opt => opt.value === String(alerta.IDMoneda));
             moneda.value = monedaEncontrada ? monedaEncontrada.value : '';
+
             monto.value = alerta.MontoOperacion ?? '';
             descripcionOperacion.value = alerta.Descripcion ?? '';
             razones.value = alerta.Razones ?? '';
+            fechaOperacion.value = fechaInput(alerta.FechaOperacion);
             evidencias.value = [];
+
             await cargarPolizasCliente(String(alerta.IDCliente ?? ''));
             poliza.value = alerta.Poliza ?? '';
-        } else {
-            // Redirigir a detalle: usando el helper de rutas de inertia
-            // El nombre de la ruta es "alertas.detalle" y se debe pasar el IDRegistroAlerta
-            inertiaRouter.visit(
-                `/alertas/${alerta.IDRegistroAlerta}/detalles`
+
+            const polizaSeleccionada = opcionesPoliza.value.find(
+                (opcion) => opcion.value === String(poliza.value ?? '')
             );
-            return; // No abre modal
+            if (polizaSeleccionada?.agente_nombre) {
+                agenteNombre.value = polizaSeleccionada.agente_nombre;
+            }
+        } else {
+            inertiaRouter.visit(`/alertas/${alerta.IDRegistroAlerta}/detalles`);
+            return;
         }
     } else {
-        // Código original para nuevo
         selectedAlertaId.value = null;
         patron.value = 'Nuevo';
         estatus.value = '';
+        rol.value = '';
         nombre.value = '';
-        noCliente.value = '';
         poliza.value = '';
         agente.value = '';
+        agenteNombre.value = '';
         instrumento.value = '';
         moneda.value = '';
         monto.value = '';
         descripcionOperacion.value = '';
         razones.value = '';
+        fechaOperacion.value = '';
         evidencias.value = [];
+        opcionesNombre.value = [];
         opcionesPoliza.value = [];
     }
     errorGeneral.value = null;
@@ -239,20 +320,6 @@ const closeNuevoAlertaModal = () => {
 };
 
 onMounted(() => {
-    const clientes = (page.props as any).clientes || [];
-    opcionesNombre.value = clientes.map((c: any) => {
-        const label = (c.RazonSocial && String(c.RazonSocial).trim().length > 0)
-            ? c.RazonSocial
-            : `${c.Nombre ?? ''} ${c.ApellidoPaterno ?? ''} ${c.ApellidoMaterno ?? ''}`.trim();
-        return { value: String(c.IDCliente), label };
-    });
-    const agentes = (page.props as any).agentes || [];
-    opcionesAgente.value = agentes.map((c: any) => {
-        const label = (c.RazonSocial && String(c.RazonSocial).trim().length > 0)
-            ? c.RazonSocial
-            : `${c.Nombre ?? ''} ${c.ApellidoPaterno ?? ''} ${c.ApellidoMaterno ?? ''}`.trim();
-        return { value: String(c.IDCliente), label };
-    });
     const instrumentos = (page.props as any).instrumentos || [];
     opcionesInstrumento.value = instrumentos.map((i: any) => ({
         value: String(i.IDFormaPago),
@@ -286,14 +353,35 @@ watch([filtroPatron, filtroEstatus], () => {
     actualizarFiltradoYPaginacion(1);
 });
 
-watch(nombre, (nuevo) => {
-    noCliente.value = nuevo ? String(nuevo) : '';
+function cambiarRol(nuevoRol: string) {
+    rol.value = nuevoRol;
+    nombre.value = '';
     poliza.value = '';
+    agente.value = '';
+    agenteNombre.value = '';
     opcionesPoliza.value = [];
-    if (nuevo) {
-        cargarPolizasCliente(String(nuevo));
+    cargarOpcionesNombre(nuevoRol);
+}
+
+function cambiarNombre(nuevoNombre: string) {
+    nombre.value = nuevoNombre;
+    poliza.value = '';
+    agente.value = '';
+    agenteNombre.value = '';
+    opcionesPoliza.value = [];
+
+    if (nuevoNombre && rol.value === 'Cliente') {
+        cargarPolizasCliente(String(nuevoNombre));
     }
-});
+}
+
+function cambiarPoliza(nuevaPoliza: string) {
+    poliza.value = nuevaPoliza;
+
+    const opcion = opcionesPoliza.value.find((p) => p.value === String(nuevaPoliza));
+    agente.value = opcion?.agente_id ? String(opcion.agente_id) : '';
+    agenteNombre.value = opcion?.agente_nombre ?? '';
+}
 
 const cargarPolizasCliente = async (idCliente: string) => {
     try {
@@ -302,6 +390,9 @@ const cargarPolizasCliente = async (idCliente: string) => {
         opcionesPoliza.value = arr.map((p: any) => ({
             value: String(p.value ?? p),
             label: String(p.label ?? p),
+            agente_id: p.agente_id ?? null,
+            agente_rfc: p.agente_rfc ?? null,
+            agente_nombre: p.agente_nombre ?? null,
         }));
     } catch {
         opcionesPoliza.value = [];
@@ -495,8 +586,14 @@ const downloadCsv = async () => {
 };
 
 const actualizarAlerta = async () => {
-    // Únicos campos obligatorios del formulario: descripción y razones.
+    // Campos obligatorios del formulario.
     const errores: Record<string, string[]> = {};
+    if (!rol.value) {
+        errores.rol = ['El rol es obligatorio.'];
+    }
+    if (!nombre.value) {
+        errores.IDCliente = ['El nombre es obligatorio.'];
+    }
     if (!String(descripcionOperacion.value ?? '').trim()) {
         errores.descripcionOperacion = [
             'La descripción de la operación es obligatoria.',
@@ -519,16 +616,17 @@ const actualizarAlerta = async () => {
         errorGeneral.value = null;
         erroresValidacion.value = {};
         const formData = new FormData();
-        const nombreLabel = opcionesNombre.value.find(o => o.value === nombre.value)?.label || '';
         const instrumentoLabel = opcionesInstrumento.value.find(o => o.value === instrumento.value)?.label || '';
         const montoNum = typeof monto.value === 'number' ? monto.value : parseFloat(String(monto.value).replace(/[^0-9.-]/g, ''));
         formData.append('patron', String(patron.value));
         formData.append('estatus', String(estatus.value));
-        formData.append('nombre', nombreLabel);
-        formData.append('noCliente', String(noCliente.value));
-        formData.append('agente', String(agente.value));
+        formData.append('rol', String(rol.value));
+        formData.append('IDCliente', String(nombre.value));
         formData.append('instrumento', instrumentoLabel);
-        formData.append('poliza', String(poliza.value));
+        formData.append('poliza', rol.value === 'Cliente' ? String(poliza.value) : '');
+        if (fechaOperacion.value) {
+            formData.append('fechaOperacion', String(fechaOperacion.value));
+        }
         formData.append('monto', isNaN(montoNum) ? '' : String(montoNum));
         formData.append('descripcionOperacion', String(descripcionOperacion.value));
         formData.append('razones', String(razones.value));
@@ -551,16 +649,20 @@ const actualizarAlerta = async () => {
                 showNuevoAlertaModal.value = false;
                 selectedAlertaId.value = null;
                 estatus.value = '';
+                rol.value = '';
                 nombre.value = '';
-                noCliente.value = '';
                 agente.value = '';
+                agenteNombre.value = '';
                 instrumento.value = '';
                 moneda.value = '';
                 poliza.value = '';
+                fechaOperacion.value = '';
                 monto.value = '';
                 descripcionOperacion.value = '';
                 razones.value = '';
                 evidencias.value = [];
+                opcionesNombre.value = [];
+                opcionesPoliza.value = [];
                 buscarAlertas();
             },
             onError: (errors) => {
@@ -1108,25 +1210,35 @@ const breadcrumbs: BreadcrumbItem[] = [
                                         <InputError :message="erroresValidacion.estatus?.[0]" />
                                     </div>
                                     <div>
-                                        <Select label="Nombre" :options="opcionesNombre" v-model="nombre"
+                                        <Select label="Rol" :options="opcionesRol" :model-value="rol"
+                                            @update:model-value="cambiarRol"
+                                            placeholder="Seleccionar rol" id="rol" name="rol" />
+                                        <InputError :message="erroresValidacion.rol?.[0]" />
+                                    </div>
+                                    <div>
+                                        <Select label="Nombre" :options="opcionesNombre" :model-value="nombre"
+                                            @update:model-value="cambiarNombre" :disabled="!rol"
                                             placeholder="Seleccionar nombre" id="nombre" name="nombre" />
-                                        <InputError :message="erroresValidacion.nombre?.[0]" />
+                                        <InputError :message="erroresValidacion.IDCliente?.[0] || erroresValidacion.nombre?.[0]" />
                                     </div>
                                     <div>
-                                        <Input label="No. cliente" type="text" id="noCliente" v-model="noCliente"
-                                            placeholder="Ingresar No. de cliente" disabled />
-                                        <InputError :message="erroresValidacion.noCliente?.[0]" />
+                                        <DateInput label="Fecha de operación" id="fechaOperacion" name="fechaOperacion"
+                                            v-model="fechaOperacion" placeholder="Seleccione fecha de operación" />
+                                        <InputError :message="erroresValidacion.fechaOperacion?.[0]" />
                                     </div>
-                                    <div>
-                                        <Select label="Folio póliza" :options="opcionesPoliza" v-model="poliza"
-                                            placeholder="Seleccionar folio" id="poliza" name="poliza" />
-                                        <InputError :message="erroresValidacion.poliza?.[0]" />
-                                    </div>
-                                    <div>
-                                        <Select label="Agente" :options="opcionesAgente" v-model="agente"
-                                            placeholder="Seleccionar agente" id="agente" name="agente" />
-                                        <InputError :message="erroresValidacion.agente?.[0]" />
-                                    </div>
+                                    <template v-if="rol === 'Cliente'">
+                                        <div>
+                                            <Select label="Folio póliza" :options="opcionesPoliza"
+                                                :model-value="poliza" @update:model-value="cambiarPoliza"
+                                                placeholder="Seleccionar folio" id="poliza" name="poliza" />
+                                            <InputError :message="erroresValidacion.poliza?.[0]" />
+                                        </div>
+                                        <div>
+                                            <Input label="Agente" type="text" id="agente" :model-value="agenteNombre"
+                                                placeholder="Se asigna automáticamente al seleccionar la póliza"
+                                                disabled />
+                                        </div>
+                                    </template>
                                     <div>
                                         <Input label="Monto" type="float" id="monto" v-model="monto" prefix="$"
                                             placeholder="Ingresar monto" />

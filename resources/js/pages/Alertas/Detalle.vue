@@ -67,11 +67,35 @@ const props = defineProps<{
     cliente?: any,
     operacion?: any,
     historialPoliza?: any[],
-    reportes?: any[]
+    reportes?: any[],
+    modulo?: {
+        basePath: string,
+        titulo: string,
+        singular: string,
+        plural: string,
+        tipoPersona: string
+    }
 }>();
 
 // Usamos toRefs para mantener la reactividad en el script
 const { alerta, cliente, operacion, historialPoliza, reportes } = toRefs(props);
+
+const moduloPersona = computed(() => {
+    if (props.modulo) return props.modulo;
+
+    const tipo = cliente.value?.TipoPersona;
+    if (tipo === 'Agente') {
+        return { basePath: '/agentes', titulo: 'Agentes', singular: 'agente', plural: 'agentes', tipoPersona: tipo };
+    }
+    if (tipo === 'Colaborador') {
+        return { basePath: '/colaboradores', titulo: 'Colaboradores', singular: 'colaborador', plural: 'colaboradores', tipoPersona: tipo };
+    }
+
+    return { basePath: '/clientes', titulo: 'Clientes', singular: 'cliente', plural: 'clientes', tipoPersona: 'Cliente' };
+});
+
+const sujeto = computed(() => moduloPersona.value.singular);
+const sujetoCapitalizado = computed(() => sujeto.value.charAt(0).toUpperCase() + sujeto.value.slice(1));
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Alertas', href: route ? route('alertas.index') : '/alertas' },
@@ -351,19 +375,17 @@ function confirmarActivarCliente() {
 function activarCliente() {
     if (!cliente.value || !cliente.value.IDCliente) return;
 
-    const url = route
-        ? route('clientes.activar', { id_cliente: cliente.value.IDCliente })
-        : `/clientes/${cliente.value.IDCliente}/activar`;
+    const url = `${moduloPersona.value.basePath}/${cliente.value.IDCliente}/activar`;
 
     loadingActivar.value = true;
     router.post(url, {}, {
         preserveScroll: true,
         onSuccess: () => {
-            toast.success('Cliente activado correctamente.');
+            toast.success(`${sujetoCapitalizado.value} activado correctamente.`);
         },
         onError: (errs) => {
             console.error(errs);
-            toast.error('Hubo un error al activar el cliente.');
+            toast.error(`Hubo un error al activar el ${sujeto.value}.`);
         },
         onFinish: () => {
             loadingActivar.value = false;
@@ -373,13 +395,7 @@ function activarCliente() {
 
 function verDetallesCliente() {
     if (cliente.value && cliente.value.IDCliente) {
-        // La ruta está registrada en routes/web.php y usa ClientesController@verDetallesCliente
-        // Usar Ziggy si está disponible, sino fallback a la ruta estándar
-        if (route) {
-            router.visit(route('clientes.ver-detalles', cliente.value.IDCliente));
-        } else {
-            router.visit(`/clientes/ver-detalles/${cliente.value.IDCliente}`);
-        }
+        router.visit(`${moduloPersona.value.basePath}/ver-detalles/${cliente.value.IDCliente}`);
     }
 }
 
@@ -548,7 +564,7 @@ function submitEditarAlerta(e: Event) {
                     <!-- INFORMACIÓN DEL CLIENTE (botón siempre visible si hay cliente) -->
                     <div v-if="clienteInfo" class="bg-white dark:bg-neutral-900 p-5 rounded-2xl shadow border">
                         <div class="flex justify-between items-center mb-3">
-                            <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100">Información del cliente</div>
+                            <div class="font-semibold text-lg text-gray-900 dark:text-neutral-100">Información del {{ sujeto }}</div>
                             <div class="flex gap-2">
                                 <!-- Botón de Activar Cliente oculto: el cliente siempre permanece activo -->
                                 <button
@@ -559,7 +575,7 @@ function submitEditarAlerta(e: Event) {
                                     class="inline-flex items-center px-3 py-1.5 rounded bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
                                 >
                                     <span v-if="loadingActivar" class="mr-2 animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
-                                    Activar cliente
+                                    {{ loadingActivar ? 'Activando...' : `Activar ${sujeto}` }}
                                 </button>
                                 <button
                                     v-if="cliente && cliente.IDCliente"
@@ -567,7 +583,7 @@ function submitEditarAlerta(e: Event) {
                                     @click="verDetallesCliente"
                                     class="inline-flex items-center px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
                                 >
-                                    Ver detalles del cliente
+                                    Ver detalles del {{ sujeto }}
                                 </button>
                             </div>
                         </div>
