@@ -25,19 +25,6 @@ class AlertasController extends Controller
 {
     public function index()
     {
-        $clientes = TbClientes::where('TipoPersona', TbClientes::TIPO_CLIENTE)
-            ->where('Activo', 1)
-            ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona')
-            ->orderByRaw("
-                CASE
-                    WHEN Nombre IS NOT NULL AND Nombre <> ''
-                        THEN CONCAT(Nombre, ' ', IFNULL(ApellidoPaterno, ''), ' ', IFNULL(ApellidoMaterno, ''))
-                    ELSE RazonSocial
-                END
-            ")
-            ->orderBy('RazonSocial')
-            ->get();
-
         $agentes = TbClientes::where('TipoPersona', TbClientes::TIPO_AGENTE)
             ->select('IDCliente', 'Nombre', 'ApellidoPaterno', 'ApellidoMaterno', 'RazonSocial', 'IDTipoPersona', 'TipoPersona')
             ->orderBy('Nombre')
@@ -50,22 +37,9 @@ class AlertasController extends Controller
 
         $instrumentos = CatFormaPagos::all();
 
-        $polizas = TbOperaciones::selectRaw('MIN(IDOperacion) as IDOperacion, FolioPoliza')
-            ->whereNotNull('FolioPoliza')
-            ->where('FolioPoliza', '!=', '');
-
-        if (request()->has('IDCliente') && !empty(request('IDCliente'))) {
-            $polizas->where('IDCliente', request('IDCliente'));
-        }
-
-        $polizas = $polizas
-            ->groupBy('FolioPoliza')
-            ->get();
-
         $monedas = CatMonedas::all();
 
         return Inertia::render('Alertas/Index', [
-            'clientes' => $clientes,
             'agentes' => $agentes,
             'colaboradores' => $colaboradores,
             'instrumentos' => $instrumentos,
@@ -282,7 +256,7 @@ class AlertasController extends Controller
             'instrumento' => 'sometimes|nullable|string',
             'patron' => 'sometimes|nullable|string', // Se sigue enviando desde el frontend, pero se ignora abajo
             'estatus' => 'sometimes|nullable|string|in:Generado,Analizado,Cerrado,Por reportar,Enviado',
-            'rol' => 'required|string|in:Cliente,Agente,Colaborador',
+            'rol' => 'required|string|in:Agente,Colaborador',
             'IDCliente' => 'required|integer|exists:tbClientes,IDCliente',
             'poliza' => 'sometimes|nullable|string',
             'agente' => 'sometimes|nullable|integer',
@@ -324,25 +298,6 @@ class AlertasController extends Controller
             }
 
             return response()->json(['message' => 'validación fallida', 'errors' => $errors], 422);
-        }
-
-        $operacion = null;
-
-        if ($validated['rol'] === TbClientes::TIPO_CLIENTE && ! empty($validated['poliza'])) {
-            $operacion = TbOperaciones::where('IDCliente', $persona->IDCliente)
-                ->where('FolioPoliza', $validated['poliza'])
-                ->orderByDesc('IDOperacion')
-                ->first();
-
-            if (! $operacion) {
-                $errors = ['poliza' => ['La póliza seleccionada no pertenece al cliente indicado.']];
-
-                if ($isInertia) {
-                    return redirect()->back()->withErrors($errors)->with('error', 'validación fallida');
-                }
-
-                return response()->json(['message' => 'validación fallida', 'errors' => $errors], 422);
-            }
         }
 
         try {
@@ -401,31 +356,11 @@ class AlertasController extends Controller
             $alerta->Folio = $request->input('idAlerta');
             $alerta->IDCliente = $persona->IDCliente;
             $alerta->Cliente = TbAlertas::nombreParaCliente($persona);
-            $alerta->IDOperacion = $operacion?->IDOperacion;
-
-            if ($validated['rol'] === TbClientes::TIPO_CLIENTE) {
-                $alerta->Poliza = $validated['poliza'] ?? null;
-
-                if ($operacion) {
-                    $razonSocialAgente = trim((string) ($operacion->RazonSocialAgente ?? ''));
-                    $alerta->Agente = $razonSocialAgente !== ''
-                        ? $razonSocialAgente
-                        : trim(implode(' ', array_filter([
-                            $operacion->NombreAgente ?? '',
-                            $operacion->APaternoAgente ?? '',
-                            $operacion->AMaternoAgente ?? '',
-                        ])));
-                    $alerta->RFCAgente = $operacion->RFCAgente ?? null;
-                } else {
-                    $alerta->Agente = null;
-                    $alerta->RFCAgente = null;
-                }
-            } else {
-                // Agentes y colaboradores no se asocian a póliza ni a agente de operación.
-                $alerta->Poliza = null;
-                $alerta->Agente = null;
-                $alerta->RFCAgente = null;
-            }
+            // Agentes y colaboradores no se asocian a operación, póliza ni agente.
+            $alerta->IDOperacion = null;
+            $alerta->Poliza = null;
+            $alerta->Agente = null;
+            $alerta->RFCAgente = null;
 
             if ($request->filled('monto')) {
                 $alerta->MontoOperacion = $request->input('monto');

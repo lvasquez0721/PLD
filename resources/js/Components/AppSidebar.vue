@@ -65,6 +65,9 @@ const userRoles = computed<string[]>(() => {
     return Array.isArray(auth?.roles) ? (auth.roles as string[]) : [];
 });
 const isDepurador = computed(() => userRoles.value.includes('Depurador'));
+const puedeVerParametria = computed(
+    () => userRoles.value.includes('Administrador') || userRoles.value.includes('Oficial de cumplimiento'),
+);
 
 const allNavItems: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
@@ -86,7 +89,11 @@ const allNavItems: NavItem[] = [
 ];
 
 function pick(titles: string[]): NavItem[] {
-    return allNavItems.filter((item) => titles.includes(item.title));
+    return allNavItems.filter(
+        (item) =>
+            titles.includes(item.title) &&
+            (item.title !== 'Parametría PLD' || puedeVerParametria.value),
+    );
 }
 
 // Jerarquía por dominio PLD: escaneo por contexto, no lista plana infinita.

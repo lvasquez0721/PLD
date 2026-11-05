@@ -176,6 +176,12 @@ const personaIcon = computed(() => Number(props.cliente.IDTipoPersona) === 1 ? U
 
 const hasRFC = computed(() => !!props.cliente.RFC && String(props.cliente.RFC).trim() !== '')
 
+const CLASE_DATO_FALTANTE = 'text-xs italic font-normal text-gray-400 dark:text-neutral-500'
+
+function tieneDato(value: any): boolean {
+    return value !== null && value !== undefined && String(value).trim() !== ''
+}
+
 const isExtranjero = computed(() => {
     return props.cliente.IDNacionalidad && props.cliente.IDNacionalidad !== 'MX'
 })
@@ -908,8 +914,20 @@ const opcionesTipoPago = computed(() => {
                             <div class="rounded-xl border border-gray-200/80 bg-white/70 p-6 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
                                 <h3 class="text-base font-semibold text-gray-800 dark:text-white">Identificación</h3>
                                 <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                                    <div v-if="Number(props.cliente.IDTipoPersona) === 2"><dt class="font-medium text-gray-500 dark:text-neutral-400">Razón Social</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.RazonSocial }}</dd></div>
-                                    <div v-if="Number(props.cliente.IDTipoPersona) === 1"><dt class="font-medium text-gray-500 dark:text-neutral-400">Nombre Completo</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ fullName }}</dd></div>
+                                    <div v-if="Number(props.cliente.IDTipoPersona) === 2">
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Razón Social</dt>
+                                        <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(props.cliente.RazonSocial)">{{ props.cliente.RazonSocial }}</span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con razón social</span>
+                                        </dd>
+                                    </div>
+                                    <div v-if="Number(props.cliente.IDTipoPersona) === 1">
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Nombre Completo</dt>
+                                        <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(fullName)">{{ fullName }}</span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con nombre completo</span>
+                                        </dd>
+                                    </div>
                                     <div>
                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">RFC</dt>
                                         <dd class="mt-1 font-mono text-gray-900 dark:text-neutral-100">
@@ -917,28 +935,69 @@ const opcionesTipoPago = computed(() => {
                                             <span v-else class="inline-flex items-center gap-1 rounded bg-yellow-100 text-yellow-800 px-2 py-0.5 font-semibold dark:bg-yellow-900/40 dark:text-yellow-200">No cuenta con RFC</span>
                                         </dd>
                                     </div>
-                                    <div v-if="props.cliente.CURP"><dt class="font-medium text-gray-500 dark:text-neutral-400">CURP</dt><dd class="mt-1 font-mono text-gray-900 dark:text-neutral-100">{{ props.cliente.CURP }}</dd></div>
-                                    <div v-if="props.cliente.FolioMercantil"><dt class="font-medium text-gray-500 dark:text-neutral-400">Folio Mercantil</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.FolioMercantil }}</dd></div>
                                     <div>
-                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Fecha de Nacimiento/Constitución</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ formatDate(props.cliente.FechaNacimiento || props.cliente.FechaConstitucion) }}</dd>
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">CURP</dt>
+                                        <dd class="mt-1 font-mono text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(props.cliente.CURP)">{{ props.cliente.CURP }}</span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con CURP</span>
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Folio Mercantil</dt>
+                                        <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(props.cliente.FolioMercantil)">{{ props.cliente.FolioMercantil }}</span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con Folio Mercantil</span>
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Fecha de Nacimiento/Constitución</dt>
+                                        <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(props.cliente.FechaNacimiento || props.cliente.FechaConstitucion)">
+                                                {{ formatDate(props.cliente.FechaNacimiento || props.cliente.FechaConstitucion) }}
+                                            </span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">
+                                                {{ Number(props.cliente.IDTipoPersona) === 2 ? 'No cuenta con fecha de constitución' : 'No cuenta con fecha de nacimiento' }}
+                                            </span>
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Nacionalidad</dt>
                                         <dd class="mt-1 text-gray-900 dark:text-neutral-100">
-                                            {{ props.cliente.IDNacionalidad }}
-                                            <span v-if="isExtranjero" class="inline-flex items-center gap-1.5 rounded-full bg-pink-100 text-pink-800 px-2.5 py-1 font-medium text-xs ml-2 dark:bg-pink-900/40 dark:text-pink-200">
-                                              <GlobeIcon class="h-3.5 w-3.5" /> Extranjero
-                                            </span>
+                                            <template v-if="tieneDato(props.cliente.IDNacionalidad)">
+                                                {{ props.cliente.IDNacionalidad }}
+                                                <span v-if="isExtranjero" class="inline-flex items-center gap-1.5 rounded-full bg-pink-100 text-pink-800 px-2.5 py-1 font-medium text-xs ml-2 dark:bg-pink-900/40 dark:text-pink-200">
+                                                  <GlobeIcon class="h-3.5 w-3.5" /> Extranjero
+                                                </span>
+                                            </template>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con nacionalidad</span>
                                         </dd>
                                     </div>
-                                    <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Estado de Nacimiento</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.IDEstadoNacimiento }}</dd></div>
+                                    <div>
+                                        <dt class="font-medium text-gray-500 dark:text-neutral-400">Estado de Nacimiento</dt>
+                                        <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                            <span v-if="tieneDato(props.cliente.IDEstadoNacimiento)">{{ props.cliente.IDEstadoNacimiento }}</span>
+                                            <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con estado de nacimiento</span>
+                                        </dd>
+                                    </div>
                                 </dl>
                             </div>
                              <div class="rounded-xl border border-gray-200/80 bg-white/70 p-6 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
                                 <h3 class="text-base font-semibold text-gray-800 dark:text-white">Clasificación PLD</h3>
                                  <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                                      <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Ocupación / Giro</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.IDOcupacionGiro }}</dd></div>
-                                      <div><dt class="font-medium text-gray-500 dark:text-neutral-400">Ingresos Estimados</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ formatCurrency(props.cliente.IngresosEstimados) }}</dd></div>
+                                      <div>
+                                          <dt class="font-medium text-gray-500 dark:text-neutral-400">Ocupación / Giro</dt>
+                                          <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                              <span v-if="tieneDato(props.cliente.IDOcupacionGiro)">{{ props.cliente.IDOcupacionGiro }}</span>
+                                              <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con ocupación/giro</span>
+                                          </dd>
+                                      </div>
+                                      <div>
+                                          <dt class="font-medium text-gray-500 dark:text-neutral-400">Ingresos Estimados</dt>
+                                          <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                              <span v-if="tieneDato(props.cliente.IngresosEstimados)">{{ formatCurrency(props.cliente.IngresosEstimados) }}</span>
+                                              <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con ingresos estimados</span>
+                                          </dd>
+                                      </div>
                                      <div>
                                          <dt class="font-medium text-gray-500 dark:text-neutral-400">Coincide en Listas de Observación</dt>
                                          <dd class="mt-1 font-semibold" :class="onBlacklist ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'">
@@ -966,26 +1025,92 @@ const opcionesTipoPago = computed(() => {
                                              {{ esAltoRiesgo ? 'Alto riesgo' : 'Sin alto riesgo' }}
                                          </dd>
                                      </div>
-                                     <div v-if="props.cliente.Preguntas" class="sm:col-span-2 lg:col-span-3"><dt class="font-medium text-gray-500 dark:text-neutral-400">Notas / Perfil PLD</dt><dd class="mt-1 text-gray-900 dark:text-neutral-100">{{ props.cliente.Preguntas }}</dd></div>
+                                     <div class="sm:col-span-2 lg:col-span-3">
+                                         <dt class="font-medium text-gray-500 dark:text-neutral-400">Notas / Perfil PLD</dt>
+                                         <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                             <span v-if="tieneDato(props.cliente.Preguntas)">{{ props.cliente.Preguntas }}</span>
+                                             <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con notas de perfil PLD</span>
+                                         </dd>
+                                     </div>
                                  </dl>
                             </div>
                         </section>
 
                         <!-- DOMICILIOS -->
                         <section v-if="activeTab === 'dom'" class="space-y-4">
-                             <div v-if="props.domicilios.length" v-for="(d, i) in props.domicilios" :key="d.IDDomicilio"
-                                class="rounded-xl border border-gray-200/80 bg-white/70 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
-                                <h3 class="font-semibold text-gray-800 dark:text-white">Domicilio {{ i + 1 }}</h3>
-                                <address class="mt-2 text-sm not-italic text-gray-700 dark:text-neutral-300">
-                                    {{ d.Calle }}, No. {{ d.NoExterior }} {{ d.NoInterior ? 'Int. ' + d.NoInterior : '' }}<br>
-                                    Col. {{ d.Colonia }}, C.P. {{ d.CP }}<br>
-                                    {{ d.IDEstado }}
-                                </address>
-                                <div v-if="d.Telefono" class="mt-2 text-sm text-gray-600 dark:text-neutral-400">
-                                    <span class="font-medium">Tel:</span> {{ d.Telefono }}
+                            <template v-if="props.domicilios.length">
+                                <div v-for="(d, i) in props.domicilios" :key="d.IDDomicilio"
+                                    class="rounded-xl border border-gray-200/80 bg-white/70 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-lg dark:border-neutral-800 dark:bg-neutral-950/70 dark:shadow-black/20">
+                                    <h3 class="font-semibold text-gray-800 dark:text-white">Domicilio {{ i + 1 }}</h3>
+                                    <dl class="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Calle</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.Calle)">{{ d.Calle }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con calle</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">No. Exterior</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.NoExterior)">{{ d.NoExterior }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con número exterior</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">No. Interior</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.NoInterior)">{{ d.NoInterior }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con número interior</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Colonia</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.Colonia)">{{ d.Colonia }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con colonia</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Código Postal</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.CP)">{{ d.CP }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con código postal</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Municipio</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.Municipio)">{{ d.Municipio }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con municipio</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Localidad</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.Localidad)">{{ d.Localidad }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con localidad</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Estado</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.estado?.Estado)">{{ d.estado.Estado }}</span>
+                                                <span v-else-if="tieneDato(d.IDEstado)">{{ d.IDEstado }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con estado</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="font-medium text-gray-500 dark:text-neutral-400">Teléfono</dt>
+                                            <dd class="mt-1 text-gray-900 dark:text-neutral-100">
+                                                <span v-if="tieneDato(d.Telefono)">{{ d.Telefono }}</span>
+                                                <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con teléfono</span>
+                                            </dd>
+                                        </div>
+                                    </dl>
                                 </div>
-                             </div>
-                            <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">Sin domicilios registrados.</div>
+                            </template>
+                            <div v-else class="text-center text-gray-500 dark:text-neutral-400 italic py-10">No cuenta con domicilios registrados.</div>
                         </section>
 
                         <!-- OPERACIONES -->

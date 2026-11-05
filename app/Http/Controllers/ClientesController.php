@@ -353,7 +353,9 @@ class ClientesController extends Controller
 
         abort_unless($cliente->TipoPersona === $this->tipoPersona, 404);
 
-        $domicilios = TbClientesDomicilio::where('IDCliente', $cliente->IDCliente)->get();
+        $domicilios = TbClientesDomicilio::with('estado')
+            ->where('IDCliente', $cliente->IDCliente)
+            ->get();
         $operacionesRaw = TbOperaciones::where('IDCliente', $cliente->IDCliente)
             ->with('pagos')
             ->get();
@@ -1233,9 +1235,14 @@ class ClientesController extends Controller
     {
         $esFisica = (int) $data['IDTipoPersona'] === 1;
         $idOcupacionGiro = $data['IDOcupacionGiro'] ?? null;
+        $ingresosEstimados = $data['IngresosEstimados'] ?? null;
 
         if (empty($idOcupacionGiro) && $this->tipoPersona === TbClientes::TIPO_COLABORADOR) {
             $idOcupacionGiro = $this->ocupacionPorDefectoColaborador();
+        }
+
+        if (($ingresosEstimados === null || $ingresosEstimados === '') && $this->tipoPersona === TbClientes::TIPO_COLABORADOR) {
+            $ingresosEstimados = 0;
         }
 
         return [
@@ -1252,7 +1259,7 @@ class ClientesController extends Controller
             'FolioMercantil' => $data['FolioMercantil'] ?? null,
             'IDNacionalidad' => $data['IDNacionalidad'],
             'IDEstadoNacimiento' => $data['IDEstadoNacimiento'] ?? null,
-            'IngresosEstimados' => $data['IngresosEstimados'] ?? null,
+            'IngresosEstimados' => $ingresosEstimados,
             'Preguntas' => $data['Preguntas'] ?? null,
             'TipoPersona' => $this->tipoPersona,
             'ckAgente' => $this->tipoPersona === TbClientes::TIPO_AGENTE ? 1 : 0,

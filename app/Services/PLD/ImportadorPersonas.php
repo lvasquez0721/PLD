@@ -467,6 +467,8 @@ class ImportadorPersonas
             } else {
                 $ingresos = (float) $ingresosLimpios;
             }
+        } elseif ($tipoPersona === TbClientes::TIPO_COLABORADOR) {
+            $ingresos = 0.0;
         }
 
         $activoRaw = $valor('activo');

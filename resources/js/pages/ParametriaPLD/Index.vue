@@ -45,8 +45,12 @@ const form = useForm({
   umbralBuscadorUIF: props.parametros.umbralBuscadorUIF,
   umbralBuscadorCNSF: props.parametros.umbralBuscadorCNSF,
   montoAutorizaPagoEfectivoPF: props.parametros.montoAutorizaPagoEfectivoPF,
-  montoAutorizaPagoEfectivoPM: props.parametros.montoAutorizaPagoEfectivoPM
+  montoAutorizaPagoEfectivoPM: props.parametros.montoAutorizaPagoEfectivoPM,
+  token: ''
 })
+
+const showTokenModal = ref(false)
+const tokenError = ref('')
 
 const page = usePage()
 
@@ -104,17 +108,48 @@ onMounted(() => {
   }
 })
 
+const solicitarToken = () => {
+  tokenError.value = ''
+  form.clearErrors('token')
+  form.token = ''
+  showTokenModal.value = true
+}
+
+const cerrarModalToken = () => {
+  showTokenModal.value = false
+  form.token = ''
+  tokenError.value = ''
+  form.clearErrors('token')
+}
+
 const actualizarParametros = () => {
+  if (!form.token.trim()) {
+    tokenError.value = 'Ingresa el token de autorización.'
+    return
+  }
+
   form.post('/parametria-pld/actualizar', {
     preserveScroll: true,
     onSuccess: () => {
       toastMessage.value = 'Parámetros actualizados correctamente.'
       toastType.value = 'success'
       showToast.value = true
+      showTokenModal.value = false
+      form.token = ''
+      tokenError.value = ''
 
       router.reload({ only: ['parametros'] })
     },
-    onError: () => {
+    onError: (errors) => {
+      if (errors.token) {
+        tokenError.value = errors.token
+        toastMessage.value = errors.token
+        toastType.value = 'error'
+        showToast.value = true
+        return
+      }
+
+      tokenError.value = ''
       toastMessage.value = 'Error al actualizar los parámetros. Verifica los datos ingresados.'
       toastType.value = 'error'
       showToast.value = true
@@ -129,7 +164,7 @@ const actualizarParametros = () => {
     <FadeIn>
       <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-0">
 
-        <form @submit.prevent="actualizarParametros" class="space-y-6">
+        <form @submit.prevent="solicitarToken" class="space-y-6">
           <!-- Sección: Parámetros Alertas -->
           <div class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-white shadow-md shadow-slate-200/70 backdrop-blur-sm transition-shadow duration-300 ease-out hover:shadow-xl hover:shadow-slate-300/70 dark:border-neutral-800 dark:bg-gradient-to-b dark:from-neutral-950/95 dark:via-neutral-950/90 dark:to-neutral-950/95 dark:shadow-lg dark:shadow-black/40 dark:hover:shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6">
             <section class="space-y-4">
@@ -266,6 +301,52 @@ const actualizarParametros = () => {
         </form>
       </div>
     </FadeIn>
+
+    <!-- Token de autorización -->
+    <Transition name="fade">
+      <div v-if="showTokenModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-6 shadow-2xl shadow-gray-900/20 dark:border-neutral-800/80 dark:bg-neutral-950 dark:shadow-neutral-950/40">
+          <h2 class="text-lg font-semibold text-slate-700 dark:text-neutral-100">Token de autorización</h2>
+          <p class="mt-1 text-sm text-gray-500 dark:text-neutral-400">
+            Ingresa el token del Oficial de cumplimiento para guardar los cambios.
+          </p>
+
+          <form @submit.prevent="actualizarParametros" class="mt-5 space-y-4">
+            <div>
+              <Input
+                label="Token"
+                type="password"
+                id="token"
+                v-model="form.token"
+                icon="lock"
+                placeholder="Ingresa el token de autorización"
+                required
+              />
+              <p v-if="tokenError || form.errors.token" class="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                {{ tokenError || form.errors.token }}
+              </p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                @click="cerrarModalToken"
+                class="inline-flex items-center justify-center rounded-xl border border-gray-300/80 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 dark:border-neutral-700/80 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                :disabled="form.processing"
+                class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{ form.processing ? 'Guardando...' : 'Confirmar y guardar' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Toast notification -->
     <Toast v-model="showToast" :message="toastMessage" :type="toastType" :duration="5000" />

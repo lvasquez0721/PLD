@@ -133,8 +133,6 @@ const patron = ref('Nuevo');
 const monto = ref<number | ''>('');
 const rol = ref('');
 const nombre = ref('');
-const agente = ref('');
-const agenteNombre = ref('');
 const instrumento = ref('');
 const moneda = ref('');
 const estatus = ref('');
@@ -150,18 +148,7 @@ const errorGeneral = ref<string | null>(null);
 const erroresValidacion = ref<Record<string, string[]>>({});
 
 const opcionesNombre = ref<{ value: string; label: string }[]>([]);
-const opcionesPoliza = ref<
-    {
-        value: string;
-        label: string;
-        agente_id?: number | null;
-        agente_rfc?: string | null;
-        agente_nombre?: string | null;
-    }[]
->([]);
-const poliza = ref('');
 const opcionesRol = [
-    { value: 'Cliente', label: 'Cliente' },
     { value: 'Agente', label: 'Agente' },
     { value: 'Colaborador', label: 'Colaborador' },
 ];
@@ -202,7 +189,6 @@ function etiquetaPersona(persona: any): string {
 function cargarOpcionesNombre(rolSeleccionado: string) {
     const props = page.props as any;
     const listas: Record<string, any[]> = {
-        Cliente: props.clientes ?? [],
         Agente: props.agentes ?? [],
         Colaborador: props.colaboradores ?? [],
     };
@@ -221,7 +207,6 @@ function inferirRol(idCliente: number | string | null | undefined): string {
 
     if ((props.agentes ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Agente';
     if ((props.colaboradores ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Colaborador';
-    if ((props.clientes ?? []).some((p: any) => String(p.IDCliente) === id)) return 'Cliente';
 
     return '';
 }
@@ -234,13 +219,6 @@ function fechaInput(value: any): string {
 // Aquí almacenamos todas las alertas SIN filtrar
 const todasLasAlertas = ref<Alerta[]>([]);
 
-// Nueva función: determina si la alerta puede editarse (abrirse modal) según reglas del prompt
-function puedeEditarAlerta(alerta: Alerta): boolean {
-    const esNuevo = Boolean(alerta.Patron && alerta.Patron.trim().toLowerCase() === 'nuevo');
-    const noEditableStatus = ["Enviado", "Reportado", "Cerrado"];
-    return esNuevo && !noEditableStatus.includes(alerta.Estatus);
-}
-
 const openNuevoAlertaModal = async (alerta?: Alerta) => {
     // Si se pasa una alerta como argumento, es click en badge
     if (alerta) {
@@ -248,19 +226,20 @@ const openNuevoAlertaModal = async (alerta?: Alerta) => {
         // De lo contrario, redireccionar a detalle
         const esPatronNuevo = Boolean(alerta.Patron && alerta.Patron.trim().toLowerCase() === 'nuevo');
         const estatusNoEditable = ['Enviado', 'Reportado'];
-        if (esPatronNuevo && !estatusNoEditable.includes(alerta.Estatus)) {
+        const tipoPersona = alerta.TipoPersona || inferirRol(alerta.IDCliente);
+        const esCliente = tipoPersona === 'Cliente';
+
+        if (esPatronNuevo && !estatusNoEditable.includes(alerta.Estatus) && !esCliente) {
             selectedAlertaId.value = alerta.IDRegistroAlerta;
             patron.value = alerta.Patron ?? '';
 
             const estatusEncontrado = opcionesEstatus.value.find(opt => opt.value === alerta.Estatus);
             estatus.value = estatusEncontrado ? estatusEncontrado.value : '';
 
-            rol.value = alerta.TipoPersona || inferirRol(alerta.IDCliente);
+            rol.value = tipoPersona;
             cargarOpcionesNombre(rol.value);
 
             nombre.value = String(alerta.IDCliente ?? '');
-            poliza.value = alerta.Poliza ?? '';
-            agenteNombre.value = alerta.Agente ?? '';
 
             const instrumentoEncontrado = opcionesInstrumento.value.find(opt => opt.label === alerta.InstrumentoMonetario);
             instrumento.value = instrumentoEncontrado ? instrumentoEncontrado.value : '';
@@ -273,16 +252,6 @@ const openNuevoAlertaModal = async (alerta?: Alerta) => {
             razones.value = alerta.Razones ?? '';
             fechaOperacion.value = fechaInput(alerta.FechaOperacion);
             evidencias.value = [];
-
-            await cargarPolizasCliente(String(alerta.IDCliente ?? ''));
-            poliza.value = alerta.Poliza ?? '';
-
-            const polizaSeleccionada = opcionesPoliza.value.find(
-                (opcion) => opcion.value === String(poliza.value ?? '')
-            );
-            if (polizaSeleccionada?.agente_nombre) {
-                agenteNombre.value = polizaSeleccionada.agente_nombre;
-            }
         } else {
             inertiaRouter.visit(`/alertas/${alerta.IDRegistroAlerta}/detalles`);
             return;
@@ -293,9 +262,6 @@ const openNuevoAlertaModal = async (alerta?: Alerta) => {
         estatus.value = '';
         rol.value = '';
         nombre.value = '';
-        poliza.value = '';
-        agente.value = '';
-        agenteNombre.value = '';
         instrumento.value = '';
         moneda.value = '';
         monto.value = '';
@@ -304,7 +270,6 @@ const openNuevoAlertaModal = async (alerta?: Alerta) => {
         fechaOperacion.value = '';
         evidencias.value = [];
         opcionesNombre.value = [];
-        opcionesPoliza.value = [];
     }
     errorGeneral.value = null;
     erroresValidacion.value = {};
@@ -356,48 +321,12 @@ watch([filtroPatron, filtroEstatus], () => {
 function cambiarRol(nuevoRol: string) {
     rol.value = nuevoRol;
     nombre.value = '';
-    poliza.value = '';
-    agente.value = '';
-    agenteNombre.value = '';
-    opcionesPoliza.value = [];
     cargarOpcionesNombre(nuevoRol);
 }
 
 function cambiarNombre(nuevoNombre: string) {
     nombre.value = nuevoNombre;
-    poliza.value = '';
-    agente.value = '';
-    agenteNombre.value = '';
-    opcionesPoliza.value = [];
-
-    if (nuevoNombre && rol.value === 'Cliente') {
-        cargarPolizasCliente(String(nuevoNombre));
-    }
 }
-
-function cambiarPoliza(nuevaPoliza: string) {
-    poliza.value = nuevaPoliza;
-
-    const opcion = opcionesPoliza.value.find((p) => p.value === String(nuevaPoliza));
-    agente.value = opcion?.agente_id ? String(opcion.agente_id) : '';
-    agenteNombre.value = opcion?.agente_nombre ?? '';
-}
-
-const cargarPolizasCliente = async (idCliente: string) => {
-    try {
-        const resp = await axios.get(`/clientes/${idCliente}/polizas`);
-        const arr = resp.data?.polizas ?? [];
-        opcionesPoliza.value = arr.map((p: any) => ({
-            value: String(p.value ?? p),
-            label: String(p.label ?? p),
-            agente_id: p.agente_id ?? null,
-            agente_rfc: p.agente_rfc ?? null,
-            agente_nombre: p.agente_nombre ?? null,
-        }));
-    } catch {
-        opcionesPoliza.value = [];
-    }
-};
 
 // ========================================================================
 // FRONTAL: siempre obtenemos todas las alertas y el filtrado es local
@@ -623,7 +552,6 @@ const actualizarAlerta = async () => {
         formData.append('rol', String(rol.value));
         formData.append('IDCliente', String(nombre.value));
         formData.append('instrumento', instrumentoLabel);
-        formData.append('poliza', rol.value === 'Cliente' ? String(poliza.value) : '');
         if (fechaOperacion.value) {
             formData.append('fechaOperacion', String(fechaOperacion.value));
         }
@@ -651,18 +579,14 @@ const actualizarAlerta = async () => {
                 estatus.value = '';
                 rol.value = '';
                 nombre.value = '';
-                agente.value = '';
-                agenteNombre.value = '';
                 instrumento.value = '';
                 moneda.value = '';
-                poliza.value = '';
                 fechaOperacion.value = '';
                 monto.value = '';
                 descripcionOperacion.value = '';
                 razones.value = '';
                 evidencias.value = [];
                 opcionesNombre.value = [];
-                opcionesPoliza.value = [];
                 buscarAlertas();
             },
             onError: (errors) => {
@@ -1226,19 +1150,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                             v-model="fechaOperacion" placeholder="Seleccione fecha de operación" />
                                         <InputError :message="erroresValidacion.fechaOperacion?.[0]" />
                                     </div>
-                                    <template v-if="rol === 'Cliente'">
-                                        <div>
-                                            <Select label="Folio póliza" :options="opcionesPoliza"
-                                                :model-value="poliza" @update:model-value="cambiarPoliza"
-                                                placeholder="Seleccionar folio" id="poliza" name="poliza" />
-                                            <InputError :message="erroresValidacion.poliza?.[0]" />
-                                        </div>
-                                        <div>
-                                            <Input label="Agente" type="text" id="agente" :model-value="agenteNombre"
-                                                placeholder="Se asigna automáticamente al seleccionar la póliza"
-                                                disabled />
-                                        </div>
-                                    </template>
                                     <div>
                                         <Input label="Monto" type="float" id="monto" v-model="monto" prefix="$"
                                             placeholder="Ingresar monto" />
