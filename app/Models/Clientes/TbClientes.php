@@ -89,4 +89,41 @@ class TbClientes extends Model
     {
         return $this->belongsTo(CatOcupacionesGiros::class, 'IDOcupacionGiro', 'IDOcupacionGiro');
     }
+
+    /**
+     * Clave de identidad de la persona para evitar alertas duplicadas cuando
+     * existen registros repetidos del mismo cliente.
+     */
+    public static function claveIdentidadAlerta(self $cliente): string
+    {
+        $rfc = strtoupper(trim((string) ($cliente->RFC ?? '')));
+
+        if ($rfc !== '' && $rfc !== 'XAXX010101000') {
+            return 'RFC:'.$rfc;
+        }
+
+        $curp = strtoupper(trim((string) ($cliente->CURP ?? '')));
+
+        if ($curp !== '') {
+            return 'CURP:'.$curp;
+        }
+
+        $razonSocial = strtoupper(trim((string) ($cliente->RazonSocial ?? '')));
+
+        if ($razonSocial !== '') {
+            return 'RAZON:'.preg_replace('/\s+/', ' ', $razonSocial);
+        }
+
+        $nombre = strtoupper(trim(implode(' ', array_filter([
+            $cliente->Nombre ?? null,
+            $cliente->ApellidoPaterno ?? null,
+            $cliente->ApellidoMaterno ?? null,
+        ], fn ($valor) => trim((string) $valor) !== ''))));
+
+        if ($nombre !== '') {
+            return 'NOMBRE:'.preg_replace('/\s+/', ' ', $nombre);
+        }
+
+        return 'CLIENTE:'.$cliente->IDCliente;
+    }
 }

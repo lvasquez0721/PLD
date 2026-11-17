@@ -1,0 +1,19 @@
+{
+  "RFC": "LOAJ760112QSA",
+  "nombre": "MARIA JOSE",
+  "apellidoPaterno": "LOYOLA",
+  "apellidoMaterno": "ANAYA",
+  "IDTipoPersona": 1,
+  "IDOcupacionGiro": 8832017,
+  "domicilios": [
+    {
+      "calle": "PLATÓN",
+      "noExterior": "419",
+      "colonia": "POLANCO II SECCION",
+      "CP": "11530",
+      "IDEstado": 9,
+      "municipio": "MIGUEL HIDALGO",
+      "localidad": "MIGUEL HIDALGO"
+    }
+  ]
+}

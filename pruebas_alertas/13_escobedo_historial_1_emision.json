@@ -1,0 +1,17 @@
+{
+  "IDCliente": 7013,
+  "FolioPoliza": "POL-ALERTA-13-H1",
+  "FechaEmision": "2026-08-05",
+  "PrimaTotal": 100000,
+  "IDMoneda": "MXN",
+  "FechaInicioVigencia": "2026-08-05",
+  "FechaFinVigencia": "2027-08-05",
+  "GastosEmision": 0,
+  "IDFormaPago": 3,
+  "RFCAgente": "HEAJ9005137N7",
+  "CURPAgente": "HEAJ900513HMCLRRA7",
+  "RazonSocialAgente": "TestRazonSocial123",
+  "EsEndosoCancelacion": false,
+  "PagaTercero": false,
+  "EsquemaDePago": "ANU01"
+}

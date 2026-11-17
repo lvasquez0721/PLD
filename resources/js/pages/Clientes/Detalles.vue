@@ -987,7 +987,8 @@ const opcionesTipoPago = computed(() => {
                                       <div>
                                           <dt class="font-medium text-gray-500 dark:text-neutral-400">Ocupación / Giro</dt>
                                           <dd class="mt-1 text-gray-900 dark:text-neutral-100">
-                                              <span v-if="tieneDato(props.cliente.IDOcupacionGiro)">{{ props.cliente.IDOcupacionGiro }}</span>
+                                              <span v-if="tieneDato(props.cliente.OcupacionGiro)">{{ props.cliente.OcupacionGiro }}</span>
+                                              <span v-else-if="tieneDato(props.cliente.IDOcupacionGiro)">{{ props.cliente.IDOcupacionGiro }}</span>
                                               <span v-else :class="CLASE_DATO_FALTANTE">No cuenta con ocupación/giro</span>
                                           </dd>
                                       </div>

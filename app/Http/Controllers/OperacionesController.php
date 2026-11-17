@@ -11,10 +11,13 @@ use App\Models\TbOperaciones;
 use App\Models\TbOperacionesBeneficiarios;
 use App\Models\TbOperacionesPagos;
 use App\Models\TbPagosAlertas;
+use App\Models\TbPerfilTransaccional;
 use App\Services\NotificacionCumplimientoService;
 use App\Services\PLD\AnalisisPagosService;
-use App\Support\AuditDate;use App\Services\PLD\PrimaCancelacionService;
+use App\Services\PLD\EvaluadorRiesgoCliente;
+use App\Services\PLD\PrimaCancelacionService;
 use App\Services\PLD\ReportesRegulatorios;
+use App\Support\AuditDate;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -292,29 +295,14 @@ class OperacionesController extends Controller
                 }
             }
 
-            // Aviso por cliente de alto riesgo: siempre que el último perfil (tbPerfilTransaccional.Perfil) sea >= 2.
+            // Aviso al oficial de cumplimiento post-commit. Se agrupa en un solo
+            // correo cuando aplica por perfil transaccional >= 2 y/o por
+            // ubicación geográfica de alto riesgo con prima >= parámetro 14.
+            // La regla de ubicación/prima NO genera alertamiento.
             try {
-                $perfilRiesgo = \App\Models\TbPerfilTransaccional::where('IDCliente', $operacion->IDCliente)
-                    ->orderByDesc('IDRegistroPerfil')
-                    ->first();
-                if ($perfilRiesgo && is_numeric($perfilRiesgo->Perfil) && (float) $perfilRiesgo->Perfil >= 2) {
-                    $nombreRiesgo = TbAlertas::nombreParaCliente($cliente) ?? '—';
-                    NotificacionCumplimientoService::enviarRiesgoAlto([
-                        'asunto' => 'Operación de cliente de alto riesgo - PLD - '.$nombreRiesgo,
-                        'idCliente' => $operacion->IDCliente,
-                        'nombre' => $nombreRiesgo,
-                        'IDOperacion' => $operacion->IDOperacion,
-                        'FolioPoliza' => $operacion->FolioPoliza,
-                        'FolioEndoso' => $operacion->FolioEndoso,
-                        'Perfil' => $perfilRiesgo->Perfil,
-                        'IDRegistroPerfil' => $perfilRiesgo->IDRegistroPerfil,
-                        'TotalUbicacion' => $perfilRiesgo->TotalUbicacion,
-                        'TotalEconomico' => $perfilRiesgo->TotalEconomico,
-                        'CalculoOcupacion' => $perfilRiesgo->CalculoOcupacion,
-                        // AUDITORÍA (reversible vía AUDIT_BACKDATE_CORREOS): misma fecha, un año atrás.
-                        'fecha' => AuditDate::now()->format('d/m/Y'),
-                        'hora' => AuditDate::now()->format('H:i'),
-                    ]);
+                $datosAvisoRiesgo = $this->datosAvisoRiesgoOperacion($operacion, $cliente);
+                if ($datosAvisoRiesgo !== null) {
+                    NotificacionCumplimientoService::enviarRiesgoAlto($datosAvisoRiesgo);
                 }
             } catch (\Throwable $e) {
                 \Log::warning('[Notificacion] Error enviando aviso de riesgo alto: '.$e->getMessage());
@@ -391,6 +379,107 @@ class OperacionesController extends Controller
         }
     }
 
+    /**
+     * Construye los datos del aviso de riesgo de una operación. Agrupa el
+     * perfil transaccional alto (>= 2) y la ubicación geográfica de alto riesgo
+     * con prima >= parámetro 14. Este aviso no genera alertas.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function datosAvisoRiesgoOperacion(TbOperaciones $operacion, ?TbClientes $cliente): ?array
+    {
+        $perfilRiesgo = TbPerfilTransaccional::where('IDCliente', $operacion->IDCliente)
+            ->orderByDesc('IDRegistroPerfil')
+            ->first();
+
+        $tienePerfilAlto = $perfilRiesgo
+            && is_numeric($perfilRiesgo->Perfil)
+            && (float) $perfilRiesgo->Perfil >= 2;
+
+        $ubicacionPrima = $cliente
+            ? $this->evaluarUbicacionPrimaRiesgoOperacion($operacion, $cliente)
+            : null;
+
+        if (! $tienePerfilAlto && $ubicacionPrima === null) {
+            return null;
+        }
+
+        $nombre = $cliente ? (TbAlertas::nombreParaCliente($cliente) ?? '—') : '—';
+
+        $datos = [
+            'asunto' => 'Operación de cliente de alto riesgo - PLD - '.$nombre,
+            'idCliente' => $operacion->IDCliente,
+            'nombre' => $nombre,
+            'IDOperacion' => $operacion->IDOperacion,
+            'FolioPoliza' => $operacion->FolioPoliza,
+            'FolioEndoso' => $operacion->FolioEndoso,
+            // AUDITORÍA (reversible vía AUDIT_BACKDATE_CORREOS): misma fecha, un año atrás.
+            'fecha' => AuditDate::now()->format('d/m/Y'),
+            'hora' => AuditDate::now()->format('H:i'),
+        ];
+
+        if ($tienePerfilAlto) {
+            $datos['Perfil'] = $perfilRiesgo->Perfil;
+            $datos['IDRegistroPerfil'] = $perfilRiesgo->IDRegistroPerfil;
+            $datos['TotalUbicacion'] = $perfilRiesgo->TotalUbicacion;
+            $datos['TotalEconomico'] = $perfilRiesgo->TotalEconomico;
+            $datos['CalculoOcupacion'] = $perfilRiesgo->CalculoOcupacion;
+        }
+
+        if ($ubicacionPrima !== null) {
+            $datos['UbicacionRiesgo'] = $ubicacionPrima['zona']['factor'];
+            $datos['PrimaUSD'] = $ubicacionPrima['prima_usd'];
+            $datos['UmbralUSD'] = $ubicacionPrima['umbral_usd'];
+            $datos['PrimaTotal'] = $operacion->PrimaTotal;
+            $datos['IDMoneda'] = $operacion->IDMoneda;
+        }
+
+        return $datos;
+    }
+
+    /**
+     * Evalúa si el cliente tiene domicilio en estado con IndicePaz >= 3 y la
+     * prima de la operación, convertida a USD, alcanza el parámetro 14.
+     *
+     * @return array{zona: array<string, string>, prima_usd: float, umbral_usd: float}|null
+     */
+    private function evaluarUbicacionPrimaRiesgoOperacion(TbOperaciones $operacion, TbClientes $cliente): ?array
+    {
+        $domicilios = $cliente->domicilios()
+            ->get(['IDEstado'])
+            ->map(fn ($domicilio) => ['IDEstado' => $domicilio->IDEstado])
+            ->all();
+
+        if (empty($domicilios)) {
+            return null;
+        }
+
+        $zona = app(EvaluadorRiesgoCliente::class)->evaluarZonaGeografica($domicilios);
+
+        if ($zona === null) {
+            return null;
+        }
+
+        $umbralUSD = (float) CatParametriaPLD::getValor(CatParametriaPLD::MONTO_MINIMO_ALERTA, 7500);
+
+        $primaUSD = app(AnalisisPagosService::class)->convertirAUSD(
+            (float) $operacion->PrimaTotal,
+            $operacion->IDMoneda,
+            null,
+            $operacion->FechaEmision
+        );
+
+        if ($primaUSD === null || $primaUSD < $umbralUSD) {
+            return null;
+        }
+
+        return [
+            'zona' => $zona,
+            'prima_usd' => $primaUSD,
+            'umbral_usd' => $umbralUSD,
+        ];
+    }
+
     // -------------
     // PAGO
     public function insertarOperacionPago(Request $request)
@@ -465,7 +554,7 @@ class OperacionesController extends Controller
             }
 
             $conversionMoneda = ['MXN' => 1, 'USD' => 2];
-            $analisisService = new AnalisisPagosService;
+            $analisisService = app(AnalisisPagosService::class);
             $pagosResultado = [];
             $alertasConsolidadas = [];
 
@@ -558,6 +647,15 @@ class OperacionesController extends Controller
                 $evidencias = $analisisService->generarEvidencias($resultadoAnalisis, $pagosOperacionArr);
 
                 foreach ($resultadoAnalisis->alertasGenerar as $alertaData) {
+                    // Una sola alerta "Monto" por operación: si ya existe (por un pago
+                    // previo) no se duplica al registrar pagos posteriores.
+                    if (($alertaData['patron'] ?? '') === AnalisisPagosService::PATRON_MONTO_RELEVANTE
+                        && TbAlertas::where('Patron', AnalisisPagosService::PATRON_MONTO_RELEVANTE)
+                            ->where('IDOperacion', $idOperacion)
+                            ->exists()) {
+                        continue;
+                    }
+
                     $alertaCreada = $this->crearAlerta($operacion, $clienteAnalisis, $alertaData, $evidencias, $pagosOperacion, $resultadoAnalisis, $request->IDFormaPago);
                     $alertasConsolidadas[] = $alertaCreada;
                 }
@@ -752,7 +850,7 @@ class OperacionesController extends Controller
 
         if ($operacion) {
             $montoMinimoUSD = CatParametriaPLD::getMontoMinimoAlerta();
-            $primaTotalUSD = (new AnalisisPagosService)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda, null, $operacion->FechaEmision);
+            $primaTotalUSD = app(AnalisisPagosService::class)->convertirAUSD((float) $operacion->PrimaTotal, $operacion->IDMoneda, null, $operacion->FechaEmision);
 
             if ($primaTotalUSD !== null && $primaTotalUSD < $montoMinimoUSD) {
                 return AnalisisPagosService::ESTATUS_CERRADO;

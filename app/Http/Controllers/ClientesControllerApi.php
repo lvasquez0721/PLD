@@ -224,7 +224,7 @@ class ClientesControllerApi extends Controller
         }
 
         // Evaluar los factores de alto riesgo del cliente: actividad vulnerable (ocupación con
-        // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz = 3), coincidencia
+        // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz >= 3), coincidencia
         // en listas negras (CNSF / UIF) y PPE.
         $evaluadorRiesgo = app(EvaluadorRiesgoCliente::class);
         $datosRiesgo = $evaluadorRiesgo->evaluar(
@@ -370,7 +370,7 @@ class ClientesControllerApi extends Controller
                 $mensajeExito .= '. Nota: El cliente fue marcado como de alto riesgo.';
             }
 
-            if (! empty($alertasGeneradas) || $esPPE) {
+            if (! empty($alertasGeneradas) || $esPPE || $esAltoRiesgo) {
                 try {
                     $this->enviarAvisoCumplimiento(
                         $cliente,
@@ -700,7 +700,7 @@ class ClientesControllerApi extends Controller
             }
 
             // Evaluar los factores de alto riesgo del cliente: actividad vulnerable (ocupación con
-            // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz = 3), coincidencia
+            // NivelRiesgo = 3), zona geográfica (domicilio en estado con IndicePaz >= 3), coincidencia
             // en listas negras (CNSF / UIF) y PPE. El flag se recalcula en cada edición.
             $evaluadorRiesgo = app(EvaluadorRiesgoCliente::class);
             $datosRiesgo = $evaluadorRiesgo->evaluar(
@@ -840,7 +840,7 @@ class ClientesControllerApi extends Controller
             ]);
         }
 
-            if (! empty($alertasGeneradas) || $esPPE) {
+            if (! empty($alertasGeneradas) || $esPPE || $esAltoRiesgo) {
                 try {
                     $this->enviarAvisoCumplimiento(
                         $cliente,
@@ -976,7 +976,7 @@ class ClientesControllerApi extends Controller
         string $razones,
         string $estatus = 'Generado'
     ): TbAlertas {
-        return TbAlertas::create([
+        return TbAlertas::crearParaClienteSiNoExiste([
             'Folio' => null,
             'Patron' => $patron,
             'IDCliente' => $cliente->IDCliente,
@@ -997,7 +997,7 @@ class ClientesControllerApi extends Controller
             'Evidencias' => '',
             'IDReporteOP' => null,
             'IDPago' => null,
-        ]);
+        ], $cliente);
     }
 
     /**
@@ -1090,7 +1090,7 @@ class ClientesControllerApi extends Controller
         }
 
         $asunto = $esAltoRiesgo
-            ? 'Aviso de alertamiento PLD - cliente de alto riesgo - '.$nombreCompleto
+            ? 'Aviso PLD - cliente de alto riesgo - '.$nombreCompleto
             : 'Aviso de detección en listas - PLD - '.$nombreCompleto;
 
         NotificacionCumplimientoService::enviar([

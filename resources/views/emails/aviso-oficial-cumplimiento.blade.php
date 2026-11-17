@@ -21,10 +21,14 @@
                 Le informamos que se registró la {{ $datos['tipo'] ?? 'persona' }}
                 <strong>{{ $datos['nombre'] ?? '—' }}</strong> en la base de datos de persona del PLD
                 y fue detectado en listas de Quién es Quién el {{ $datos['fecha'] ?? '' }} a las {{ $datos['hora'] ?? '' }} hrs.
-            @else
+            @elseif (! empty($patrones))
                 Le informamos que se registró la {{ $datos['tipo'] ?? 'persona' }}
                 <strong>{{ $datos['nombre'] ?? '—' }}</strong> en la base de datos de persona del PLD
                 y se emitieron alertamientos de PLD el {{ $datos['fecha'] ?? '' }} a las {{ $datos['hora'] ?? '' }} hrs.
+            @else
+                Le informamos que se registró la {{ $datos['tipo'] ?? 'persona' }}
+                <strong>{{ $datos['nombre'] ?? '—' }}</strong> en la base de datos de persona del PLD
+                y se identificó un perfil de alto riesgo el {{ $datos['fecha'] ?? '' }} a las {{ $datos['hora'] ?? '' }} hrs.
             @endif
         </p>
 

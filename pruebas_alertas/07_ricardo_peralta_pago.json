@@ -1,0 +1,27 @@
+{
+  "montoPagado": 1000000,
+  "IDFormaPago": 1,
+  "FechaPago": "2026-05-20",
+  "detallePagos": [
+    {
+      "IDMoneda": "MXN",
+      "TipoCambio": 1,
+      "IDCliente": 6941,
+      "PagaTercero": false,
+      "IDOperacion": "{{IDOp_06}}",
+      "folioPoliza": "POL-ALERTA-06",
+      "folioEndoso": null,
+      "detalleMontoPagado": 500000
+    },
+    {
+      "IDMoneda": "MXN",
+      "TipoCambio": 1,
+      "IDCliente": 6941,
+      "PagaTercero": false,
+      "IDOperacion": "{{IDOp_06}}",
+      "folioPoliza": "POL-ALERTA-06",
+      "folioEndoso": null,
+      "detalleMontoPagado": 500000
+    }
+  ]
+}

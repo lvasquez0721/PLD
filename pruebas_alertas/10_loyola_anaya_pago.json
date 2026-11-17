@@ -1,0 +1,17 @@
+{
+  "montoPagado": 450000,
+  "IDFormaPago": 1,
+  "FechaPago": "2026-05-20",
+  "detallePagos": [
+    {
+      "IDMoneda": "MXN",
+      "TipoCambio": 1,
+      "IDCliente": 6942,
+      "PagaTercero": false,
+      "IDOperacion": "{{IDOp_09}}",
+      "folioPoliza": "POL-ALERTA-09",
+      "folioEndoso": null,
+      "detalleMontoPagado": 450000
+    }
+  ]
+}

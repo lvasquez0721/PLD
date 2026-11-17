@@ -39,6 +39,7 @@ class ReporteadorPLDController extends Controller
         $nombreExpr = "CASE WHEN c.IDTipoPersona = 1
             THEN TRIM(CONCAT(COALESCE(c.Nombre,''), ' ', COALESCE(c.ApellidoPaterno,''), ' ', COALESCE(c.ApellidoMaterno,'')))
             ELSE COALESCE(c.RazonSocial,'') END";
+        $tcExpr = $this->tipoCambioLegalExpr('op');
 
         $query = DB::table('tbOperacionesPagos as op')
             ->join('tbOperaciones as o', 'op.IDOperacion', '=', 'o.IDOperacion')
@@ -52,8 +53,8 @@ class ReporteadorPLDController extends Controller
                 'ct.TipoPago',
                 'cf.FormaPago',
                 'op.FechaPago',
-                DB::raw("CASE WHEN op.IDMoneda = 'MXN' THEN op.Monto ELSE op.Monto * op.TipoCambio END as MontoPagadoMXD"),
-                DB::raw("CASE WHEN op.IDMoneda = 'USD' THEN op.Monto ELSE CASE WHEN op.TipoCambio > 0 THEN op.Monto / op.TipoCambio ELSE 0 END END as EquivalentePagadoUSD"),
+                DB::raw("CASE WHEN op.IDMoneda = 'MXN' THEN op.Monto WHEN $tcExpr > 0 THEN op.Monto * $tcExpr ELSE NULL END as MontoPagadoMXD"),
+                DB::raw("CASE WHEN op.IDMoneda = 'USD' THEN op.Monto WHEN $tcExpr > 0 THEN op.Monto / $tcExpr ELSE NULL END as EquivalentePagadoUSD"),
             ])
             ->where('o.IDCliente', $idCliente);
 
@@ -127,6 +128,15 @@ class ReporteadorPLDController extends Controller
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
 
+    /**
+     * Expresión SQL con la FIX aplicable al pago: segunda fecha más reciente
+     * de catTipoCambio anterior a FechaPago (publicada el día hábil anterior).
+     */
+    private function tipoCambioLegalExpr(string $aliasPago): string
+    {
+        return "(SELECT tc.DOFDolar FROM catTipoCambio tc WHERE tc.Fecha < {$aliasPago}.FechaPago ORDER BY tc.Fecha DESC LIMIT 1 OFFSET 1)";
+    }
+
     private function resolverMonedaLabel(Request $request): string
     {
         $mxn = $request->input('monedaMXN', '0') === '1';
@@ -157,8 +167,9 @@ class ReporteadorPLDController extends Controller
 
         $montoAcumUSD = CatParametriaPLD::getReporteadorMontoAcumulado();
 
-        $mxdExpr = "CASE WHEN op.IDMoneda = 'MXN' THEN op.Monto ELSE op.Monto * op.TipoCambio END";
-        $usdExpr = "CASE WHEN op.IDMoneda = 'USD' THEN op.Monto ELSE CASE WHEN op.TipoCambio > 0 THEN op.Monto / op.TipoCambio ELSE 0 END END";
+        $tcExpr = $this->tipoCambioLegalExpr('op');
+        $mxdExpr = "CASE WHEN op.IDMoneda = 'MXN' THEN op.Monto WHEN $tcExpr > 0 THEN op.Monto * $tcExpr ELSE NULL END";
+        $usdExpr = "CASE WHEN op.IDMoneda = 'USD' THEN op.Monto WHEN $tcExpr > 0 THEN op.Monto / $tcExpr ELSE NULL END";
         $nombreExpr = "CASE WHEN c.IDTipoPersona = 1
             THEN TRIM(CONCAT(COALESCE(c.Nombre,''), ' ', COALESCE(c.ApellidoPaterno,''), ' ', COALESCE(c.ApellidoMaterno,'')))
             ELSE COALESCE(c.RazonSocial,'') END";
@@ -241,7 +252,8 @@ class ReporteadorPLDController extends Controller
         // Umbral acumulado en USD en modo individual → subquery por cliente calificado
         if ($filtros['usdAcum']) {
             $acumUSD = $montoAcumUSD;
-            $query->whereIn('o.IDCliente', function ($sub) use ($acumUSD, $tipoPersona, $monedaMXN, $monedaUSD, $fechaInicio, $fechaFin) {
+            $tcExpr2 = $this->tipoCambioLegalExpr('op2');
+            $query->whereIn('o.IDCliente', function ($sub) use ($acumUSD, $tipoPersona, $monedaMXN, $monedaUSD, $fechaInicio, $fechaFin, $tcExpr2) {
                 $sub->select('o2.IDCliente')
                     ->from('tbOperacionesPagos as op2')
                     ->join('tbOperaciones as o2', 'op2.IDOperacion', '=', 'o2.IDOperacion')
@@ -255,7 +267,7 @@ class ReporteadorPLDController extends Controller
                 if ($fechaInicio && $fechaFin) $sub->whereBetween('op2.FechaPago', [$fechaInicio, $fechaFin]);
 
                 $sub->havingRaw(
-                    "SUM(CASE WHEN op2.IDMoneda = 'USD' THEN op2.Monto ELSE CASE WHEN op2.TipoCambio > 0 THEN op2.Monto / op2.TipoCambio ELSE 0 END END) >= ?",
+                    "SUM(CASE WHEN op2.IDMoneda = 'USD' THEN op2.Monto WHEN $tcExpr2 > 0 THEN op2.Monto / $tcExpr2 ELSE NULL END) >= ?",
                     [$acumUSD]
                 );
             });

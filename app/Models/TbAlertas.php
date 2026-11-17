@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Clientes\TbClientes;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 
 class TbAlertas extends Model
 {
@@ -19,6 +21,7 @@ class TbAlertas extends Model
     protected $fillable = [
         'Folio',
         'Patron',
+        'ActividadVulnerableUnica',
         'IDCliente',
         'Cliente',
         'Poliza',
@@ -49,6 +52,82 @@ class TbAlertas extends Model
     public function pagosAlertas()
     {
         return $this->hasMany(TbPagosAlertas::class, 'IDRegistroAlerta', 'IDRegistroAlerta');
+    }
+
+    /**
+     * Clave única para alertas de Actividad vulnerable por identidad de persona.
+     */
+    public static function claveActividadVulnerable(TbClientes $cliente): string
+    {
+        return hash('sha256', TbClientes::claveIdentidadAlerta($cliente));
+    }
+
+    /**
+     * Crea una alerta de nivel cliente solo si no existe otra del mismo patrón
+     * para el mismo cliente o, en Actividad vulnerable, para la misma persona.
+     * Evita duplicados en ediciones, reintentos y clientes repetidos.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function crearParaClienteSiNoExiste(array $attributes, ?TbClientes $cliente = null): self
+    {
+        $idCliente = $attributes['IDCliente'] ?? null;
+        $patron = $attributes['Patron'] ?? null;
+
+        if ($idCliente === null || $patron === null || trim((string) $patron) === '') {
+            return static::create($attributes);
+        }
+
+        if ($cliente === null) {
+            $cliente = TbClientes::find($idCliente);
+        }
+
+        $esActividadVulnerable = $cliente !== null
+            && strcasecmp(trim((string) $patron), 'Actividad vulnerable') === 0;
+
+        if ($esActividadVulnerable) {
+            $clave = self::claveActividadVulnerable($cliente);
+            $attributes['ActividadVulnerableUnica'] = $clave;
+
+            $existente = static::query()
+                ->where('ActividadVulnerableUnica', $clave)
+                ->orderBy('IDRegistroAlerta')
+                ->first();
+
+            if ($existente) {
+                return $existente;
+            }
+
+            try {
+                return static::create($attributes);
+            } catch (QueryException $e) {
+                if (($e->errorInfo[1] ?? null) === 1062 || $e->getCode() === '23000') {
+                    $existente = static::query()
+                        ->where('ActividadVulnerableUnica', $clave)
+                        ->orderBy('IDRegistroAlerta')
+                        ->first();
+
+                    if ($existente) {
+                        return $existente;
+                    }
+                }
+
+                throw $e;
+            }
+        }
+
+        $existente = static::query()
+            ->where('IDCliente', $idCliente)
+            ->where('Patron', $patron)
+            ->whereNull('IDOperacion')
+            ->orderBy('IDRegistroAlerta')
+            ->first();
+
+        if ($existente) {
+            return $existente;
+        }
+
+        return static::create($attributes);
     }
 
     /**

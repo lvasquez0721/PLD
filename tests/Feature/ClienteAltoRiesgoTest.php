@@ -10,8 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Valida la evaluación de factores de alto riesgo del cliente:
- *  - Actividad vulnerable (catOcupacionesGiros.NivelRiesgo = 3)
- *  - Zona geográfica (catEstados.IndicePaz = 3)
+ *  - Actividad vulnerable (catOcupacionesGiros.NivelRiesgo = 3), resolviendo
+ *    la ocupación por CVE_GIRO o por IDOcupacionGiro.
+ *  - Zona geográfica (catEstados.IndicePaz >= 3): marca alto riesgo y envía
+ *    correo, pero no genera alerta.
  *  - Coincidencia en listas negras (CNSF / UIF) y PPE
  */
 beforeEach(function () {
@@ -36,6 +38,19 @@ test('la ocupación con NivelRiesgo 3 genera el patrón Actividad vulnerable', f
         ->and($resultado['razones'])->toContain('NivelRiesgo = 3');
 });
 
+test('la ocupación se resuelve por CVE_GIRO como se guarda en tbClientes', function () {
+    $ocupacion = CatOcupacionesGiros::where('NivelRiesgo', '3')->first();
+
+    expect($ocupacion)->not->toBeNull()
+        ->and($ocupacion->CVE_GIRO)->not->toBeEmpty();
+
+    $resultado = $this->evaluador->evaluarOcupacion($ocupacion->CVE_GIRO);
+
+    expect($resultado)->not->toBeNull()
+        ->and($resultado['patron'])->toBe(EvaluadorRiesgoCliente::PATRON_ACTIVIDAD_VULNERABLE)
+        ->and($resultado['descripcion'])->toContain($ocupacion->OcupacionGiro);
+});
+
 test('la ocupación con NivelRiesgo distinto de 3 no genera alerta', function () {
     $ocupacion = CatOcupacionesGiros::where('NivelRiesgo', '1')->first();
 
@@ -43,7 +58,7 @@ test('la ocupación con NivelRiesgo distinto de 3 no genera alerta', function ()
         ->and($this->evaluador->evaluarOcupacion($ocupacion->IDOcupacionGiro))->toBeNull();
 });
 
-test('un domicilio en estado con IndicePaz 3 genera el patrón Zona geografica', function () {
+test('un domicilio en estado con IndicePaz 3 genera el factor Zona geografica', function () {
     $estado = CatEstados::where('IndicePaz', '3')->first();
 
     expect($estado)->not->toBeNull();
@@ -54,16 +69,36 @@ test('un domicilio en estado con IndicePaz 3 genera el patrón Zona geografica',
 
     expect($resultado)->not->toBeNull()
         ->and($resultado['patron'])->toBe(EvaluadorRiesgoCliente::PATRON_ZONA_GEOGRAFICA)
-        ->and($resultado['razones'])->toContain('IndicePaz = 3');
+        ->and($resultado['razones'])->toContain('mayor o igual a 3');
 });
 
-test('un domicilio en estado con IndicePaz distinto de 3 no genera alerta', function () {
-    $estado = CatEstados::where('IndicePaz', '!=', '3')->first();
+test('el umbral de IndicePaz considera igual o mayor a 3', function () {
+    $metodo = new ReflectionMethod($this->evaluador, 'esIndicePazAlto');
+
+    expect($metodo->invoke($this->evaluador, '3'))->toBeTrue()
+        ->and($metodo->invoke($this->evaluador, '4.1'))->toBeTrue()
+        ->and($metodo->invoke($this->evaluador, '2.9'))->toBeFalse();
+});
+
+test('un domicilio en estado con IndicePaz menor a 3 no genera factor', function () {
+    $estado = CatEstados::where('IndicePaz', '<', '3')->first();
 
     expect($estado)->not->toBeNull()
         ->and($this->evaluador->evaluarZonaGeografica([
             ['IDEstado' => $estado->IDEstado],
         ]))->toBeNull();
+});
+
+test('la zona geográfica de alto riesgo marca alto riesgo pero no genera alerta', function () {
+    $estado = CatEstados::where('IndicePaz', '>=', '3')->first();
+
+    expect($estado)->not->toBeNull();
+
+    $resultado = $this->evaluador->evaluar(null, [['IDEstado' => $estado->IDEstado]], false, false);
+
+    expect($resultado['esAltoRiesgo'])->toBeTrue()
+        ->and($resultado['factores'])->toHaveCount(1)
+        ->and($resultado['alertas'])->toBeEmpty();
 });
 
 test('la coincidencia en listas negras y el PPE marcan al cliente de alto riesgo', function () {
@@ -82,9 +117,9 @@ test('un cliente sin factores no es de alto riesgo', function () {
         ->and($resultado['alertas'])->toBeEmpty();
 });
 
-test('la ocupación vulnerable y el domicilio de alto riesgo generan ambos patrones', function () {
+test('la ocupación vulnerable genera alerta y la zona de alto riesgo solo suma factor', function () {
     $ocupacion = CatOcupacionesGiros::where('NivelRiesgo', '3')->first();
-    $estado = CatEstados::where('IndicePaz', '3')->first();
+    $estado = CatEstados::where('IndicePaz', '>=', '3')->first();
 
     $resultado = $this->evaluador->evaluar(
         $ocupacion->IDOcupacionGiro,
@@ -94,10 +129,10 @@ test('la ocupación vulnerable y el domicilio de alto riesgo generan ambos patro
     );
 
     expect($resultado['esAltoRiesgo'])->toBeTrue()
-        ->and($resultado['alertas'])->toHaveCount(2)
+        ->and($resultado['factores'])->toHaveCount(2)
+        ->and($resultado['alertas'])->toHaveCount(1)
         ->and(array_column($resultado['alertas'], 'patron'))->toBe([
             EvaluadorRiesgoCliente::PATRON_ACTIVIDAD_VULNERABLE,
-            EvaluadorRiesgoCliente::PATRON_ZONA_GEOGRAFICA,
         ]);
 });
 

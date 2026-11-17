@@ -13,9 +13,13 @@ use Illuminate\Support\Facades\Log;
  *
  * Factores evaluados:
  *  - Actividad vulnerable: la ocupación/giro tiene NivelRiesgo = 3.
- *  - Zona geográfica: al menos un domicilio está en un estado con IndicePaz = 3.
+ *  - Zona geográfica: al menos un domicilio está en un estado con IndicePaz >= 3.
  *  - Coincidencia en listas negras (CNSF / UIF).
  *  - Persona políticamente expuesta (PPE).
+ *
+ * Solo la actividad vulnerable genera una alerta de nivel cliente. La zona
+ * geográfica marca al cliente como alto riesgo y dispara el correo al oficial,
+ * pero no genera alertamiento.
  */
 class EvaluadorRiesgoCliente
 {
@@ -34,7 +38,8 @@ class EvaluadorRiesgoCliente
     /**
      * Evalúa la ocupación/giro del cliente.
      *
-     * @param  int|null  $idOcupacionGiro  IDOcupacionGiro recibido en el JSON.
+     * @param  int|string|null  $idOcupacionGiro  Valor almacenado en tbClientes.IDOcupacionGiro
+     *                                            (puede ser CVE_GIRO o IDOcupacionGiro).
      * @return array{patron: string, descripcion: string, razones: string, factor: string}|null
      */
     public function evaluarOcupacion($idOcupacionGiro): ?array
@@ -44,7 +49,7 @@ class EvaluadorRiesgoCliente
         }
 
         try {
-            $ocupacion = CatOcupacionesGiros::find($idOcupacionGiro);
+            $ocupacion = CatOcupacionesGiros::buscarPorReferencia($idOcupacionGiro);
         } catch (\Throwable $e) {
             Log::warning('No se pudo leer catOcupacionesGiros para evaluar el riesgo del cliente: '.$e->getMessage());
 
@@ -74,7 +79,7 @@ class EvaluadorRiesgoCliente
     }
 
     /**
-     * Evalúa los domicilios del cliente buscando estados con IndicePaz = 3.
+     * Evalúa los domicilios del cliente buscando estados con IndicePaz >= 3.
      *
      * @param  array<int, array<string, mixed>>  $domicilios  Domicilios con IDEstado ya resuelto.
      * @return array{patron: string, descripcion: string, razones: string, factor: string}|null
@@ -123,9 +128,9 @@ class EvaluadorRiesgoCliente
 
         return [
             'patron' => self::PATRON_ZONA_GEOGRAFICA,
-            'descripcion' => 'Zona geografica detectada: el cliente tiene domicilio(s) en estados con IndicePaz = '.self::INDICE_PAZ_ALTO.' ('.$listaEstados.').',
-            'razones' => 'El cliente tiene domicilio(s) registrado(s) en estados considerados de alto riesgo geográfico (IndicePaz = '.self::INDICE_PAZ_ALTO.'): '.$listaEstados.'.',
-            'factor' => self::PATRON_ZONA_GEOGRAFICA.': domicilio en '.$listaEstados.' (IndicePaz = '.self::INDICE_PAZ_ALTO.').',
+            'descripcion' => 'Zona geografica detectada: el cliente tiene domicilio(s) en estados con IndicePaz mayor o igual a '.self::INDICE_PAZ_ALTO.' ('.$listaEstados.').',
+            'razones' => 'El cliente tiene domicilio(s) registrado(s) en estados considerados de alto riesgo geográfico (IndicePaz mayor o igual a '.self::INDICE_PAZ_ALTO.'): '.$listaEstados.'.',
+            'factor' => self::PATRON_ZONA_GEOGRAFICA.': domicilio en '.$listaEstados.' (IndicePaz mayor o igual a '.self::INDICE_PAZ_ALTO.').',
         ];
     }
 
@@ -171,7 +176,8 @@ class EvaluadorRiesgoCliente
 
         $zona = $this->evaluarZonaGeografica($domicilios);
         if ($zona !== null) {
-            $alertas[] = $zona;
+            // La zona geográfica solo marca alto riesgo y dispara el correo;
+            // no genera alertamiento (solo la actividad vulnerable lo hace).
             $factores[] = $zona['factor'];
         }
 
@@ -216,6 +222,6 @@ class EvaluadorRiesgoCliente
             return false;
         }
 
-        return (float) $indicePaz === (float) self::INDICE_PAZ_ALTO;
+        return (float) $indicePaz >= (float) self::INDICE_PAZ_ALTO;
     }
 }

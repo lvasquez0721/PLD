@@ -353,6 +353,9 @@ class ClientesController extends Controller
 
         abort_unless($cliente->TipoPersona === $this->tipoPersona, 404);
 
+        $ocupacionGiro = CatOcupacionesGiros::buscarPorReferencia($cliente->IDOcupacionGiro);
+        $cliente->setAttribute('OcupacionGiro', $ocupacionGiro?->OcupacionGiro);
+
         $domicilios = TbClientesDomicilio::with('estado')
             ->where('IDCliente', $cliente->IDCliente)
             ->get();

@@ -1,0 +1,18 @@
+{
+  "IDCliente": "{{IDCliente}}",
+  "FolioPoliza": "POL-MONTO-MULTI-001",
+  "FolioEndoso": null,
+  "FechaEmision": "2026-11-10",
+  "PrimaTotal": 300000,
+  "IDMoneda": "MXN",
+  "FechaInicioVigencia": "2026-11-10",
+  "FechaFinVigencia": "2027-11-10",
+  "GastosEmision": 0,
+  "IDFormaPago": "3",
+  "RFCAgente": "HEAJ9005137N7",
+  "CURPAgente": "HEAJ900513HMCLRRA7",
+  "RazonSocialAgente": "TestRazonSocial123",
+  "EsEndosoCancelacion": false,
+  "PagaTercero": false,
+  "EsquemaDePago": "ANU01"
+}

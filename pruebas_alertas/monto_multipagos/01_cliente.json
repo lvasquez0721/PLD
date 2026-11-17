@@ -1,0 +1,22 @@
+{
+  "RFC": "MPM261112AB1",
+  "nombre": "PRUEBA PLD",
+  "apellidoPaterno": "MONTO",
+  "apellidoMaterno": "MULTIPAGOS",
+  "IDTipoPersona": 1,
+  "IDNacionalidad": "MX",
+  "IDOcupacionGiro": 1,
+  "domicilios": [
+    {
+      "calle": "CALLE PRUEBA PLD",
+      "noExterior": "123",
+      "noInterior": null,
+      "colonia": "COLONIA PRUEBA",
+      "CP": "22000",
+      "IDEstado": "2",
+      "municipio": "TIJUANA",
+      "localidad": "TIJUANA",
+      "telefono": "5555555555"
+    }
+  ]
+}

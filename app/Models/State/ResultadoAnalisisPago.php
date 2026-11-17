@@ -23,6 +23,8 @@ class ResultadoAnalisisPago
 
     public float $tipoCambioUSD = 0;
 
+    public array $detallesMontoRelevante = [];
+
     // Alerta 4: PPE
     public bool $esPPE = false;
 

@@ -1,0 +1,19 @@
+{
+  "RFC": "PELR810722Q83",
+  "nombre": "RICARDO JOSE",
+  "apellidoPaterno": "PERALTA",
+  "apellidoMaterno": "PEREZ",
+  "IDTipoPersona": 1,
+  "IDOcupacionGiro": 8219033,
+  "domicilios": [
+    {
+      "calle": "AV. ADOLFO LÓPEZ MATEOS",
+      "noExterior": "556",
+      "colonia": "LA MAGDALENA",
+      "CP": "61190",
+      "IDEstado": 11,
+      "municipio": "HIDALGO",
+      "localidad": "HIDALGO"
+    }
+  ]
+}

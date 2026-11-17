@@ -1,0 +1,52 @@
+{
+  "instrucciones": [
+    "Ejecutar cada elemento de 'peticiones' en orden contra POST /api/insertar/operacion-pago.",
+    "Reemplazar {{IDCliente}} y {{IDOperacion}} con los valores devueltos por 01_cliente.json y 02_operacion.json.",
+    "Cada petición debe enviarse por separado: IDFormaPago aplica a todos los detalles de una misma petición.",
+    "Los pagos están en MXN y usan la FechaPago 2026-11-10. La FIX aplicable conforme al DOF es 18.6297 MXN/USD (determinada el 2026-11-06 y publicada el 2026-11-09)."
+  ],
+  "peticiones": [
+    {
+      "orden": 1,
+      "resultado_esperado": "Pago en transferencia de 100,000 MXN (5,367.77 USD). No genera alerta Monto.",
+      "body": {
+        "montoPagado": 100000,
+        "IDFormaPago": "3",
+        "FechaPago": "2026-11-10",
+        "detallePagos": [
+          {
+            "IDMoneda": "MXN",
+            "TipoCambio": 18.6297,
+            "IDCliente": "{{IDCliente}}",
+            "PagaTercero": false,
+            "IDOperacion": "{{IDOperacion}}",
+            "folioPoliza": "POL-MONTO-MULTI-001",
+            "folioEndoso": null,
+            "detalleMontoPagado": 100000
+          }
+        ]
+      }
+    },
+    {
+      "orden": 2,
+      "resultado_esperado": "Pago en efectivo de 150,000 MXN (8,051.66 USD). Genera la alerta Monto porque 8,051.66 >= 7,500 USD, aunque la operación ya tenga 2 pagos.",
+      "body": {
+        "montoPagado": 150000,
+        "IDFormaPago": "1",
+        "FechaPago": "2026-11-10",
+        "detallePagos": [
+          {
+            "IDMoneda": "MXN",
+            "TipoCambio": 18.6297,
+            "IDCliente": "{{IDCliente}}",
+            "PagaTercero": false,
+            "IDOperacion": "{{IDOperacion}}",
+            "folioPoliza": "POL-MONTO-MULTI-001",
+            "folioEndoso": null,
+            "detalleMontoPagado": 150000
+          }
+        ]
+      }
+    }
+  ]
+}

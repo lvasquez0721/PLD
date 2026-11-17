@@ -141,9 +141,10 @@ class RegistroPLDService
     public function notificar(TbClientes $persona, array $resultado): void
     {
         $esPPE = (bool) ($resultado['esPPE'] ?? false);
+        $esAltoRiesgo = (bool) ($resultado['esAltoRiesgo'] ?? false);
         $alertasGeneradas = $resultado['alertasGeneradas'] ?? [];
 
-        if (empty($alertasGeneradas) && ! $esPPE) {
+        if (empty($alertasGeneradas) && ! $esPPE && ! $esAltoRiesgo) {
             return;
         }
 
@@ -258,7 +259,7 @@ class RegistroPLDService
         string $descripcion,
         string $razones
     ): TbAlertas {
-        return TbAlertas::create([
+        return TbAlertas::crearParaClienteSiNoExiste([
             'Folio' => null,
             'Patron' => $patron,
             'IDCliente' => $persona->IDCliente,
@@ -277,7 +278,7 @@ class RegistroPLDService
             'Razones' => $razones,
             'Evidencias' => '',
             'IDReporteOP' => null,
-        ]);
+        ], $persona);
     }
 
     /**
@@ -332,7 +333,7 @@ class RegistroPLDService
         }
 
         $asunto = $esAltoRiesgo
-            ? 'Aviso de alertamiento PLD - sujeto de alto riesgo - '.$nombreCompleto
+            ? 'Aviso PLD - sujeto de alto riesgo - '.$nombreCompleto
             : 'Aviso de detección en listas - PLD - '.$nombreCompleto;
 
         NotificacionCumplimientoService::enviar([
